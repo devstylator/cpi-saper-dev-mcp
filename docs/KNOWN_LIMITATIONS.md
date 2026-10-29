@@ -80,6 +80,10 @@ mappings are supported for reading only). The mapping runtime is SAP-proprietary
 | `cpi_update_resource` needs a file name that is unique on the tenant; the tenant lists resources by name only (a script and its `v2/` copy share a name) | Such files need a full push | `cpi_push` | Measured |
 | The deploy gate compares guideline findings with the deployed version; an iFlow that is not deployed yet has no baseline | With `guidelines: block`, every High finding blocks its first deploy | Fix the findings, or use `warn` | By design |
 | `cpi_trace` changes the iFlow's log level through an undocumented endpoint; TRACE ends after 10 minutes by itself, and the level is not set back | Messages after those 10 minutes are logged at the previous level only if SAP restores it | — | Measured (expiry), assumed (restore) |
+| Without `"login": "user"`, the tenant records the service key's client id (e.g. `sb-…\|it!b196`) as the changing user; CPI takes the user from the OAuth token and offers no "on behalf of" field | Changes cannot be traced to a person | `"login": "user"` with an authorization-code service instance | Measured |
+| The grant types of a service instance cannot be changed after it is created ("Updating the grant type is not allowed") | An existing instance cannot be switched to user login | Create a new instance | Measured |
+| Without the `refresh_token` grant, a user login lasts one token lifetime (`token-validity`, 12 h by default) | Log in again with `cpi_login` | Create the instance with both grant types | Measured |
+| Calls to deployed iFlows (`cpi_send_message`, the script runner) still use the technical client of `runtimeKey` | Message logs show the client as sender | — | Current state |
 | Pushing a new iFlow (one that does not exist on the tenant) is not supported yet | — | Create it in the designer, pull, then edit | Current state |
 
 ## Tenant access — added 2026-10-27/28

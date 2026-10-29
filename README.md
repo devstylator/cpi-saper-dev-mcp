@@ -29,6 +29,7 @@ adds no generic file tools.
 
 | Tool | What it does | Status |
 |---|---|---|
+| `cpi_login` | Log in with your own SAP account, so the tenant records **you** (not a technical client) as the one who changed or deployed content ([how to set it up](docs/CONFIGURATION.md#recording-changes-under-your-name)) | **Available** |
 | `cpi_tenants` | Configured tenants and what the agent may do on each (read only, or development with writes) | **Available**, v1 |
 | `cpi_packages` | List packages; a package can be named by its ID or its display name | **Available**, v1 |
 | `cpi_artifacts` | List the iFlows of a package with version and runtime status | **Available**, v1 |
@@ -92,7 +93,8 @@ adds no generic file tools.
 read-only content. A push stops when the iFlow is open in the designer or changed on the tenant since the pull. Push,
 deploy and undeploy ask **you** for confirmation through the MCP client (MCP *elicitation*, showing the actual
 changes); clients that cannot ask are refused rather than skipping the question. Every change is written to an audit
-log, and credential values are never shown to the agent.
+log, and credential values are never shown to the agent. With `"login": "user"`, the tenant records your own user
+for every change instead of the service key's technical client.
 
 ## Try the development version
 

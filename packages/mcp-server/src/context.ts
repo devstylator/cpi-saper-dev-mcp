@@ -2,7 +2,8 @@ import { statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  CpiClient, describe, downloadIflow, iflowFromZip, loadCatalog, loadServiceKey, locateIflow, readIflow, selectTenant, Workspace,
+  CpiClient, describe, downloadIflow, iflowFromZip, loadCatalog, loadServiceKey, locateIflow, readIflow, selectTenant, TokenStore,
+  userTokenProvider, Workspace,
   type Catalog, type Config, type Step, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
 import { currentConfig } from './project.js';
@@ -29,9 +30,24 @@ export async function context(server: McpServer): Promise<ToolContext> {
   return { config, workspace: new Workspace(config.workspace, join(dirname(config.path), 'state')) };
 }
 
+/** Where a tenant's user login is kept: tokens/ next to the configuration (not in state/, which holds pulled iFlows) */
+export const tokenStoreOf = (config: Config, tenant: TenantConfig) =>
+  new TokenStore(join(dirname(config.path), 'tokens', `${tenant.name}.json`));
+
+const userClients = new Map<string, CpiClient>();
+
+/** OData API client: the user's login for tenants with login "user", else the service key's technical client */
 export function tenantApi(config: Config, name?: string): { tenant: TenantConfig; client: CpiClient } {
   const tenant = selectTenant(config, name);
-  return { tenant, client: clientFor(tenant.apiKey) };
+  if (tenant.login !== 'user') return { tenant, client: clientFor(tenant.apiKey) };
+  const cacheKey = `${config.path}#${tenant.name}`;
+  let client = userClients.get(cacheKey);
+  if (!client) {
+    const key = loadServiceKey(tenant.apiKey);
+    client = new CpiClient(key, fetch, userTokenProvider(key, tokenStoreOf(config, tenant), tenant.name));
+    userClients.set(cacheKey, client);
+  }
+  return { tenant, client };
 }
 
 /** Client for the tenant's deployed endpoints (service key with plan integration-flow) */

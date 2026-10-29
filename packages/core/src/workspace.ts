@@ -91,7 +91,10 @@ export class Workspace {
       const tdir = join(this.stateDir, tenant);
       if (!statSync(tdir).isDirectory()) continue;
       for (const f of readdirSync(tdir).filter((n) => n.endsWith('.json'))) {
-        const st = JSON.parse(readFileSync(join(tdir, f), 'utf8')) as PulledState;
+        let st: Partial<PulledState>;
+        try { st = JSON.parse(readFileSync(join(tdir, f), 'utf8')) as Partial<PulledState>; } catch { continue; }
+        // only pulled-state records count (other JSON files may live here)
+        if (typeof st.dir !== 'string' || typeof st.tenant !== 'string' || typeof st.iflowId !== 'string') continue;
         if (resolve(st.dir) === resolve(dir)) return this.pulledState(st.tenant, st.iflowId);
       }
     }

@@ -29,6 +29,8 @@ The first one found is used:
 | `allowedPackages` | Packages the agent may change, by ID or display name, `*` as wildcard (for example `["Z01*"]`). Other packages stay read-only even on a development tenant | all |
 | `scriptRunner` | Path of the [script runner iFlow](https://github.com/devstylator/CPI_Iflow_GroovyScriptExe) on this tenant (for example `/v2/test/script`). Without it, `script_run` is off. Only allowed with `role: development` | off |
 | `guidelines` | Before a deploy: `block` runs SAP's design guideline check and stops on new High findings (High findings the deployed version does not already have; everything counts as new when the iFlow is not deployed); `warn` runs it and reports; `off` skips it | `warn` |
+| `login` | `client`: the agent works as the service key's technical client (client credentials); the tenant records the client id as the one who changed content. `user`: you log in with your own SAP account (`cpi_login`), and the tenant records you; needs a service instance that allows the authorization code grant (see below) | `client` |
+| `loginPort` | Local port SAP's login page returns to (`http://localhost:<port>/callback`); must match the instance's `redirect-uris` | 8765 |
 | `label` | Free text shown to the agent, for example "Personal trial" | — |
 
 ## General settings
@@ -56,6 +58,7 @@ The first one found is used:
       "role": "development",
       "apiKey": "keys/api.json",
       "runtimeKey": "keys/runtime.json",
+      "login": "user",
       "deploy": "manual",
       "allowedPackages": ["Z01*"],
       "scriptRunner": "/v2/test/script",
@@ -69,6 +72,31 @@ The first one found is used:
   "experimental": { "trace": true }
 }
 ```
+
+## Recording changes under your name
+
+With the default `"login": "client"`, Cloud Integration shows the service key's client id (for example
+`sb-…!b141479|it!b196`) as the one who changed, saved or deployed content: the tenant takes the user from the OAuth
+token, and a client-credentials token belongs to the technical client. To have your own user recorded:
+
+1. In the BTP cockpit (or with `cf create-service it-rt api <name> -c params.json`), create a **new** instance of
+   *Process Integration Runtime*, plan `api`, with:
+   ```json
+   {
+     "grant-types": ["authorization_code", "refresh_token"],
+     "redirect-uris": ["http://localhost:8765/**"],
+     "roles": ["…the same roles as your client-credentials instance…"]
+   }
+   ```
+   Grant types cannot be changed on an existing instance (the broker refuses the update), so create a new one.
+   Plain `http` redirect addresses are accepted for `localhost` only.
+2. Create a service key for it and point the tenant's `apiKey` to that file, with `"login": "user"`.
+3. Call `cpi_login` (ask your agent to log you in). Your client opens SAP's login page, or the agent gives you the
+   link. After that, the tenant records your user, with the rights of your own role collections.
+
+Without `refresh_token` in the grant types, a login lasts as long as one token (the instance's `token-validity`,
+12 hours by default); with it, the login is renewed automatically. The login is stored in `tokens/` next to the
+configuration, readable only by you. Calling deployed iFlows (`runtimeKey`) still uses the technical client.
 
 ## Fixed rules (not configurable)
 

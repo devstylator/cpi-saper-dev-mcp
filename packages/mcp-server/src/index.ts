@@ -9,6 +9,7 @@ import { registerUnderstandTools } from './tools/understand.js';
 import { registerEditCheckTools } from './tools/edit-check.js';
 import { registerTenantWriteTools } from './tools/tenant-write.js';
 import { registerTestTools } from './tools/test.js';
+import { registerLoginTools } from './tools/login.js';
 
 const server = new McpServer(
   { name: 'cpi-saper-dev-mcp', version: '0.1.0' },
@@ -28,6 +29,7 @@ registerUnderstandTools(server);
 registerEditCheckTools(server);
 registerTenantWriteTools(server);
 registerTestTools(server);
+registerLoginTools(server);
 
 await server.connect(new StdioServerTransport());
 console.error('cpi-saper-dev-mcp: ready (stdio)');

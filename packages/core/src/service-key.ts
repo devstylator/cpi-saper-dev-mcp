@@ -8,6 +8,8 @@ export interface ServiceKey {
   /** tenant host (plan "api": management host; plan "integration-flow": runtime host), no trailing slash */
   url: string;
   tokenurl: string;
+  /** OAuth authorize endpoint (keys of instances that allow the authorization code grant) */
+  authorizationurl?: string;
 }
 
 const FIELDS = ['clientid', 'clientsecret', 'url', 'tokenurl'] as const;
@@ -25,6 +27,7 @@ export function loadServiceKey(path: string): ServiceKey {
     clientsecret: o.clientsecret as string,
     url: (o.url as string).replace(/\/+$/, ''),
     tokenurl: o.tokenurl as string,
+    ...(typeof o.authorizationurl === 'string' ? { authorizationurl: o.authorizationurl } : {}),
   };
 }
 

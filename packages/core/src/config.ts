@@ -17,6 +17,8 @@ const TenantSchema = z.object({
   allowedPackages: z.array(z.string().min(1)).min(1).optional(),
   scriptRunner: z.string().startsWith('/').optional(),
   guidelines: z.enum(['block', 'warn', 'off']).default('warn'),
+  login: z.enum(['client', 'user']).default('client'),
+  loginPort: z.number().int().min(1024).max(65535).default(8765),
 }).strict();
 
 const ConfigSchema = z.object({
@@ -45,6 +47,10 @@ export interface TenantConfig {
   allowedPackages?: string[];
   scriptRunner?: string;
   guidelines: 'block' | 'warn' | 'off';
+  /** client: the service key's technical client (client credentials); user: the user logs in (cpi_login) */
+  login: 'client' | 'user';
+  /** local port of the login callback; must match the instance's redirect-uris */
+  loginPort: number;
 }
 
 export interface Config {
@@ -127,6 +133,8 @@ export function parseConfig(raw: unknown, path: string, { cwd = process.cwd(), h
       ...(t.allowedPackages !== undefined && { allowedPackages: t.allowedPackages }),
       ...(t.scriptRunner !== undefined && { scriptRunner: t.scriptRunner }),
       guidelines: t.guidelines,
+      login: t.login,
+      loginPort: t.loginPort,
     };
   }
   const names = Object.keys(tenants);

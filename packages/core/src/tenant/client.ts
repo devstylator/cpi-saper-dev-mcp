@@ -71,9 +71,11 @@ export class CpiClient {
   private csrf: string | undefined;
   private cookies = '';
 
-  constructor(readonly key: ServiceKey, private readonly fetchImpl: typeof fetch = fetch) {}
+  /** tokenProvider: tokens of a user login (authorization code grant); default: the key's client credentials */
+  constructor(readonly key: ServiceKey, private readonly fetchImpl: typeof fetch = fetch, private readonly tokenProvider?: () => Promise<string>) {}
 
   async bearer(): Promise<string> {
+    if (this.tokenProvider) return this.tokenProvider();
     if (this.token && this.token.expires > Date.now() + 60_000) return this.token.value;
     const res = await this.fetchImpl(this.key.tokenurl, {
       method: 'POST',

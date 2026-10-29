@@ -1,7 +1,17 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { checkServiceKey, type Config } from '@cpi-saper-dev-mcp/core';
 import { currentConfig } from '../project.js';
+import { tokenStoreOf } from '../context.js';
 import { toolError, toolResult } from '../result.js';
+
+// Who changes are recorded under: the logged-in user, or nobody yet (never token values)
+function userLogin(config: Config, t: Config['tenants'][string]) {
+  const s = tokenStoreOf(config, t).read();
+  if (!s) return { user: null, next: 'call cpi_login' };
+  const expired = !s.refreshToken && (s.expires ?? 0) <= Date.now();
+  return expired ? { user: null, next: 'login expired: call cpi_login' }
+    : { user: s.email ?? s.user ?? '(unknown)', since: s.loggedInAt, ...(s.refreshToken ? {} : { until: new Date(s.expires!).toISOString() }) };
+}
 
 // What the agent sees about the configuration: roles, modes, key state and host. Never key values.
 export function describeConfig(config: Config) {
@@ -16,6 +26,7 @@ export function describeConfig(config: Config) {
       allowedPackages: t.allowedPackages ?? 'all',
       scriptRunner: t.scriptRunner ?? null,
       guidelines: t.guidelines,
+      login: t.login === 'user' ? userLogin(config, t) : 'service key (technical client)',
       apiKey: checkServiceKey(t.apiKey),
       runtimeKey: t.runtimeKey ? checkServiceKey(t.runtimeKey) : { status: 'not configured' },
     })),
