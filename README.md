@@ -187,4 +187,6 @@ For all projects at once, add the server to Copilot's user configuration `~/.cop
 
 ## License
 
-[MIT](LICENSE)
+[Apache License 2.0](LICENSE). Created by Damian Kolasa ([devstylator](https://github.com/devstylator)).
+Free to use, change and share, also commercially; copies and modified versions must keep the [NOTICE](NOTICE)
+file, which credits the original creator, and mark the files they changed.

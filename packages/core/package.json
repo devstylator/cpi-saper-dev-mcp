@@ -2,7 +2,7 @@
   "name": "@cpi-saper-dev-mcp/core",
   "version": "0.1.0",
   "description": "Core library of cpi-saper-dev-mcp: configuration, iFlow model, catalog, tenant client",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
