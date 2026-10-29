@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { checkServiceKey, loadConfig, type Config } from '@cpi-saper-dev-mcp/core';
+import { checkServiceKey, type Config } from '@cpi-saper-dev-mcp/core';
+import { currentConfig } from '../project.js';
 import { toolError, toolResult } from '../result.js';
 
 // What the agent sees about the configuration: roles, modes, key state and host. Never key values.
@@ -38,7 +39,7 @@ export function registerTenantTools(server: McpServer) {
     },
     async () => {
       try {
-        return toolResult(describeConfig(loadConfig()));
+        return toolResult(describeConfig(await currentConfig(server)));
       } catch (e) {
         return toolError(e);
       }

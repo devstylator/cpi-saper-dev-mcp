@@ -14,7 +14,8 @@ read again on every tool call, so changes apply without restarting the server.
 The first one found is used:
 
 1. the path in the environment variable `CPI_MCP_CONFIG`
-2. `.cpi/config.json` in the project folder (keep `.cpi/` out of git: it is next to your service keys)
+2. `.cpi/config.json` in the project folder (keep `.cpi/` out of git: it is next to your service keys). The project
+   folder is the first folder the client reports as open (MCP roots) that has this file, else the server's working folder
 3. `~/.config/cpi-saper-dev-mcp/config.json` (one configuration for all projects)
 
 ## Tenants (`tenants.<name>`)

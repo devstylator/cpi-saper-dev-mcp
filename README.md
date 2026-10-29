@@ -102,12 +102,66 @@ npm install
 npm test            # builds and runs the tests
 ```
 
-Create `.cpi/config.json` in your project folder ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)), then register the
-server in your MCP client. For Claude Code, from your project folder:
+Create `.cpi/config.json` in your project folder ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)), then connect the
+server to your AI client as shown below. In all examples, replace `/path/to/cpi-saper-dev-mcp` with the folder you
+cloned into.
+
+**How the server finds your configuration:** it asks the client which project folders are open (MCP *roots*) and
+uses the first one that contains `.cpi/config.json`. Clients that do not report roots get the server's working
+folder instead. Without a project, it falls back to `~/.config/cpi-saper-dev-mcp/config.json`, or to the file named
+in the environment variable `CPI_MCP_CONFIG`.
+
+### Claude Code
+
+From your project folder:
 
 ```sh
 claude mcp add cpi-saper-dev-mcp -- node /path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js
 ```
+
+### GitHub Copilot in VS Code
+
+Add the server to your project in `.vscode/mcp.json` (create the file if it does not exist):
+
+```json
+{
+  "servers": {
+    "cpi-saper-dev-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
+```
+
+VS Code asks you to trust the server the first time it starts it. The tools are then available to Copilot's agent in
+Copilot Chat. `cwd` makes the project folder the server's working folder, so it finds `.cpi/config.json` even if
+roots are not reported.
+
+VS Code also reads a workspace-root `.mcp.json` in the shared format (the same file Claude Code uses), when the
+setting `chat.mcp.workspaceRootConfig.enabled` is on:
+
+```json
+{
+  "mcpServers": {
+    "cpi-saper-dev-mcp": {
+      "command": "node",
+      "args": ["/path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js"]
+    }
+  }
+}
+```
+
+This format has no working-folder setting; the server then relies on the roots VS Code reports.
+
+### GitHub Copilot CLI and other projects
+
+For all projects at once, add the server to Copilot's user configuration `~/.copilot/mcp-config.json` (or
+`$COPILOT_HOME/mcp-config.json`), with the same `mcpServers` entry as above. Keep a shared configuration in
+`~/.config/cpi-saper-dev-mcp/config.json` (with absolute paths to your service keys); a project's own
+`.cpi/config.json` still takes precedence when the client reports that project as a root.
 
 ## Requirements
 
