@@ -34,7 +34,7 @@ adds no generic file tools.
 | `cpi_artifacts` | List the iFlows of a package with version and runtime status | **Available**, v1 |
 | `cpi_pull` | Download an iFlow into the local workspace (`<workspace>/<package>/<iflow>/`, SAP's file layout); never overwrites local changes unless asked | **Available**, v1 |
 | `cpi_status` | Compare local, last pulled and tenant versions: modified, new, conflict | Planned, v1 |
-| `cpi_runtime_status` | Deployment state and deploy errors, with step IDs translated to step names | Prototyped, v1 |
+| `cpi_runtime_status` | Deployment state and deploy errors, with step IDs translated to step names | **Available**, v1 |
 | `cpi_endpoints` | HTTP endpoint URLs of deployed iFlows | Planned |
 | `cpi_security_material` | Names, types and expiry dates of credentials and keys (never their values) | Planned |
 | `cpi_config_get` | Configured values of externalized parameters | Planned |
@@ -63,38 +63,41 @@ adds no generic file tools.
 | `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters | **Available**, v1 |
 | `xslt_run` | Run an XSLT (1.0–3.0) locally with headers and properties as parameters, like a CPI XSLT Mapping step; errors with line numbers | **Available** |
 | `script_run` | Run one Groovy script on the tenant without deploying (script runner iFlow, development tenants only); Groovy 2.4 or 4 chosen from the script's imports; returns body, headers, properties, console output and what changed | **Available** |
-| `cpi_guidelines` | Run SAP's design guideline check on the tenant (deploys through the API skip it) | Prototyped, v1 |
-| `cpi_check` | Run the tenant's model check ("Check for problems") | Prototyped, v1 |
+| `cpi_guidelines` | Run SAP's design guideline check on the tenant (deploys through the API skip it) | **Available**, v1 |
+| `cpi_check` | Run the tenant's model check ("Check for problems") | **Available**, v1 |
 | `lint` | Local rules for common mistakes, including those SAP's guideline check flags | Planned |
 
 ### Tenant: change (development tenants only)
 
 | Tool | What it does | Status |
 |---|---|---|
-| `cpi_push` | Upload a local iFlow; refuses when the tenant changed since the last pull or the iFlow is locked in the designer | Prototyped (upload), v1 |
-| `cpi_update_resource` | Update one script or mapping file without uploading the whole iFlow | Prototyped, v1 |
-| `cpi_save_version` | Save the iFlow as a new version | Prototyped, v1 |
+| `cpi_push` | Upload a local iFlow; refuses when the tenant changed since the last pull or the iFlow is locked in the designer | **Available**, v1 |
+| `cpi_update_resource` | Update one script or mapping file without uploading the whole iFlow | **Available**, v1 |
+| `cpi_save_version` | Save the iFlow as a new version | **Available**, v1 |
 | `iflow_create` | Create an empty iFlow on the tenant and pull it | Prototyped |
-| `cpi_deploy` | Deploy and wait; errors are reported with step names | Prototyped, v1 |
-| `cpi_undeploy` | Remove a deployed iFlow from the runtime | Planned |
+| `cpi_deploy` | Deploy and wait; errors are reported with step names | **Available**, v1 |
+| `cpi_undeploy` | Remove a deployed iFlow from the runtime | **Available** |
 | `cpi_config_set` | Set externalized parameter values | Planned |
 
 ### Test
 
 | Tool | What it does | Status |
 |---|---|---|
-| `cpi_send_message` | Call a deployed iFlow's HTTP endpoint; returns status, response and the message log ID (also for failed calls) | Prototyped, v1 |
-| `cpi_messages` | Search message processing logs | Prototyped, v1 |
-| `cpi_message` | One message log: status, error, and the processing steps by name | Prototyped, v1 |
-| `cpi_trace` | Body, headers and properties as they entered each step of one message. Uses an undocumented SAP endpoint to switch on tracing, so it sits behind an "experimental" setting | Prototyped |
+| `cpi_send_message` | Call a deployed iFlow's HTTP endpoint; returns status, response and the message log ID (also for failed calls) | **Available**, v1 |
+| `cpi_messages` | Search message processing logs | **Available**, v1 |
+| `cpi_message` | One message log: status, error, and the processing steps by name | **Available**, v1 |
+| `cpi_trace` | Body, headers and properties as they entered each step of one message. Uses an undocumented SAP endpoint to switch on tracing, so it sits behind an "experimental" setting | **Available** |
 
-**Safety:** changes are only allowed on tenants configured as development tenants; deploying asks for confirmation;
-credential values are never shown to the agent.
+**Safety:** changes are only allowed on tenants configured as development tenants, in allowed packages that are not
+read-only content. A push stops when the iFlow is open in the designer or changed on the tenant since the pull. Push,
+deploy and undeploy ask **you** for confirmation through the MCP client (MCP *elicitation*, showing the actual
+changes); clients that cannot ask are refused rather than skipping the question. Every change is written to an audit
+log, and credential values are never shown to the agent.
 
 ## Try the development version
 
 The tools marked **Available** above work: reading packages and iFlows, pulling them, understanding, editing and
-checking them locally, and running XSLT and Groovy scripts. Changing the tenant (push, deploy, test messages) follows next.
+checking them locally, running XSLT and Groovy scripts, and pushing, deploying and testing on a development tenant.
 
 ```sh
 git clone https://github.com/devstylator/cpi-saper-dev-mcp.git

@@ -2,8 +2,8 @@ import { statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  CpiClient, loadCatalog, loadServiceKey, locateIflow, readIflow, selectTenant, Workspace,
-  type Catalog, type Config, type TenantConfig,
+  CpiClient, describe, downloadIflow, iflowFromZip, loadCatalog, loadServiceKey, locateIflow, readIflow, selectTenant, Workspace,
+  type Catalog, type Config, type Step, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
 import { currentConfig } from './project.js';
 
@@ -34,8 +34,39 @@ export function tenantApi(config: Config, name?: string): { tenant: TenantConfig
   return { tenant, client: clientFor(tenant.apiKey) };
 }
 
+/** Client for the tenant's deployed endpoints (service key with plan integration-flow) */
+export function tenantRuntime(config: Config, name?: string): { tenant: TenantConfig; client: CpiClient } {
+  const tenant = selectTenant(config, name);
+  if (!tenant.runtimeKey) throw new Error(`tenant "${tenant.name}" has no "runtimeKey" (service key with plan integration-flow)`);
+  return { tenant, client: clientFor(tenant.runtimeKey) };
+}
+
 export function catalogOf(config: Config): Catalog {
   return config.catalog ? loadCatalog(config.catalog) : loadCatalog();
+}
+
+/**
+ * Step id -> "name (#n)" for an iFlow, to translate ids in deploy errors and message logs. Uses the local copy
+ * when the iFlow was pulled, else the tenant's current design-time content.
+ */
+export async function stepNamesFor(ctx: ToolContext, client: CpiClient, iflowId: string): Promise<(id: string) => string | undefined> {
+  let doc;
+  try {
+    doc = readIflow(locateIflow(iflowId, ctx.workspace.root));
+  } catch {
+    try { doc = iflowFromZip(await downloadIflow(client, iflowId)); } catch { return () => undefined; }
+  }
+  const names = new Map<string, string>();
+  const walk = (steps: Step[]) => {
+    for (const s of steps) {
+      names.set(s.id, `${s.name || s.kind || s.id}${s.no ? ` (#${s.no})` : ''}`);
+      if (s.steps) walk(s.steps);
+    }
+  };
+  const model = describe(doc);
+  for (const p of model.processes) walk(p.steps);
+  for (const a of model.adapters) names.set(a.id, `${a.name ?? a.adapter ?? a.id} adapter`);
+  return (id) => names.get(id);
 }
 
 /** An iFlow in the workspace: folder, .iflw file, or iFlow id */

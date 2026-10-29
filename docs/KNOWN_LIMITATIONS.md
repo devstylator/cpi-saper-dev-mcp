@@ -71,6 +71,17 @@ mappings are supported for reading only). The mapping runtime is SAP-proprietary
 | Layout changes are counted, not listed | Pure layout edits show only as a count | Use the designer or the diagram view | By design |
 | `#n` step numbers exist only in tool output and shift when steps are inserted | A number is valid for one view of the iFlow only | Tools refer to steps by id | By design |
 
+## Changing the tenant — added 2026-10-29
+
+| Difference | Impact | Workaround | Basis |
+|---|---|---|---|
+| Confirmations need a client with MCP elicitation (e.g. Claude Code 2.1.76+, VS Code with Copilot); other clients are refused for the actions in `confirm` | Claude Desktop and older clients cannot push or deploy while confirmations are on | Remove the action from `confirm`, or use a supporting client | By design |
+| A push is refused when the tenant's content changed since the pull; there is no merge | Designer edits and local edits cannot be combined automatically | Pull again with overwrite and re-apply the local changes (`iflow_diff` lists them) | By design |
+| `cpi_update_resource` needs a file name that is unique on the tenant; the tenant lists resources by name only (a script and its `v2/` copy share a name) | Such files need a full push | `cpi_push` | Measured |
+| The deploy gate compares guideline findings with the deployed version; an iFlow that is not deployed yet has no baseline | With `guidelines: block`, every High finding blocks its first deploy | Fix the findings, or use `warn` | By design |
+| `cpi_trace` changes the iFlow's log level through an undocumented endpoint; TRACE ends after 10 minutes by itself, and the level is not set back | Messages after those 10 minutes are logged at the previous level only if SAP restores it | — | Measured (expiry), assumed (restore) |
+| Pushing a new iFlow (one that does not exist on the tenant) is not supported yet | — | Create it in the designer, pull, then edit | Current state |
+
 ## Tenant access — added 2026-10-27/28
 
 | Difference | Impact | Workaround | Basis |

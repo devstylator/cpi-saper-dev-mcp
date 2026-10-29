@@ -36,14 +36,18 @@ async function tenants(client: Client) {
   return { isError: Boolean(r.isError), text };
 }
 
-test('lists the tools; only cpi_pull, iflow_edit and script_run are not read-only', async () => {
+test('lists the tools with their read-only and destructive hints', async () => {
   const client = await connect(projectWithConfig());
   try {
     const { tools } = await client.listTools();
     assert.deepEqual(tools.map((t) => t.name), ['cpi_tenants', 'cpi_packages', 'cpi_artifacts', 'cpi_pull',
       'iflow_describe', 'iflow_render', 'iflow_validate', 'iflow_diff', 'templates_list',
-      'iflow_edit', 'xslt_run', 'mapping_describe', 'script_run']);
-    assert.deepEqual(tools.filter((t) => !t.annotations?.readOnlyHint).map((t) => t.name), ['cpi_pull', 'iflow_edit', 'script_run']);
+      'iflow_edit', 'xslt_run', 'mapping_describe', 'script_run',
+      'cpi_push', 'cpi_update_resource', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',
+      'cpi_send_message', 'cpi_messages', 'cpi_message', 'cpi_trace']);
+    assert.deepEqual(tools.filter((t) => !t.annotations?.readOnlyHint).map((t) => t.name), ['cpi_pull', 'iflow_edit', 'script_run',
+      'cpi_push', 'cpi_update_resource', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_send_message', 'cpi_trace']);
+    assert.deepEqual(tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name), ['cpi_push', 'cpi_update_resource', 'cpi_deploy', 'cpi_undeploy']);
   } finally {
     await client.close();
   }
@@ -131,6 +135,26 @@ test('templates_list: overview and one entry with its defaults', async () => {
     assert.equal(cm.data.matches[0].key, 'ctype::FlowstepVariant/cname::Enricher');
     assert.ok(cm.data.matches[0].versions['1.6.6'].properties);
     assert.equal((await call(client, 'templates_list', { query: 'Nope' })).isError, true);
+  } finally {
+    await client.close();
+  }
+});
+
+// Refusals that happen before any call to a tenant (no service key needed beyond an empty file)
+test('changing tools refuse early: not pulled, read-only tenant, experimental off', async () => {
+  const root = projectOnFixtures();
+  writeFileSync(join(root, '.cpi', 'keys.json'), JSON.stringify({ oauth: { clientid: 'x', clientsecret: 'x', url: 'https://tenant.invalid', tokenurl: 'https://auth.invalid/token' } }));
+  const fixtures = fileURLToPath(new URL('../../core/test/fixtures', import.meta.url));
+  writeFileSync(join(root, '.cpi', 'config.json'), JSON.stringify({
+    tenants: { dev: { role: 'development', apiKey: 'keys.json', runtimeKey: 'keys.json' }, qa: { apiKey: 'keys.json', runtimeKey: 'keys.json' } },
+    defaultTenant: 'dev', workspace: fixtures,
+  }));
+  const client = await connect(root);
+  try {
+    assert.match((await call(client, 'cpi_push', { iflow: 'sample-after' })).text, /was not pulled with cpi_pull/);
+    assert.match((await call(client, 'cpi_send_message', { path: '/x', tenant: 'qa' })).text, /is readonly: test messages go to development tenants only/);
+    assert.match((await call(client, 'script_run', { file: 'x.groovy', tenant: 'qa' })).text, /is readonly: scripts run only on development tenants/);
+    assert.match((await call(client, 'cpi_trace', { enable: 'X' })).text, /experimental/);
   } finally {
     await client.close();
   }

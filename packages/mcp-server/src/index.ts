@@ -7,6 +7,8 @@ import { registerTenantTools } from './tools/tenants.js';
 import { registerTenantReadTools } from './tools/tenant-read.js';
 import { registerUnderstandTools } from './tools/understand.js';
 import { registerEditCheckTools } from './tools/edit-check.js';
+import { registerTenantWriteTools } from './tools/tenant-write.js';
+import { registerTestTools } from './tools/test.js';
 
 const server = new McpServer(
   { name: 'cpi-saper-dev-mcp', version: '0.1.0' },
@@ -15,7 +17,8 @@ const server = new McpServer(
       'Tools for developing SAP Cloud Integration (CPI) content. Start with cpi_tenants to see which tenants are ' +
       'configured and what may be done on each (readonly or development). Typical flow: cpi_packages -> cpi_artifacts -> ' +
       'cpi_pull -> iflow_describe / iflow_render -> iflow_edit (steps from templates_list) -> iflow_validate / iflow_diff; ' +
-      'check scripts with script_run and XSLT with xslt_run before pushing.',
+      'check scripts with script_run and XSLT with xslt_run -> cpi_push -> cpi_deploy -> cpi_send_message -> cpi_message. ' +
+      'Tools that change a tenant may ask the user to confirm; never try to work around a refusal.',
   },
 );
 
@@ -23,6 +26,8 @@ registerTenantTools(server);
 registerTenantReadTools(server);
 registerUnderstandTools(server);
 registerEditCheckTools(server);
+registerTenantWriteTools(server);
+registerTestTools(server);
 
 await server.connect(new StdioServerTransport());
 console.error('cpi-saper-dev-mcp: ready (stdio)');

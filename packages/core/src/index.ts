@@ -12,3 +12,5 @@ export * from './iflow/batch.js';
 export * from './xslt.js';
 export * from './mapping.js';
 export * from './tenant/runner.js';
+export * from './tenant/write.js';
+export * from './tenant/monitor.js';

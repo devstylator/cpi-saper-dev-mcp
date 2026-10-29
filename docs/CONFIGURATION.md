@@ -28,7 +28,7 @@ The first one found is used:
 | `deploy` | `api`: the agent deploys and waits for the result. `manual`: the agent pushes and saves a version, then asks you to deploy in the designer and continues when you confirm (useful on BTP trial tenants, where API deploys often fail for lack of resources) | `api` |
 | `allowedPackages` | Packages the agent may change, by ID or display name, `*` as wildcard (for example `["Z01*"]`). Other packages stay read-only even on a development tenant | all |
 | `scriptRunner` | Path of the [script runner iFlow](https://github.com/devstylator/CPI_Iflow_GroovyScriptExe) on this tenant (for example `/v2/test/script`). Without it, `script_run` is off. Only allowed with `role: development` | off |
-| `guidelines` | Before a deploy: `block` runs SAP's design guideline check and stops on new High findings; `warn` runs it and reports; `off` skips it | `warn` |
+| `guidelines` | Before a deploy: `block` runs SAP's design guideline check and stops on new High findings (High findings the deployed version does not already have; everything counts as new when the iFlow is not deployed); `warn` runs it and reports; `off` skips it | `warn` |
 | `label` | Free text shown to the agent, for example "Personal trial" | — |
 
 ## General settings
@@ -37,7 +37,7 @@ The first one found is used:
 |---|---|---|
 | `defaultTenant` | Tenant used when a tool call names none | the only tenant, if there is one |
 | `workspace` | Folder for pulled iFlows: `<workspace>/<package>/<iflow>/`, with SAP's file layout inside | the project folder |
-| `confirm` | Actions that need your explicit approval in the client before they run | `["push", "deploy", "undeploy"]` |
+| `confirm` | Actions that need your explicit approval before they run: `push`, `save_version`, `update_resource`, `deploy`, `undeploy`, `config_set`. The server asks you directly through the MCP client (elicitation), showing what will change. Clients without elicitation support are refused for these actions; remove an action from the list to allow it without a question | `["push", "deploy", "undeploy"]` |
 | `experimental.trace` | Enables `cpi_trace`, which switches on tracing through an undocumented SAP endpoint | `false` |
 | `auditLog` | File recording every change to a tenant: time, tenant, tool, artifact, result | `audit.log` next to the configuration file |
 | `catalog` | Path to your own step catalog instead of the bundled one | bundled |

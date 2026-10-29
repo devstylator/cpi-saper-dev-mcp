@@ -98,6 +98,19 @@ export class Workspace {
     return undefined;
   }
 
+  /** Record the tenant's current content as the pulled state without touching local files (after a push or save) */
+  updatePulledState(tenant: string, info: { iflowId: string; packageId: string; version?: string }, zip: Uint8Array, dir: string): PulledState {
+    const { zip: zipPath, meta } = this.statePaths(tenant, info.iflowId);
+    mkdirSync(dirname(zipPath), { recursive: true });
+    writeFileSync(zipPath, zip);
+    const state: PulledState = {
+      tenant, iflowId: info.iflowId, packageId: info.packageId, ...(info.version ? { version: info.version } : {}),
+      pulledAt: new Date().toISOString(), dir,
+    };
+    writeFileSync(meta, `${JSON.stringify(state, null, 2)}\n`);
+    return state;
+  }
+
   /**
    * Write a downloaded iFlow into its folder. Refuses to overwrite local changes (files that differ from the
    * previous pull, or a folder that was not pulled by this tool) unless overwrite is set.
@@ -168,6 +181,20 @@ export function localChanges(dir: string, zip: Uint8Array): string[] {
     if (typeof a === 'string' ? a !== b : !a.equals(b as Buffer)) changed.push(name);
   }
   for (const name of local.keys()) if (!(name in base)) changed.push(`${name} (new)`);
+  return changed;
+}
+
+/** Files that differ between two zips of the same iFlow ("/"-separated; .prop timestamp comments ignored) */
+export function zipChanges(base: Uint8Array, other: Uint8Array): string[] {
+  const [a, b] = [unzipEntries(base), unzipEntries(other)];
+  const changed: string[] = [];
+  for (const [name, data] of Object.entries(a)) {
+    const o = b[name];
+    if (!o) { changed.push(`${name} (deleted)`); continue; }
+    const x = comparable(name, data), y = comparable(name, o);
+    if (typeof x === 'string' ? x !== y : !x.equals(y as Buffer)) changed.push(name);
+  }
+  for (const name of Object.keys(b)) if (!(name in a)) changed.push(`${name} (new)`);
   return changed;
 }
 
