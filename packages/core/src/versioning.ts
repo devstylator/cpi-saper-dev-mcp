@@ -34,7 +34,8 @@ export function suggestPart(before: IflowModel, after: IflowModel): { part: Vers
   const reasons: string[] = [];
   const senders = (m: IflowModel) => new Map(m.adapters.filter((a) => a.direction === 'Sender').map((a) => [a.id, JSON.stringify(a)]));
   const [sa, sb] = [senders(before), senders(after)];
-  const senderChanged = [...new Set([...sa.keys(), ...sb.keys()])].filter((id) => sa.get(id) !== sb.get(id));
+  // a new sender adapter is a new entry point (minor, counted below); changing or removing one affects callers
+  const senderChanged = [...sa.keys()].filter((id) => sa.get(id) !== sb.get(id));
   if (senderChanged.length) reasons.push(`sender adapter changed (${senderChanged.join(', ')}): callers may be affected`);
   if (reasons.length) return { part: 'major', reasons, changes };
 

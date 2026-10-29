@@ -32,6 +32,13 @@ test('suggestPart: added step -> minor; sender adapter change -> major; setting 
   const doc2 = readIflow(locateIflow('sample-after', FIXTURES));
   applyEdits(doc2, [{ op: 'set', element: 'MessageFlow_8', settings: { httpRequestTimeout: '1000' } }], loadCatalog());
   assert.equal(suggestPart(model('sample-after'), describe(doc2, { maxLen: 0 })).part, 'patch');
+
+  // a first sender adapter on a new iFlow is a new entry point: minor, not major
+  const empty = readIflow(locateIflow('empty', FIXTURES));
+  applyEdits(empty, [{ op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS' }], loadCatalog());
+  assert.equal(suggestPart(model('empty'), describe(empty, { maxLen: 0 })).part, 'minor');
+  const removed = suggestPart(describe(empty, { maxLen: 0 }), model('empty'));
+  assert.equal(removed.part, 'major');
   assert.deepEqual(suggestPart(model('sample-after'), model('sample-after')).reasons, ['no model changes']);
 });
 

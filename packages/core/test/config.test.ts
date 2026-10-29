@@ -26,7 +26,7 @@ test('defaults: readonly role, api deploy, warn guidelines, confirm push/deploy/
   assert.equal(t.role, 'readonly');
   assert.equal(t.deploy, 'api');
   assert.equal(t.guidelines, 'warn');
-  assert.deepEqual(c.confirm, ['push', 'deploy', 'undeploy']);
+  assert.deepEqual(c.confirm, ['create', 'push', 'deploy', 'undeploy']);
   assert.equal(c.defaultTenant, 'trial', 'the only tenant becomes the default');
   assert.equal(c.experimental.trace, false);
   assert.equal(c.output.maxChars, 20000);

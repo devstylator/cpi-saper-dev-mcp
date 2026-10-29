@@ -92,7 +92,8 @@ export class CpiClient {
   }
 
   // Modifying calls go first without a CSRF token (bearer tokens usually need none); on
-  // "403 + x-csrf-token: Required" a token is fetched once and the call repeated.
+  // "403 + x-csrf-token: Required" a token is fetched once and the call repeated. The token comes from the API root,
+  // or, for an iFlow endpoint (an HTTPS sender with CSRF protection), from that endpoint itself.
   async request(method: string, url: string, { body, headers = {} }: { body?: BodyInit; headers?: Record<string, string> } = {}): Promise<Response> {
     const send = async () => this.fetchImpl(url, {
       method,
@@ -106,14 +107,14 @@ export class CpiClient {
     });
     let res = await send();
     if (res.status === 403 && method !== 'GET' && /required/i.test(res.headers.get('x-csrf-token') ?? '')) {
-      await this.fetchCsrf();
+      await this.fetchCsrf(url.startsWith(this.api('')) ? this.api('/') : url);
       res = await send();
     }
     return res;
   }
 
-  private async fetchCsrf() {
-    const res = await this.fetchImpl(`${this.key.url}/api/v1/`, {
+  private async fetchCsrf(from: string) {
+    const res = await this.fetchImpl(from, {
       headers: { Authorization: `Bearer ${await this.bearer()}`, 'X-CSRF-Token': 'Fetch' },
     });
     this.csrf = res.headers.get('x-csrf-token') ?? undefined;

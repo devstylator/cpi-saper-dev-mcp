@@ -43,10 +43,10 @@ test('lists the tools with their read-only and destructive hints', async () => {
     assert.deepEqual(tools.map((t) => t.name), ['cpi_tenants', 'cpi_packages', 'cpi_artifacts', 'cpi_pull',
       'iflow_describe', 'iflow_render', 'iflow_validate', 'iflow_diff', 'templates_list',
       'iflow_edit', 'xslt_run', 'mapping_describe', 'script_run',
-      'cpi_push', 'cpi_version_proposal', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',
+      'iflow_create', 'cpi_push', 'cpi_version_proposal', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',
       'cpi_send_message', 'cpi_messages', 'cpi_message', 'cpi_trace', 'cpi_login']);
     assert.deepEqual(tools.filter((t) => !t.annotations?.readOnlyHint).map((t) => t.name), ['cpi_pull', 'iflow_edit', 'script_run',
-      'cpi_push', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_send_message', 'cpi_trace', 'cpi_login']);
+      'iflow_create', 'cpi_push', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_send_message', 'cpi_trace', 'cpi_login']);
     assert.deepEqual(tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name), ['cpi_push', 'cpi_deploy', 'cpi_undeploy']);
   } finally {
     await client.close();
@@ -152,6 +152,7 @@ test('changing tools refuse early: not pulled, read-only tenant, experimental of
   const client = await connect(root);
   try {
     assert.match((await call(client, 'cpi_push', { iflow: 'sample-after' })).text, /was not pulled with cpi_pull/);
+    assert.match((await call(client, 'iflow_create', { package: 'P', id: 'My Flow' })).text, /"My Flow" is not a valid iFlow Id/);
     assert.match((await call(client, 'cpi_send_message', { path: '/x', tenant: 'qa' })).text, /is readonly: test messages go to development tenants only/);
     assert.match((await call(client, 'script_run', { file: 'x.groovy', tenant: 'qa' })).text, /is readonly: scripts run only on development tenants/);
     assert.match((await call(client, 'cpi_trace', { enable: 'X' })).text, /experimental/);

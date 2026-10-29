@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  checkModel, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
-  runGuidelines, runtimeError, undeployIflow, uploadIflow, validate, withVersion, zipChanges, zipFolder, zipVersion,
+  checkModel, createIflow, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
+  IFLOW_ID, resolvePackage, runGuidelines, runtimeError, undeployIflow, uploadIflow, validate, withVersion, zipChanges, zipFolder, zipVersion,
   type CpiClient, type GuidelineFinding, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
 import { context, localIflow, stepNamesFor, tenantApi, type ToolContext } from '../context.js';
@@ -70,6 +70,52 @@ async function guidelineGate(ctx: ToolContext, client: CpiClient, tenant: Tenant
 }
 
 export function registerTenantWriteTools(server: McpServer) {
+  server.registerTool(
+    'iflow_create',
+    {
+      title: 'Create a new iFlow',
+      description:
+        'Create an empty iFlow in a package on a development tenant and pull it into the workspace. The tenant ' +
+        'scaffolds it like the designer does: version 1.0.0, a Sender and a Receiver box, Start -> End, no adapters. ' +
+        'Then build it locally with iflow_edit (add_adapter connects the sender to the Start event, insert_step adds ' +
+        'steps) and upload it with cpi_push, which gives it its first real version. Refuses an Id that exists on the ' +
+        'tenant, a package that is not allowed or read-only, and non-development tenants. Asks for confirmation when configured.',
+      inputSchema: {
+        package: z.string().describe('Package Id or display name'),
+        id: z.string().describe('iFlow Id: letters, digits, "_", "-", "." (no spaces); unique on the tenant'),
+        name: z.string().optional().describe('Display name (default: the Id)'),
+        tenant: tenantArg,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    async ({ package: pkgArg, id, name, tenant: tenantName }) => {
+      const ctx = await context(server).catch((e) => e as Error);
+      if (ctx instanceof Error) return toolError(ctx);
+      const api = tenantApi(ctx.config, tenantName);
+      try {
+        if (!IFLOW_ID.test(id)) throw new Error(`"${id}" is not a valid iFlow Id: use letters, digits, "_", "-" and "." only`);
+        const pkg = await resolvePackage(api.client, pkgArg);
+        await assertMayChange(api.client, api.tenant, pkg.id);
+        const existing = await getIflow(api.client, id).catch((e: Error) => (/not found/.test(e.message) ? undefined : Promise.reject(e)));
+        if (existing) throw new Error(`an iFlow with Id ${id} already exists on tenant "${api.tenant.name}" (package ${existing.packageId}); pull it with cpi_pull or choose another Id`);
+        await confirmAction(server, ctx.config, 'create',
+          `Create the iFlow ${id}${name && name !== id ? ` ("${name}")` : ''} in package ${pkg.id} ("${pkg.name}") on tenant "${api.tenant.name}"?`);
+        await createIflow(api.client, pkg.id, id, name ?? id);
+        audit(ctx.config, { tenant: api.tenant.name, tool: 'iflow_create', artifact: id, result: `created in ${pkg.id}` });
+        const info = await getIflow(api.client, id);
+        const r = ctx.workspace.pull(api.tenant.name, { iflowId: id, packageId: pkg.id, ...(info.version ? { version: info.version } : {}) }, await downloadIflow(api.client, id));
+        return toolResult({
+          tenant: api.tenant.name, iflow: id, package: pkg.id, version: info.version ?? null,
+          folder: r.dir, folderInWorkspace: relative(ctx.workspace.root, r.dir), files: r.files,
+          next: 'iflow_describe shows the scaffold; build it with iflow_edit (add_adapter on StartEvent_2 for the sender, insert_step after it), then cpi_push',
+        });
+      } catch (e) {
+        if (!(e instanceof Declined)) audit(ctx.config, { tenant: api.tenant.name, tool: 'iflow_create', artifact: id, result: `refused: ${(e as Error).message.split('\n')[0]}` });
+        return toolError(e);
+      }
+    },
+  );
+
   server.registerTool(
     'cpi_push',
     {

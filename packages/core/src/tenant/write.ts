@@ -42,6 +42,18 @@ export function withVersion(zip: Uint8Array, version: string): Uint8Array {
   return zipSync(Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))));
 }
 
+/** iFlow Ids the tenant accepts: letters, digits, "_", "-" and "." (no spaces) */
+export const IFLOW_ID = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
+
+/**
+ * Create an empty iFlow. Without content the tenant scaffolds it (manifest at 1.0.0, a Sender and a Receiver box,
+ * Start -> End, no adapters), exactly like "Add > Integration Flow" in the designer.
+ */
+export async function createIflow(client: CpiClient, packageId: string, id: string, name = id): Promise<void> {
+  if (!IFLOW_ID.test(id)) throw new Error(`"${id}" is not a valid iFlow Id: use letters, digits, "_", "-" and "." only`);
+  await client.odata('POST', '/IntegrationDesigntimeArtifacts', { Id: id, Name: name, PackageId: packageId });
+}
+
 export interface DesignLock { artifactId: string; artifactType?: string; lockedBy?: string; since?: string }
 
 /** Edit locks the designer holds (an iFlow open in edit mode) */

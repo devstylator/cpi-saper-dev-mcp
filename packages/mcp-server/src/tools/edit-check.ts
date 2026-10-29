@@ -33,7 +33,18 @@ const operation = z.discriminatedUnion('op', [
     headers: z.array(row).optional().describe('Content Modifier: message headers to set'),
     properties: z.array(row).optional().describe('Content Modifier: exchange properties to set'),
   }),
-  z.object({ op: z.literal('remove_step'), step: ref }),
+  z.object({ op: z.literal('remove_step'), step: ref.describe('Step to remove (an adapter on it must be removed first)') }),
+  z.object({
+    op: z.literal('add_adapter'),
+    step: ref.describe('Where the adapter connects: a message start event or Poll Enrich (sender adapter), Request Reply, Send, Content Enricher or a message end event (receiver adapter)'),
+    type: z.string().describe('Adapter from the catalog (templates_list kind=adapter): label like "SFTP", component name like "sap:HTTP", or key when the label is ambiguous (OData); the direction follows from the step'),
+    version: z.string().optional().describe('Adapter version; default: the version this iFlow already uses, else the latest'),
+    name: z.string().optional().describe('Label of the connection in the diagram; default: the adapter type'),
+    participant: z.string().optional().describe('Sender/Receiver box (id or name) to connect; a new box when no box has this name; default: a free box, else a new one'),
+    settings: kv.optional().describe('Settings to change from the catalog defaults (e.g. urlPath for HTTPS, httpAddressWithoutQuery for HTTP)'),
+  }),
+  z.object({ op: z.literal('layout') }).describe('Tidy the diagram of a straight iFlow (Start -> steps -> End, one process, no branches): one evenly spaced row, the pool fitted, receivers below their steps; branched flows are refused'),
+  z.object({ op: z.literal('remove_adapter'), adapter: z.string().describe('Adapter (message flow) id or unique name; its Sender/Receiver box stays') }),
   z.object({
     op: z.literal('set'),
     element: z.string().describe('Step, adapter (message flow) id or unique name, or "integrationFlow" for the iFlow\'s own settings'),
@@ -65,7 +76,8 @@ export function registerEditCheckTools(server: McpServer) {
       title: 'Edit an iFlow',
       description:
         'Apply semantic edits to a local iFlow in one batch: insert a step from the catalog (with settings, headers, ' +
-        'properties), remove a step (its neighbours are reconnected), change settings of a step, adapter or the iFlow, ' +
+        'properties), remove a step (its neighbours are reconnected), add or remove an adapter (with its Sender/Receiver ' +
+        'box), tidy the layout of a straight flow, change settings of a step, adapter or the iFlow, ' +
         'rename, and add/change/remove Content Modifier headers and properties. All operations succeed or nothing is ' +
         'written; edits that would introduce structural errors are refused. New elements are formatted like SAP\'s ' +
         'designer writes them and the diagram is laid out. Returns what changed (as iflow_diff) and the new step ids. ' +

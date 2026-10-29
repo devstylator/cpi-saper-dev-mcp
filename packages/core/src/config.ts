@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { z } from 'zod';
 
-export const CONFIRMABLE = ['push', 'save_version', 'update_resource', 'deploy', 'undeploy', 'config_set'] as const;
+export const CONFIRMABLE = ['create', 'push', 'save_version', 'update_resource', 'deploy', 'undeploy', 'config_set'] as const;
 export type ConfirmableAction = (typeof CONFIRMABLE)[number];
 
 const TenantSchema = z.object({
@@ -25,7 +25,7 @@ const ConfigSchema = z.object({
   defaultTenant: z.string().optional(),
   tenants: z.record(z.string().min(1), TenantSchema).refine((t) => Object.keys(t).length > 0, 'at least one tenant is required'),
   workspace: z.string().optional(),
-  confirm: z.array(z.enum(CONFIRMABLE)).default(['push', 'deploy', 'undeploy']),
+  confirm: z.array(z.enum(CONFIRMABLE)).default(['create', 'push', 'deploy', 'undeploy']),
   experimental: z.object({ trace: z.boolean().default(false) }).strict().default({ trace: false }),
   auditLog: z.string().optional(),
   catalog: z.string().optional(),

@@ -54,7 +54,7 @@ adds no generic file tools.
 
 | Tool | What it does | Status |
 |---|---|---|
-| `iflow_edit` | Semantic edits in one all-or-nothing batch: insert a step from the catalog (with settings, headers, properties), remove a step, change settings of steps, adapters or the iFlow (unknown keys refused), rename, edit Content Modifier headers and properties. Keeps SAP's formatting, lays out the diagram, refuses edits that would break the iFlow, supports a dry run | **Available**, v1 |
+| `iflow_edit` | Semantic edits in one all-or-nothing batch: insert a step from the catalog (with settings, headers, properties), remove a step, add or remove an adapter (sender to a start event or Poll Enrich, receiver from Request Reply, Send, Content Enricher or an end event; the Sender/Receiver box is reused or created, receivers drawn below their step), tidy the layout of a straight flow, change settings of steps, adapters or the iFlow (unknown keys refused), rename, edit Content Modifier headers and properties. Keeps SAP's formatting, lays out the diagram, refuses edits that would break the iFlow, supports a dry run | **Available**, v1 |
 | `params_set` | Keep externalized parameters (`parameters.prop`/`.propdef`) consistent | Planned |
 
 ### Check
@@ -75,7 +75,7 @@ adds no generic file tools.
 | `cpi_push` | Upload a local iFlow as a **new version**: the agent proposes number and one-line comment by the versioning rules, you confirm both in a dialog, and Cloud Integration's version history shows exactly that entry. Refuses when the tenant changed since the pull or the iFlow is open in the designer | **Available**, v1 |
 | `cpi_version_proposal` | The versioning rules (default or your own file), the local changes since the last version and a hint (major/minor/patch), so the agent can propose number and comment | **Available**, v1 |
 | `cpi_save_version` | Record the tenant's current content as a new version with number and comment, for example after work in the designer | **Available**, v1 |
-| `iflow_create` | Create an empty iFlow on the tenant and pull it | Prototyped |
+| `iflow_create` | Create an empty iFlow in an allowed package (as the designer does: Sender and Receiver box, Start → End, version 1.0.0) and pull it; build it with `iflow_edit`, then `cpi_push` gives it its first version | **Available**, v1 |
 | `cpi_deploy` | Deploy the current version and wait; SAP's guideline check as an optional gate; errors are reported with step names | **Available**, v1 |
 | `cpi_undeploy` | Remove a deployed iFlow from the runtime | **Available** |
 | `cpi_config_set` | Set externalized parameter values | Planned |
@@ -84,7 +84,7 @@ adds no generic file tools.
 
 | Tool | What it does | Status |
 |---|---|---|
-| `cpi_send_message` | Call a deployed iFlow's HTTP endpoint; returns status, response and the message log ID (also for failed calls) | **Available**, v1 |
+| `cpi_send_message` | Call a deployed iFlow's HTTP endpoint; fetches a CSRF token when the sender adapter requires one (the HTTPS sender default); returns status, response and the message log ID (also for failed calls) | **Available**, v1 |
 | `cpi_messages` | Search message processing logs | **Available**, v1 |
 | `cpi_message` | One message log: status, error, and the processing steps by name | **Available**, v1 |
 | `cpi_trace` | Body, headers and properties as they entered each step of one message. Uses an undocumented SAP endpoint to switch on tracing, so it sits behind an "experimental" setting | **Available** |

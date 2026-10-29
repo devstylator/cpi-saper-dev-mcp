@@ -19,7 +19,8 @@ const server = new McpServer(
     instructions:
       'Tools for developing SAP Cloud Integration (CPI) content. Start with cpi_tenants to see which tenants are ' +
       'configured and what may be done on each (readonly or development). Typical flow: cpi_packages -> cpi_artifacts -> ' +
-      'cpi_pull -> iflow_describe / iflow_render -> iflow_edit (steps from templates_list) -> iflow_validate / iflow_diff; ' +
+      'cpi_pull (or iflow_create for a new iFlow) -> iflow_describe / iflow_render -> iflow_edit (steps and adapters from ' +
+      'templates_list) -> iflow_validate / iflow_diff; ' +
       'check scripts with script_run and XSLT with xslt_run -> cpi_push -> cpi_deploy -> cpi_send_message -> cpi_message. ' +
       'Tools that change a tenant may ask the user to confirm; never try to work around a refusal.',
   },

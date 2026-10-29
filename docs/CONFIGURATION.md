@@ -39,7 +39,7 @@ The first one found is used:
 |---|---|---|
 | `defaultTenant` | Tenant used when a tool call names none | the only tenant, if there is one |
 | `workspace` | Folder for pulled iFlows: `<workspace>/<package>/<iflow>/`, with SAP's file layout inside | the project folder |
-| `confirm` | Actions that need your explicit approval before they run: `push`, `save_version`, `update_resource`, `deploy`, `undeploy`, `config_set`. The server asks you directly through the MCP client (elicitation), showing what will change. Clients without elicitation support are refused for these actions; remove an action from the list to allow it without a question | `["push", "deploy", "undeploy"]` |
+| `confirm` | Actions that need your explicit approval before they run: `create`, `push`, `save_version`, `update_resource`, `deploy`, `undeploy`, `config_set`. The server asks you directly through the MCP client (elicitation), showing what will change. Clients without elicitation support are refused for these actions; remove an action from the list to allow it without a question | `["create", "push", "deploy", "undeploy"]` |
 | `experimental.trace` | Enables `cpi_trace`, which switches on tracing through an undocumented SAP endpoint | `false` |
 | `auditLog` | File recording every change to a tenant: time, tenant, tool, artifact, result | `audit.log` next to the configuration file |
 | `catalog` | Path to your own step catalog instead of the bundled one | bundled |

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CpiClient, HttpError, listIflows, mplIdOf, odataDate, odataErrorMessage, resolvePackage } from '../dist/index.js';
+import { CpiClient, HttpError, sendMessage, listIflows, mplIdOf, odataDate, odataErrorMessage, resolvePackage } from '../dist/index.js';
 
 const KEY = { clientid: 'id', clientsecret: 'secret', url: 'https://tenant.example.com', tokenurl: 'https://auth.example.com/oauth/token' };
 
@@ -63,4 +63,21 @@ test('packages resolve by Id or display name; iFlows carry their runtime status'
   const flows = await listIflows(client, 'Z01Claude');
   assert.deepEqual(flows.map((f) => [f.id, f.version, f.runtime?.status ?? null]), [['Flow1', '1.0.10', 'STARTED'], ['Flow2', 'Active', null]]);
   assert.equal(flows[0]!.runtime?.deployedAt, '2026-10-28T11:41:37.379Z');
+});
+
+test('CSRF: an iFlow endpoint that requires a token gets it from the endpoint itself, with its session cookie', async () => {
+  const seen: Array<{ method: string; url: string; token?: string; cookie?: string }> = [];
+  const impl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    if (url === KEY.tokenurl) return new Response(JSON.stringify({ access_token: 't', expires_in: 3600 }));
+    const h = new Headers(init?.headers);
+    seen.push({ method: init?.method ?? 'GET', url, ...(h.get('x-csrf-token') ? { token: h.get('x-csrf-token')! } : {}), ...(h.get('cookie') ? { cookie: h.get('cookie')! } : {}) });
+    if (h.get('x-csrf-token') === 'Fetch') return new Response('', { headers: [['x-csrf-token', 'tok'], ['set-cookie', 'JSESSIONID=s1; Path=/']] });
+    if (h.get('x-csrf-token') !== 'tok') return new Response('Forbidden', { status: 403, headers: { 'x-csrf-token': 'Required' } });
+    return new Response('ok');
+  }) as typeof fetch;
+  const r = await sendMessage(new CpiClient(KEY, impl), '/orders', { body: 'x' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(seen.map((s) => `${s.method} ${s.url.replace(KEY.url, '')} ${s.token ?? '-'} ${s.cookie ?? '-'}`),
+    ['POST /http/orders - -', 'GET /http/orders Fetch -', 'POST /http/orders tok JSESSIONID=s1']);
 });

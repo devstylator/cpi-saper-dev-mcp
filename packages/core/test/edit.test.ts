@@ -120,3 +120,94 @@ test('script runner client: request format and result', async () => {
   assert.deepEqual([r.ok, r.body, r.console, r.messageLogId, r.delta?.headers.set], [true, '{"x":1}', 'hi\n', 'M1', { A: '1' }]);
   await assert.rejects(runScript(new CpiClient(key, fake), '/x', { script, headers: { 'A=B': '1' } }), /cannot pass ";" or "="/);
 });
+
+const EMPTY = readFileSync(locateIflow('empty', FIXTURES).iflwPath, 'utf8');
+
+test('adapters on a new iFlow: sender to Start, receiver from Request Reply, a second receiver gets its own box', () => {
+  const doc = parseIflw(EMPTY);
+  const log = applyEdits(doc, [
+    { op: 'add_adapter', step: 'Start', type: 'HTTPS', settings: { urlPath: '/orders' } },
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Request Reply', name: 'Call backend' },
+    { op: 'add_adapter', step: 'Call backend', type: 'HTTP', settings: { httpAddressWithoutQuery: 'https://example.com/api' } },
+    { op: 'insert_step', after: 'Call backend', type: 'Send', name: 'Archive' },
+    { op: 'add_adapter', step: 'Archive', type: 'SFTP' },
+  ], catalog);
+  assert.match(log[0]!, /^added sender adapter MessageFlow_1 "HTTPS" \(HTTPS 1\.5\.3, latest in catalog\) from Sender to StartEvent_2$/);
+  assert.match(log[2]!, /^added receiver adapter MessageFlow_2 "HTTP" .* from ServiceTask_1 to Receiver$/);
+  assert.match(log[4]!, /^added receiver adapter MessageFlow_3 "SFTP" .* from ServiceTask_2 to Receiver1 \(new box Participant_3\)$/);
+  assert.deepEqual(validate(doc), []);
+  const m = describe(doc, { maxLen: 0 });
+  assert.deepEqual(m.adapters.map((a) => `${a.from}->${a.to} ${a.adapter} ${a.direction}`),
+    ['Participant_1->StartEvent_2 HTTPS Sender', 'ServiceTask_1->Participant_2 HTTP Receiver', 'ServiceTask_2->Participant_3 SFTP Receiver']);
+  const https = readProps(findElement(doc, 'MessageFlow_1'));
+  assert.equal(https.urlPath, '/orders');
+  assert.equal(https.system, 'Sender');
+  assert.equal(readProps(findElement(doc, 'MessageFlow_3')).system, 'Receiver1');
+  const box = findElement(doc, 'Participant_3');
+  assert.equal(box.getAttribute('ifl:type'), 'EndpointRecevier');
+  assert.equal(box.getAttribute('name'), 'Receiver1');
+  // layout: the steps went into the room between Start and End (nothing moved); each receiver box sits below the
+  // pool under its step (the free Receiver of the new iFlow was moved there), so its line runs straight down
+  const at = (d: typeof doc, id: string) => {
+    const m = serializeIflw(d).match(new RegExp(`bpmnElement="${id}"[^>]*>\\s*<dc:Bounds height="([\\d.]+)" width="([\\d.]+)" x="([\\d.-]+)" y="([\\d.-]+)"`))!;
+    const [h, w, x, y] = m.slice(1).map(Number) as [number, number, number, number];
+    return { x, y, w, h, cx: x + w / 2 };
+  };
+  const line = (d: typeof doc, id: string) => [...serializeIflw(d).matchAll(new RegExp(`bpmnElement="${id}"[\\s\\S]*?</bpmndi:BPMNEdge>`, 'g'))][0]![0]
+    .match(/x="[\d.-]+"/g)!.map((v) => Number(v.slice(3, -1)));
+  const pool = at(doc, 'Participant_Process_1');
+  assert.deepEqual([at(doc, 'EndEvent_2').x, pool.w], [703, 540], 'End and the pool stayed');
+  for (const [step, box] of [['ServiceTask_1', 'Participant_2'], ['ServiceTask_2', 'Participant_3']] as const) {
+    assert.equal(at(doc, box).cx, at(doc, step).cx, `${box} under ${step}`);
+    assert.equal(at(doc, box).y, pool.y + pool.h + 60);
+  }
+  assert.deepEqual(line(doc, 'MessageFlow_2'), [at(doc, 'ServiceTask_1').cx, at(doc, 'ServiceTask_1').cx], 'vertical line');
+
+  // a step inserted before them shifts the flow: the boxes below move along and their lines stay vertical
+  applyEdits(doc, [{ op: 'insert_step', after: 'StartEvent_2', type: 'Content Modifier' }], catalog);
+  assert.equal(at(doc, 'ServiceTask_1').cx, 428 + 150);
+  assert.equal(at(doc, 'Participant_2').cx, at(doc, 'ServiceTask_1').cx);
+  assert.deepEqual(line(doc, 'MessageFlow_3'), [at(doc, 'ServiceTask_2').cx, at(doc, 'ServiceTask_2').cx]);
+  assert.deepEqual(validate(doc), []);
+});
+
+test('add then remove an adapter restores the file byte for byte; remove_adapter frees the step', () => {
+  const doc = parseIflw(EMPTY);
+  applyEdits(doc, [{ op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS' }], catalog);
+  applyEdits(doc, [{ op: 'remove_adapter', adapter: 'MessageFlow_1' }], catalog);
+  assert.equal(serializeIflw(doc), serializeIflw(parseIflw(EMPTY)));
+
+  const d2 = fresh();
+  applyEdits(d2, [{ op: 'remove_adapter', adapter: 'MessageFlow_8' }, { op: 'remove_step', step: 'ServiceTask_5' }], catalog);
+  assert.deepEqual(validate(d2).filter((i) => i.severity === 'error'), []);
+});
+
+test('adapter refusals: wrong element, wrong direction, ambiguous type, step already connected, box of the other kind', () => {
+  const doc = () => parseIflw(EMPTY);
+  assert.throws(() => applyEdits(fresh(), [{ op: 'add_adapter', step: 'CallActivity_10', type: 'SFTP' }], catalog), /cannot have an adapter/);
+  assert.throws(() => applyEdits(fresh(), [{ op: 'add_adapter', step: 'ServiceTask_5', type: 'HTTPS' }], catalog), /only as Sender adapter, but ServiceTask_5 needs a receiver adapter/);
+  assert.throws(() => applyEdits(fresh(), [{ op: 'add_adapter', step: 'ServiceTask_5', type: 'HTTP' }], catalog), /already has an adapter/);
+  assert.throws(() => applyEdits(doc(), [{ op: 'add_adapter', step: 'EndEvent_2', type: 'OData' }], catalog), /ambiguous for a receiver adapter/);
+  assert.throws(() => applyEdits(doc(), [{ op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS', participant: 'Receiver' }], catalog), /Receiver is not a sender box/);
+  assert.throws(() => applyEdits(doc(), [{ op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS', settings: { urlPth: '/x' } }], catalog), /has no setting "urlPth"/);
+});
+
+test('layout: a straight flow in one even row, pool fitted, sender left, receiver below its step; branches refused', () => {
+  const doc = parseIflw(EMPTY);
+  applyEdits(doc, [
+    { op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS' },
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Request Reply', name: 'Call' },
+    { op: 'add_adapter', step: 'Call', type: 'HTTP' },
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Content Modifier' },
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Content Modifier', name: 'Second' },
+  ], catalog);
+  const log = applyEdits(doc, [{ op: 'layout' }], catalog);
+  assert.match(log[0]!, /^laid out 5 elements in one row \(pool width 664\), 2 Sender\/Receiver box\(es\) placed$/);
+  const xml = serializeIflw(doc);
+  const box = (id: string) => xml.match(new RegExp(`bpmnElement="${id}"[^>]*>\\s*<dc:Bounds height="[\\d.]+" width="([\\d.]+)" x="([\\d.-]+)" y="([\\d.-]+)"`))!.slice(1).map(Number);
+  assert.deepEqual(['StartEvent_2', 'CallActivity_2', 'CallActivity_1', 'ServiceTask_1', 'EndEvent_2'].map((id) => box(id)[1]), [292, 378, 528, 678, 828]);
+  assert.deepEqual(box('Participant_1').slice(1), [40, 90], 'sender left of the pool, level with Start');
+  assert.deepEqual(box('Participant_2').slice(1), [678, 340], 'receiver below its step');
+  assert.deepEqual(validate(doc), []);
+  assert.throws(() => applyEdits(fresh(), [{ op: 'layout' }], catalog), /straight flows only/);
+});
