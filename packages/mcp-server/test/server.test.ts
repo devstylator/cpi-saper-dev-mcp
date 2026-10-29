@@ -36,42 +36,55 @@ async function tenants(client: Client) {
   return { isError: Boolean(r.isError), text };
 }
 
-test('lists the tools; only cpi_pull writes (locally)', async () => {
+test('lists the tools; only cpi_pull, iflow_edit and script_run are not read-only', async () => {
   const client = await connect(projectWithConfig());
-  const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((t) => t.name), ['cpi_tenants', 'cpi_packages', 'cpi_artifacts', 'cpi_pull',
-    'iflow_describe', 'iflow_render', 'iflow_validate', 'iflow_diff', 'templates_list']);
-  assert.deepEqual(tools.filter((t) => !t.annotations?.readOnlyHint).map((t) => t.name), ['cpi_pull']);
-  await client.close();
+  try {
+    const { tools } = await client.listTools();
+    assert.deepEqual(tools.map((t) => t.name), ['cpi_tenants', 'cpi_packages', 'cpi_artifacts', 'cpi_pull',
+      'iflow_describe', 'iflow_render', 'iflow_validate', 'iflow_diff', 'templates_list',
+      'iflow_edit', 'xslt_run', 'mapping_describe', 'script_run']);
+    assert.deepEqual(tools.filter((t) => !t.annotations?.readOnlyHint).map((t) => t.name), ['cpi_pull', 'iflow_edit', 'script_run']);
+  } finally {
+    await client.close();
+  }
 });
 
 test('finds the configuration in the working folder when the client reports no roots', async () => {
   const project = projectWithConfig();
   const client = await connect(project);
-  const r = await tenants(client);
-  assert.equal(r.isError, false);
-  assert.equal(JSON.parse(r.text).configFile, join(project, '.cpi', 'config.json'));
-  await client.close();
+  try {
+    const r = await tenants(client);
+    assert.equal(r.isError, false);
+    assert.equal(JSON.parse(r.text).configFile, join(project, '.cpi', 'config.json'));
+  } finally {
+    await client.close();
+  }
 });
 
 test('uses the client roots: the first one with .cpi/config.json, wherever the server was started', async () => {
   const project = projectWithConfig();
   const elsewhere = mkdtempSync(join(tmpdir(), 'cpi-mcp-other-'));
   const client = await connect(elsewhere, [elsewhere, project]);
-  const r = await tenants(client);
-  assert.equal(r.isError, false);
-  assert.equal(JSON.parse(r.text).configFile, join(project, '.cpi', 'config.json'));
-  assert.equal(JSON.parse(r.text).workspace, project);
-  await client.close();
+  try {
+    const r = await tenants(client);
+    assert.equal(r.isError, false);
+    assert.equal(JSON.parse(r.text).configFile, join(project, '.cpi', 'config.json'));
+    assert.equal(JSON.parse(r.text).workspace, project);
+  } finally {
+    await client.close();
+  }
 });
 
 test('explains where it looked when there is no configuration', async () => {
   const empty = mkdtempSync(join(tmpdir(), 'cpi-mcp-empty-'));
   const client = await connect(empty);
-  const r = await tenants(client);
-  assert.equal(r.isError, true);
-  assert.match(r.text, /no configuration found/);
-  await client.close();
+  try {
+    const r = await tenants(client);
+    assert.equal(r.isError, true);
+    assert.match(r.text, /no configuration found/);
+  } finally {
+    await client.close();
+  }
 });
 
 // Workspace = the core test fixtures (one iFlow before and after an XSLT step was inserted)
@@ -89,30 +102,36 @@ async function call(client: Client, name: string, args: Record<string, unknown>)
 
 test('local tools on an iFlow in the workspace', async () => {
   const client = await connect(projectOnFixtures());
-  const d = await call(client, 'iflow_describe', { iflow: 'sample-after' });
-  assert.equal(d.isError, false);
-  assert.equal(d.data.processes[0].steps.find((s: { no?: number }) => s.no === 4).name, 'Aggregate IP data');
-  const v = await call(client, 'iflow_validate', { iflow: 'sample-after' });
-  assert.deepEqual([v.data.errors, v.data.warnings], [0, 0]);
-  const m = await call(client, 'iflow_render', { iflow: 'sample-after' });
-  assert.match(m.text, /^```mermaid\nflowchart LR/);
-  const diff = await call(client, 'iflow_diff', { iflow: 'sample-after', against: 'sample-before' });
-  assert.ok(diff.data.changes.includes('+ flow #3 "JSON to XML Converter 1" -> #4 "Aggregate IP data"'));
-  const noBase = await call(client, 'iflow_diff', { iflow: 'sample-after' });
-  assert.equal(noBase.isError, true);
-  assert.match(noBase.text, /no pulled state/);
-  const missing = await call(client, 'iflow_describe', { iflow: 'NoSuchFlow' });
-  assert.match(missing.text, /not found .* pull it first/);
-  await client.close();
+  try {
+    const d = await call(client, 'iflow_describe', { iflow: 'sample-after' });
+    assert.equal(d.isError, false);
+    assert.equal(d.data.processes[0].steps.find((s: { no?: number }) => s.no === 4).name, 'Aggregate IP data');
+    const v = await call(client, 'iflow_validate', { iflow: 'sample-after' });
+    assert.deepEqual([v.data.errors, v.data.warnings], [0, 0]);
+    const m = await call(client, 'iflow_render', { iflow: 'sample-after' });
+    assert.match(m.text, /^```mermaid\nflowchart LR/);
+    const diff = await call(client, 'iflow_diff', { iflow: 'sample-after', against: 'sample-before' });
+    assert.ok(diff.data.changes.includes('+ flow #3 "JSON to XML Converter 1" -> #4 "Aggregate IP data"'));
+    const noBase = await call(client, 'iflow_diff', { iflow: 'sample-after' });
+    assert.equal(noBase.isError, true);
+    assert.match(noBase.text, /no pulled state/);
+    const missing = await call(client, 'iflow_describe', { iflow: 'NoSuchFlow' });
+    assert.match(missing.text, /not found .* pull it first/);
+  } finally {
+    await client.close();
+  }
 });
 
 test('templates_list: overview and one entry with its defaults', async () => {
   const client = await connect(projectOnFixtures());
-  const all = await call(client, 'templates_list', { kind: 'adapter' });
-  assert.equal(all.data.entries.length, 31);
-  const cm = await call(client, 'templates_list', { query: 'Content Modifier' });
-  assert.equal(cm.data.matches[0].key, 'ctype::FlowstepVariant/cname::Enricher');
-  assert.ok(cm.data.matches[0].versions['1.6.6'].properties);
-  assert.equal((await call(client, 'templates_list', { query: 'Nope' })).isError, true);
-  await client.close();
+  try {
+    const all = await call(client, 'templates_list', { kind: 'adapter' });
+    assert.equal(all.data.entries.length, 31);
+    const cm = await call(client, 'templates_list', { query: 'Content Modifier' });
+    assert.equal(cm.data.matches[0].key, 'ctype::FlowstepVariant/cname::Enricher');
+    assert.ok(cm.data.matches[0].versions['1.6.6'].properties);
+    assert.equal((await call(client, 'templates_list', { query: 'Nope' })).isError, true);
+  } finally {
+    await client.close();
+  }
 });

@@ -46,14 +46,14 @@ adds no generic file tools.
 | `iflow_describe` | Compact model of an iFlow (steps, adapters, settings, routes, decoded header tables) instead of BPMN XML; steps numbered `#1`, `#2` … in flow order | **Available**, v1 |
 | `iflow_render` | Mermaid diagram of an iFlow; PNG later | **Available** (Mermaid), v1 |
 | `iflow_diff` | Model-level changes between two versions: steps added or removed, settings old → new, table rows, rewired flows; ignores layout and IDs the designer regenerates. Also available as a `git diff` driver | **Available**, v1 |
-| `mapping_describe` | Message mapping as one line per target field, `target <- expression` (read-only) | Prototyped |
+| `mapping_describe` | Message mapping as one line per target field, `target <- expression` (read-only) | **Available** |
 | `templates_list` | The bundled step and adapter catalog ([catalog](packages/core/catalog/)): 106 variants with default settings | **Available**, v1 |
 
 ### Edit locally
 
 | Tool | What it does | Status |
 |---|---|---|
-| `iflow_edit` | Semantic edits in one atomic batch: insert a step from the catalog, remove a step, change settings, headers and properties. Keeps the file formatted like SAP's designer and lays out the diagram | Prototyped (insert step), v1 |
+| `iflow_edit` | Semantic edits in one all-or-nothing batch: insert a step from the catalog (with settings, headers, properties), remove a step, change settings of steps, adapters or the iFlow (unknown keys refused), rename, edit Content Modifier headers and properties. Keeps SAP's formatting, lays out the diagram, refuses edits that would break the iFlow, supports a dry run | **Available**, v1 |
 | `params_set` | Keep externalized parameters (`parameters.prop`/`.propdef`) consistent | Planned |
 
 ### Check
@@ -61,8 +61,8 @@ adds no generic file tools.
 | Tool | What it does | Status |
 |---|---|---|
 | `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters | **Available**, v1 |
-| `xslt_run` | Run an XSLT (1.0–3.0) locally with headers and properties as parameters, like a CPI XSLT Mapping step; errors with line numbers | Prototyped |
-| `script_run` | Run one Groovy script on the tenant without deploying (script runner iFlow, development tenants only); Groovy 2.4 or 4 chosen from the script's imports; returns body, headers, properties, console output and what changed | Prototyped |
+| `xslt_run` | Run an XSLT (1.0–3.0) locally with headers and properties as parameters, like a CPI XSLT Mapping step; errors with line numbers | **Available** |
+| `script_run` | Run one Groovy script on the tenant without deploying (script runner iFlow, development tenants only); Groovy 2.4 or 4 chosen from the script's imports; returns body, headers, properties, console output and what changed | **Available** |
 | `cpi_guidelines` | Run SAP's design guideline check on the tenant (deploys through the API skip it) | Prototyped, v1 |
 | `cpi_check` | Run the tenant's model check ("Check for problems") | Prototyped, v1 |
 | `lint` | Local rules for common mistakes, including those SAP's guideline check flags | Planned |
@@ -93,8 +93,8 @@ credential values are never shown to the agent.
 
 ## Try the development version
 
-The tools marked **Available** above work: reading packages and iFlows, pulling them, and understanding and
-checking them locally. Changing the tenant follows next.
+The tools marked **Available** above work: reading packages and iFlows, pulling them, understanding, editing and
+checking them locally, and running XSLT and Groovy scripts. Changing the tenant (push, deploy, test messages) follows next.
 
 ```sh
 git clone https://github.com/devstylator/cpi-saper-dev-mcp.git

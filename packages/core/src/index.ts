@@ -7,3 +7,8 @@ export * from './iflow/validate.js';
 export * from './iflow/diff.js';
 export * from './tenant/client.js';
 export * from './tenant/read.js';
+export * from './iflow/edit.js';
+export * from './iflow/batch.js';
+export * from './xslt.js';
+export * from './mapping.js';
+export * from './tenant/runner.js';

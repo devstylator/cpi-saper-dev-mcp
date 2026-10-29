@@ -56,7 +56,12 @@ mappings are supported for reading only). The mapping runtime is SAP-proprietary
 |---|---|---|---|
 | The catalog is harvested from one palette iFlow (one fresh instance of every step and adapter) on a BTP trial tenant (2026-10-28); other tenants may already offer newer component versions | New steps may be one version behind the tenant's designer | An iFlow keeps the version it already uses; maintainers re-harvest for each MCP release | By design |
 | Senders AMQP, Kafka, XI, SuccessFactors and Ariba have no catalog entry yet | They cannot be added from the catalog | Clone an existing one (`--like`) | Measured (missing from the palette) |
-| Inserting covers steps with one input and one output only; routers, multicasts, events and adapters cannot be inserted yet | — | Edit in the designer, or clone | Current state |
+| Inserting covers steps with one input and one output only; routers, multicasts, events and adapters cannot be inserted yet | — | Edit in the designer | Current state |
+| Removing a step works for steps with one incoming and one outgoing flow and no adapter (Request Reply, Send) | — | Edit in the designer | Current state |
+| After removing a step from a branched layout (several rows, joins), some edge waypoints can stay slightly shifted; the model and the result of a straight sequence are exact | Cosmetic: a line in the diagram may bend | Use the designer's auto-layout | Measured (494 insert+remove round trips on 20 iFlows: model identical in all; byte-identical for straight sequences) |
+| Content Modifier rows can use the types constant, expression, xpath, header and property; other sources (global or local variable, number range) are not offered yet | — | Edit in the designer | Current state |
+| `iflow_edit` does not create script or mapping files; it lists the missing ones | The agent writes the file with its own file tools | — | By design |
+| Reading and writing an iFlow normalises empty values written as `<value></value>` to `<value/>`, the designer's form | A first edit of a file produced by other tools can show these lines in a text diff | Use the model-level diff | Measured |
 
 ## Comparing iFlows — added 2026-10-28
 
