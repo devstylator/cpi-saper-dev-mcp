@@ -46,6 +46,8 @@ The first one found is used:
 | `output.maxChars` | Longest body or payload returned to the agent before it is cut | 20000 |
 | `redact` | Extra header and property names whose values are hidden, in addition to the built-in list (names containing auth, passport, password, secret, token, cookie or credential) | — |
 | `timeouts.deploySeconds` | How long `cpi_deploy` waits before reporting "still deploying" | 180 |
+| `versioning.saveOn` | `deploy`: a new version is saved before every deploy (number and comment confirmed by you in the same dialog); `manual`: versions only when you ask (`cpi_save_version`) | `deploy` |
+| `versioning.rules` | Your own versioning rules (Markdown, like a skill): when to raise the major, minor or patch part, and how to write the comment. Replaces the [default rules](../packages/core/rules/versioning.md) completely | default |
 
 ## Example
 
@@ -97,6 +99,24 @@ token, and a client-credentials token belongs to the technical client. To have y
 Without `refresh_token` in the grant types, a login lasts as long as one token (the instance's `token-validity`,
 12 hours by default); with it, the login is renewed automatically. The login is stored in `tokens/` next to the
 configuration, readable only by you. Calling deployed iFlows (`runtimeKey`) still uses the technical client.
+
+## Versions
+
+A push uploads a draft; versions are saved before every deploy (`versioning.saveOn: deploy`) or when you ask. The
+agent proposes the number and a one-line comment by the versioning rules (it reads them with
+`cpi_version_proposal`, which also lists the changes since the last saved version and a technical hint), and you
+confirm or edit both in a dialog. Write your own rules as a Markdown file and point `versioning.rules` to it, for
+example:
+
+```markdown
+# Our versioning rules
+- Moving a script to Groovy 4 is minor.
+- Any change to a mapping is at least minor.
+- Comments in English, at most 80 characters.
+```
+
+Cloud Integration's API cannot store a version comment (only the designer can), so comments go to a changelog next to
+the iFlow in your workspace: `<workspace>/<package>/<iflow>.CHANGELOG.md`, newest first, with date and user.
 
 ## Fixed rules (not configurable)
 

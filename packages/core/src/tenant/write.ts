@@ -2,7 +2,7 @@
 // Callers enforce the rules (role, allowed packages, confirmation, conflict and lock checks).
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { zipSync } from 'fflate';
+import { unzipSync, zipSync } from 'fflate';
 import { CpiClient, HttpError, odataDate, q } from './client.js';
 
 const artifact = (id: string, version = 'active') => `/IntegrationDesigntimeArtifacts(Id='${q(id)}',Version='${q(version)}')`;
@@ -18,6 +18,25 @@ export function zipFolder(dir: string): Uint8Array {
     }
   };
   walk(dir);
+  return zipSync(Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))));
+}
+
+const MANIFEST = 'META-INF/MANIFEST.MF';
+const bundleVersion = (manifest: string) => manifest.match(/^Bundle-Version:\s*(\S+)/m)?.[1];
+
+/**
+ * The tenant keeps an iFlow's version number in META-INF/MANIFEST.MF (Bundle-Version) and its API reports it from
+ * there. A local copy carries the number of when it was pulled, so uploading it as it is would turn the number back.
+ * Returns the zip with the tenant's Bundle-Version.
+ */
+export function withTenantVersion(zip: Uint8Array, tenantZip: Uint8Array): Uint8Array {
+  const files = unzipSync(zip);
+  const theirs = unzipSync(tenantZip)[MANIFEST];
+  const ours = files[MANIFEST];
+  if (!theirs || !ours) return zip;
+  const v = bundleVersion(Buffer.from(theirs).toString('utf8'));
+  if (!v) return zip;
+  files[MANIFEST] = new Uint8Array(Buffer.from(Buffer.from(ours).toString('utf8').replace(/^Bundle-Version:\s*\S+/m, `Bundle-Version: ${v}`)));
   return zipSync(Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))));
 }
 

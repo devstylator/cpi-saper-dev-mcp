@@ -10,6 +10,8 @@ import { registerEditCheckTools } from './tools/edit-check.js';
 import { registerTenantWriteTools } from './tools/tenant-write.js';
 import { registerTestTools } from './tools/test.js';
 import { registerLoginTools } from './tools/login.js';
+import { context } from './context.js';
+import { rulesOf } from './versioning.js';
 
 const server = new McpServer(
   { name: 'cpi-saper-dev-mcp', version: '0.1.0' },
@@ -30,6 +32,14 @@ registerEditCheckTools(server);
 registerTenantWriteTools(server);
 registerTestTools(server);
 registerLoginTools(server);
+
+// The versioning rules in force (the project's own file, or the default), for the agent and for "what are our rules?"
+server.registerResource(
+  'versioning-rules',
+  'cpi://rules/versioning',
+  { title: 'Versioning rules', description: 'When to raise the major, minor or patch part of an iFlow version, and how to write the comment', mimeType: 'text/markdown' },
+  async (uri) => ({ contents: [{ uri: uri.href, mimeType: 'text/markdown', text: rulesOf(await context(server)) }] }),
+);
 
 await server.connect(new StdioServerTransport());
 console.error('cpi-saper-dev-mcp: ready (stdio)');

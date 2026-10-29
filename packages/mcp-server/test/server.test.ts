@@ -43,7 +43,7 @@ test('lists the tools with their read-only and destructive hints', async () => {
     assert.deepEqual(tools.map((t) => t.name), ['cpi_tenants', 'cpi_packages', 'cpi_artifacts', 'cpi_pull',
       'iflow_describe', 'iflow_render', 'iflow_validate', 'iflow_diff', 'templates_list',
       'iflow_edit', 'xslt_run', 'mapping_describe', 'script_run',
-      'cpi_push', 'cpi_update_resource', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',
+      'cpi_push', 'cpi_update_resource', 'cpi_version_proposal', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',
       'cpi_send_message', 'cpi_messages', 'cpi_message', 'cpi_trace', 'cpi_login']);
     assert.deepEqual(tools.filter((t) => !t.annotations?.readOnlyHint).map((t) => t.name), ['cpi_pull', 'iflow_edit', 'script_run',
       'cpi_push', 'cpi_update_resource', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_send_message', 'cpi_trace', 'cpi_login']);
@@ -155,6 +155,23 @@ test('changing tools refuse early: not pulled, read-only tenant, experimental of
     assert.match((await call(client, 'cpi_send_message', { path: '/x', tenant: 'qa' })).text, /is readonly: test messages go to development tenants only/);
     assert.match((await call(client, 'script_run', { file: 'x.groovy', tenant: 'qa' })).text, /is readonly: scripts run only on development tenants/);
     assert.match((await call(client, 'cpi_trace', { enable: 'X' })).text, /experimental/);
+  } finally {
+    await client.close();
+  }
+});
+
+test('the versioning rules are an MCP resource; a project file replaces the default', async () => {
+  const root = projectWithConfig();
+  const client = await connect(root);
+  try {
+    const { resources } = await client.listResources();
+    assert.deepEqual(resources.map((r) => r.uri), ['cpi://rules/versioning']);
+    const dflt = await client.readResource({ uri: 'cpi://rules/versioning' });
+    assert.match((dflt.contents[0] as { text: string }).text, /^# Versioning rules \(default/);
+    writeFileSync(join(root, '.cpi', 'my-rules.md'), '# Our rules\nGroovy 4 upgrades are minor.\n');
+    writeFileSync(join(root, '.cpi', 'config.json'), JSON.stringify({ tenants: { t: { apiKey: 'keys/api.json' } }, versioning: { rules: 'my-rules.md' } }));
+    const own = await client.readResource({ uri: 'cpi://rules/versioning' });
+    assert.match((own.contents[0] as { text: string }).text, /^# Our rules/);
   } finally {
     await client.close();
   }

@@ -32,6 +32,10 @@ const ConfigSchema = z.object({
   output: z.object({ maxChars: z.number().int().positive().default(20000) }).strict().default({ maxChars: 20000 }),
   redact: z.array(z.string().min(1)).default([]),
   timeouts: z.object({ deploySeconds: z.number().int().positive().default(180) }).strict().default({ deploySeconds: 180 }),
+  versioning: z.object({
+    rules: z.string().optional(),
+    saveOn: z.enum(['deploy', 'manual']).default('deploy'),
+  }).strict().default({ saveOn: 'deploy' }),
 }).strict();
 
 export interface TenantConfig {
@@ -67,6 +71,8 @@ export interface Config {
   output: { maxChars: number };
   redact: string[];
   timeouts: { deploySeconds: number };
+  /** rules: own versioning rules file (else the bundled default); saveOn: deploy = a version is saved before every deploy */
+  versioning: { rules?: string; saveOn: 'deploy' | 'manual' };
 }
 
 export class ConfigError extends Error {}
@@ -156,6 +162,7 @@ export function parseConfig(raw: unknown, path: string, { cwd = process.cwd(), h
     output: c.output,
     redact: c.redact,
     timeouts: c.timeouts,
+    versioning: { saveOn: c.versioning.saveOn, ...(c.versioning.rules !== undefined ? { rules: abs(c.versioning.rules) } : {}) },
   };
 }
 
