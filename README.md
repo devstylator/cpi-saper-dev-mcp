@@ -11,16 +11,16 @@ and XSLT as local files under git, check them locally, then push, deploy and tes
 - **Read** packages, iFlows and their status; pull an iFlow into a local folder.
 - **Understand** an iFlow without reading BPMN XML: a compact model, a Mermaid diagram, readable message mappings.
 - **Edit** iFlows safely: insert steps with correct default settings from a bundled step catalog
-  ([catalog/](catalog/)), change settings, headers and properties; keep the file formatted like SAP's designer.
+  ([catalog](packages/core/catalog/)), change settings, headers and properties; keep the file formatted like SAP's designer.
 - **Check** locally: structure validation, XSLT 1.0–3.0 runs, readable model-level diffs (also for `git diff`).
 - **Test on the tenant** (development tenants only): push, run SAP's design guideline check, deploy, send a test
   message, read the message log with the failing step by name, run a single Groovy script without deploying.
 
 ## Tools
 
-The MCP server is not released yet, so this is the **planned** tool set. **Prototyped** means the behaviour has
-already been built and tested against a real tenant in the prototype and is being moved into the server; **Planned**
-means designed but not built yet. **v1** marks the first release.
+The MCP server is not released yet. **Available** tools work in the development version (see below);
+**Prototyped** means the behaviour has been built and tested against a real tenant in the prototype and is being
+moved into the server; **Planned** means designed but not built yet. **v1** marks the first release.
 
 The agent's own environment (for example Claude Code or VS Code) reads and writes the local files, so the server
 adds no generic file tools.
@@ -29,10 +29,10 @@ adds no generic file tools.
 
 | Tool | What it does | Status |
 |---|---|---|
-| `cpi_tenants` | Configured tenants and what the agent may do on each (read only, or development with writes) | Planned, v1 |
-| `cpi_packages` | List packages; a package can be named by its ID or its display name | Prototyped, v1 |
-| `cpi_artifacts` | List the iFlows of a package with version and runtime status | Prototyped, v1 |
-| `cpi_pull` | Download iFlows into the local workspace, keeping SAP's file layout | Prototyped, v1 |
+| `cpi_tenants` | Configured tenants and what the agent may do on each (read only, or development with writes) | **Available**, v1 |
+| `cpi_packages` | List packages; a package can be named by its ID or its display name | **Available**, v1 |
+| `cpi_artifacts` | List the iFlows of a package with version and runtime status | **Available**, v1 |
+| `cpi_pull` | Download an iFlow into the local workspace (`<workspace>/<package>/<iflow>/`, SAP's file layout); never overwrites local changes unless asked | **Available**, v1 |
 | `cpi_status` | Compare local, last pulled and tenant versions: modified, new, conflict | Planned, v1 |
 | `cpi_runtime_status` | Deployment state and deploy errors, with step IDs translated to step names | Prototyped, v1 |
 | `cpi_endpoints` | HTTP endpoint URLs of deployed iFlows | Planned |
@@ -43,11 +43,11 @@ adds no generic file tools.
 
 | Tool | What it does | Status |
 |---|---|---|
-| `iflow_describe` | Compact model of an iFlow (steps, adapters, settings, routes, decoded header tables) instead of BPMN XML; steps numbered `#1`, `#2` … in flow order | Prototyped, v1 |
-| `iflow_render` | Mermaid diagram of an iFlow; PNG later | Prototyped (Mermaid), v1 |
-| `iflow_diff` | Model-level changes between two versions: steps added or removed, settings old → new, table rows, rewired flows; ignores layout and IDs the designer regenerates. Also available as a `git diff` driver | Prototyped, v1 |
+| `iflow_describe` | Compact model of an iFlow (steps, adapters, settings, routes, decoded header tables) instead of BPMN XML; steps numbered `#1`, `#2` … in flow order | **Available**, v1 |
+| `iflow_render` | Mermaid diagram of an iFlow; PNG later | **Available** (Mermaid), v1 |
+| `iflow_diff` | Model-level changes between two versions: steps added or removed, settings old → new, table rows, rewired flows; ignores layout and IDs the designer regenerates. Also available as a `git diff` driver | **Available**, v1 |
 | `mapping_describe` | Message mapping as one line per target field, `target <- expression` (read-only) | Prototyped |
-| `templates_list` | The bundled step and adapter catalog ([catalog/](catalog/)): 106 variants with default settings | Prototyped, v1 |
+| `templates_list` | The bundled step and adapter catalog ([catalog](packages/core/catalog/)): 106 variants with default settings | **Available**, v1 |
 
 ### Edit locally
 
@@ -60,7 +60,7 @@ adds no generic file tools.
 
 | Tool | What it does | Status |
 |---|---|---|
-| `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters | Prototyped, v1 |
+| `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters | **Available**, v1 |
 | `xslt_run` | Run an XSLT (1.0–3.0) locally with headers and properties as parameters, like a CPI XSLT Mapping step; errors with line numbers | Prototyped |
 | `script_run` | Run one Groovy script on the tenant without deploying (script runner iFlow, development tenants only); Groovy 2.4 or 4 chosen from the script's imports; returns body, headers, properties, console output and what changed | Prototyped |
 | `cpi_guidelines` | Run SAP's design guideline check on the tenant (deploys through the API skip it) | Prototyped, v1 |
@@ -93,7 +93,8 @@ credential values are never shown to the agent.
 
 ## Try the development version
 
-Only `cpi_tenants` (shows your configuration) works so far; the other tools follow.
+The tools marked **Available** above work: reading packages and iFlows, pulling them, and understanding and
+checking them locally. Changing the tenant follows next.
 
 ```sh
 git clone https://github.com/devstylator/cpi-saper-dev-mcp.git
