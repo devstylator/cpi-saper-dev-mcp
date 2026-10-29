@@ -103,6 +103,7 @@ credential values are never shown to the agent.
 
 ## Documentation
 
+- [docs/CONFIGURATION.md](docs/CONFIGURATION.md): tenants, roles, service keys and safety settings (planned).
 - [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md): where local checks differ from Cloud Integration.
 - [docs/script-runner.openapi.yaml](docs/script-runner.openapi.yaml): API of the script runner iFlow.
 
