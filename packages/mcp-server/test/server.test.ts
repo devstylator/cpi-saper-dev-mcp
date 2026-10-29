@@ -43,11 +43,11 @@ test('lists the tools with their read-only and destructive hints', async () => {
     assert.deepEqual(tools.map((t) => t.name), ['cpi_tenants', 'cpi_packages', 'cpi_artifacts', 'cpi_pull',
       'iflow_describe', 'iflow_render', 'iflow_validate', 'iflow_diff', 'templates_list',
       'iflow_edit', 'xslt_run', 'mapping_describe', 'script_run',
-      'cpi_push', 'cpi_update_resource', 'cpi_version_proposal', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',
+      'cpi_push', 'cpi_version_proposal', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',
       'cpi_send_message', 'cpi_messages', 'cpi_message', 'cpi_trace', 'cpi_login']);
     assert.deepEqual(tools.filter((t) => !t.annotations?.readOnlyHint).map((t) => t.name), ['cpi_pull', 'iflow_edit', 'script_run',
-      'cpi_push', 'cpi_update_resource', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_send_message', 'cpi_trace', 'cpi_login']);
-    assert.deepEqual(tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name), ['cpi_push', 'cpi_update_resource', 'cpi_deploy', 'cpi_undeploy']);
+      'cpi_push', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_send_message', 'cpi_trace', 'cpi_login']);
+    assert.deepEqual(tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name), ['cpi_push', 'cpi_deploy', 'cpi_undeploy']);
   } finally {
     await client.close();
   }

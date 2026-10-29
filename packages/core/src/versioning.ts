@@ -1,7 +1,7 @@
 // Versioning: the rules the agent follows when proposing a version (bundled default, replaceable per project), a
-// technical hint derived from the changes, and a changelog per iFlow. The tenant's API saves a version number only;
-// the comment cannot be stored in Cloud Integration (only the designer's session-based interface can), so it is kept
-// in <workspace>/<package>/<iflowId>.CHANGELOG.md, next to the iFlow folder (never uploaded).
+// technical hint derived from the changes, and a changelog per iFlow. Every upload is a version in Cloud Integration
+// (number from the manifest, comment from the upload); the changelog <workspace>/<package>/<iflowId>.CHANGELOG.md,
+// next to the iFlow folder (never uploaded), keeps a copy for git, since the API cannot read the history.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,7 +56,7 @@ export interface ChangelogEntry { version: string; date: string; user: string; c
 
 /** Newest entry first, under a title */
 export function appendChangelog(path: string, iflowId: string, e: ChangelogEntry) {
-  const title = `# ${iflowId}: versions\n\nSaved by cpi-saper-dev-mcp; comments cannot be stored in Cloud Integration through its API.\n`;
+  const title = `# ${iflowId}: versions\n\nVersions pushed by cpi-saper-dev-mcp (the same comments are in Cloud Integration\'s version history).\n`;
   mkdirSync(dirname(path), { recursive: true });
   const old = existsSync(path) ? readFileSync(path, 'utf8').replace(/^# [^\n]*\n(\n[^#][^\n]*\n)?/, '') : '';
   writeFileSync(path, `${title}\n## ${e.version} — ${e.date}, ${e.user}\n${e.comment}\n${old.startsWith('\n') ? old : `\n${old}`}`.replace(/\n+$/, '\n'));

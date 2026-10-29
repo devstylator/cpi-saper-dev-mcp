@@ -51,18 +51,19 @@ test('versioning settings: default rules bundled, own file from the config folde
   assert.match(loadVersioningRules(), /^# Versioning rules/);
   const dir = mkdtempSync(join(tmpdir(), 'cpi-vcfg-'));
   const dflt = parseConfig({ tenants: { t: { apiKey: 'k' } } }, join(dir, 'config.json'));
-  assert.deepEqual(dflt.versioning, { saveOn: 'deploy' });
-  const own = parseConfig({ tenants: { t: { apiKey: 'k' } }, versioning: { rules: 'rules/versioning.md', saveOn: 'manual' } }, join(dir, 'config.json'));
-  assert.deepEqual(own.versioning, { saveOn: 'manual', rules: join(dir, 'rules', 'versioning.md') });
+  assert.deepEqual(dflt.versioning, {});
+  const own = parseConfig({ tenants: { t: { apiKey: 'k' } }, versioning: { rules: 'rules/versioning.md' } }, join(dir, 'config.json'));
+  assert.deepEqual(own.versioning, { rules: join(dir, 'rules', 'versioning.md') });
 });
 
-test('withTenantVersion: an upload keeps the tenant\'s Bundle-Version, the rest of the local manifest stays', async () => {
+test('withVersion / zipVersion: the upload carries the new number, the rest of the manifest stays', async () => {
   const { zipSync, unzipSync } = await import('fflate');
-  const { withTenantVersion } = await import('../dist/index.js');
-  const m = (v: string, extra = '') => new Uint8Array(Buffer.from(`Manifest-Version: 1.0\nBundle-Name: Flow\nBundle-Version: ${v}\n${extra}`));
-  const local = zipSync({ 'META-INF/MANIFEST.MF': m('1.0.13', 'Import-Package: x\n'), 'a.txt': new Uint8Array([1]) });
-  const tenant = zipSync({ 'META-INF/MANIFEST.MF': m('1.1.1') });
-  const out = Buffer.from(unzipSync(withTenantVersion(local, tenant))['META-INF/MANIFEST.MF']!).toString('utf8');
-  assert.match(out, /^Bundle-Version: 1\.1\.1$/m);
-  assert.match(out, /^Import-Package: x$/m);
+  const { withVersion, zipVersion } = await import('../dist/index.js');
+  const m = (v: string) => new Uint8Array(Buffer.from(`Manifest-Version: 1.0\nBundle-Name: Flow\nBundle-Version: ${v}\nImport-Package: x\n`));
+  const local = zipSync({ 'META-INF/MANIFEST.MF': m('1.0.13'), 'a.txt': new Uint8Array([1]) });
+  assert.equal(zipVersion(local), '1.0.13');
+  const out = withVersion(local, '1.2.0');
+  assert.equal(zipVersion(out), '1.2.0');
+  assert.match(Buffer.from(unzipSync(out)['META-INF/MANIFEST.MF']!).toString('utf8'), /^Import-Package: x$/m);
+  assert.deepEqual(unzipSync(out)['a.txt'], new Uint8Array([1]));
 });

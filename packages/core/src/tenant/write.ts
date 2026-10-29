@@ -24,19 +24,21 @@ export function zipFolder(dir: string): Uint8Array {
 const MANIFEST = 'META-INF/MANIFEST.MF';
 const bundleVersion = (manifest: string) => manifest.match(/^Bundle-Version:\s*(\S+)/m)?.[1];
 
+/** The version number in an iFlow zip (META-INF/MANIFEST.MF Bundle-Version) */
+export function zipVersion(zip: Uint8Array): string | undefined {
+  const m = unzipSync(zip)[MANIFEST];
+  return m ? bundleVersion(Buffer.from(m).toString('utf8')) : undefined;
+}
+
 /**
- * The tenant keeps an iFlow's version number in META-INF/MANIFEST.MF (Bundle-Version) and its API reports it from
- * there. A local copy carries the number of when it was pulled, so uploading it as it is would turn the number back.
- * Returns the zip with the tenant's Bundle-Version.
+ * The zip with another version number. Every upload creates an entry in the iFlow's version history, labelled with
+ * the uploaded manifest's Bundle-Version (measured), so the number to record is set here before uploading.
  */
-export function withTenantVersion(zip: Uint8Array, tenantZip: Uint8Array): Uint8Array {
+export function withVersion(zip: Uint8Array, version: string): Uint8Array {
   const files = unzipSync(zip);
-  const theirs = unzipSync(tenantZip)[MANIFEST];
-  const ours = files[MANIFEST];
-  if (!theirs || !ours) return zip;
-  const v = bundleVersion(Buffer.from(theirs).toString('utf8'));
-  if (!v) return zip;
-  files[MANIFEST] = new Uint8Array(Buffer.from(Buffer.from(ours).toString('utf8').replace(/^Bundle-Version:\s*\S+/m, `Bundle-Version: ${v}`)));
+  const m = files[MANIFEST];
+  if (!m) throw new Error('the iFlow has no META-INF/MANIFEST.MF');
+  files[MANIFEST] = new Uint8Array(Buffer.from(Buffer.from(m).toString('utf8').replace(/^Bundle-Version:\s*\S+/m, `Bundle-Version: ${version}`)));
   return zipSync(Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))));
 }
 
@@ -53,10 +55,14 @@ export async function designLocks(client: CpiClient): Promise<DesignLock[]> {
   }));
 }
 
-/** Replace the iFlow's design-time content with a zip */
-export async function uploadIflow(client: CpiClient, id: string, zip: Uint8Array): Promise<void> {
+/**
+ * Upload the iFlow's content. Every upload is an entry in the version history (there is no draft through the API):
+ * labelled with the zip's Bundle-Version, carrying `comment` (the Comment field is written, never read back) and the
+ * uploading user. SaveAsVersion would add a second entry without a comment, so it is not used.
+ */
+export async function uploadIflow(client: CpiClient, id: string, zip: Uint8Array, comment?: string): Promise<void> {
   const meta = await client.odata<Record<string, unknown>>('GET', artifact(id));
-  await client.odata('PUT', artifact(id), { Name: meta.Name, ArtifactContent: Buffer.from(zip).toString('base64') });
+  await client.odata('PUT', artifact(id), { Name: meta.Name, ...(comment ? { Comment: comment } : {}), ArtifactContent: Buffer.from(zip).toString('base64') });
 }
 
 export async function saveVersion(client: CpiClient, id: string, version: string): Promise<void> {

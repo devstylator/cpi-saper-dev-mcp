@@ -101,25 +101,6 @@ export class Workspace {
     return undefined;
   }
 
-  /**
-   * Content of the last saved version, as far as known: the tenant's API does not return the content of a saved
-   * version (asking for the latest number returns the draft), so the content is kept when this tool saves a version
-   * (exact) or pulls an iFlow (approximate: the draft at pull time, assumed to equal the saved version).
-   */
-  versionSnapshot(tenant: string, iflowId: string): { version: string; exact: boolean; zip: Uint8Array } | undefined {
-    const base = join(this.stateDir, safeName(tenant), `${safeName(iflowId)}.version`);
-    if (!existsSync(`${base}.zip`) || !existsSync(`${base}.json`)) return undefined;
-    const meta = JSON.parse(readFileSync(`${base}.json`, 'utf8')) as { version: string; exact: boolean };
-    return { ...meta, zip: new Uint8Array(readFileSync(`${base}.zip`)) };
-  }
-
-  saveVersionSnapshot(tenant: string, iflowId: string, version: string, zip: Uint8Array, exact: boolean) {
-    const base = join(this.stateDir, safeName(tenant), `${safeName(iflowId)}.version`);
-    mkdirSync(dirname(base), { recursive: true });
-    writeFileSync(`${base}.zip`, zip);
-    writeFileSync(`${base}.json`, `${JSON.stringify({ version, exact, savedAt: new Date().toISOString() }, null, 2)}\n`);
-  }
-
   /** Record the tenant's current content as the pulled state without touching local files (after a push or save) */
   updatePulledState(tenant: string, info: { iflowId: string; packageId: string; version?: string }, zip: Uint8Array, dir: string): PulledState {
     const { zip: zipPath, meta } = this.statePaths(tenant, info.iflowId);
@@ -166,11 +147,6 @@ export class Workspace {
       pulledAt: new Date().toISOString(), dir,
     };
     writeFileSync(meta, `${JSON.stringify(state, null, 2)}\n`);
-    // first knowledge of this version's content: the pulled draft (approximate; an exact snapshot is kept when saving)
-    const snap = this.versionSnapshot(tenant, info.iflowId);
-    if (info.version && /^\d+\.\d+\.\d+$/.test(info.version) && snap?.version !== info.version) {
-      this.saveVersionSnapshot(tenant, info.iflowId, info.version, zip, false);
-    }
     return { dir, files: Object.keys(files).sort(), state };
   }
 }

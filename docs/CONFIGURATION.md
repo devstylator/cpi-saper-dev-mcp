@@ -46,7 +46,6 @@ The first one found is used:
 | `output.maxChars` | Longest body or payload returned to the agent before it is cut | 20000 |
 | `redact` | Extra header and property names whose values are hidden, in addition to the built-in list (names containing auth, passport, password, secret, token, cookie or credential) | — |
 | `timeouts.deploySeconds` | How long `cpi_deploy` waits before reporting "still deploying" | 180 |
-| `versioning.saveOn` | `deploy`: a new version is saved before every deploy (number and comment confirmed by you in the same dialog); `manual`: versions only when you ask (`cpi_save_version`) | `deploy` |
 | `versioning.rules` | Your own versioning rules (Markdown, like a skill): when to raise the major, minor or patch part, and how to write the comment. Replaces the [default rules](../packages/core/rules/versioning.md) completely | default |
 
 ## Example
@@ -102,11 +101,13 @@ configuration, readable only by you. Calling deployed iFlows (`runtimeKey`) stil
 
 ## Versions
 
-A push uploads a draft; versions are saved before every deploy (`versioning.saveOn: deploy`) or when you ask. The
-agent proposes the number and a one-line comment by the versioning rules (it reads them with
-`cpi_version_proposal`, which also lists the changes since the last saved version and a technical hint), and you
-confirm or edit both in a dialog. Write your own rules as a Markdown file and point `versioning.rules` to it, for
-example:
+In Cloud Integration every upload is an entry in the iFlow's version history (labelled with the number in the iFlow's
+manifest, with the upload's comment and the uploading user); there is no unversioned draft through the API. So each
+`cpi_push` is one version: the agent proposes the number and a one-line comment by the versioning rules (it reads them
+with `cpi_version_proposal`, which also lists the local changes since the last version and a technical hint), and you
+confirm or edit both in a dialog. The agent should therefore collect and check related edits locally and push them
+together. `cpi_save_version` records the tenant's current content as a new version, for example after work in the
+designer. Write your own rules as a Markdown file and point `versioning.rules` to it, for example:
 
 ```markdown
 # Our versioning rules
@@ -115,8 +116,8 @@ example:
 - Comments in English, at most 80 characters.
 ```
 
-Cloud Integration's API cannot store a version comment (only the designer can), so comments go to a changelog next to
-the iFlow in your workspace: `<workspace>/<package>/<iflow>.CHANGELOG.md`, newest first, with date and user.
+A copy of every comment goes to a changelog next to the iFlow in your workspace (`<workspace>/<package>/<iflow>.CHANGELOG.md`,
+newest first, with date and user), so the history is also in git; the API cannot read the version history itself.
 
 ## Fixed rules (not configurable)
 

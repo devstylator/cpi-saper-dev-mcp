@@ -1,16 +1,16 @@
-import { readFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  checkModel, deployIflow, describe, designLocks, diffIflows, downloadIflow, getIflow, iflowFromZip, localChanges,
-  runGuidelines, runtimeError, saveVersion, undeployIflow, unzipEntries, updateResource, uploadIflow, validate,
-  withTenantVersion, zipChanges, zipFolder, type CpiClient, type GuidelineFinding, type TenantConfig,
+  checkModel, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
+  runGuidelines, runtimeError, undeployIflow, uploadIflow, validate, withVersion, zipChanges, zipFolder, zipVersion,
+  type CpiClient, type GuidelineFinding, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
 import { context, localIflow, stepNamesFor, tenantApi, type ToolContext } from '../context.js';
 import { toolError, toolResult } from '../result.js';
 import { assertMayChange, audit, confirmAction, Declined } from '../safety.js';
-import { saveVersionAsked, rulesOf, versionProposal } from '../versioning.js';
+import { askVersion, changelogFor, proposal, recordVersion, rulesOf } from '../versioning.js';
 
 const tenantArg = z.string().optional().describe('Tenant name from the configuration; default: defaultTenant');
 const iflowIdArg = z.string().describe('iFlow Id');
@@ -47,40 +47,49 @@ const highFinding = (f: GuidelineFinding) => f.compliance === 'Non-Compliant' &&
 const findingKey = (f: GuidelineFinding) => `${f.id} ${f.violated ?? ''}`;
 
 /**
- * SAP's guideline check as a deploy gate. "New" High findings are those the deployed version does not have,
- * so an iFlow's existing debt does not block every deploy.
+ * SAP's guideline check as a deploy gate. "New" High findings are those not recorded at the last deploy through this
+ * tool (the API cannot run the check on older versions: only the latest one is reachable), so an iFlow's existing
+ * debt does not block every deploy. The record is kept in the state folder and updated by each deploy.
  */
-async function guidelineGate(client: CpiClient, tenant: TenantConfig, iflowId: string, deployedVersion?: string) {
+async function guidelineGate(ctx: ToolContext, client: CpiClient, tenant: TenantConfig, iflowId: string) {
   if (tenant.guidelines === 'off') return { checked: false as const };
+  const record = join(ctx.workspace.stateDir, tenant.name, `${iflowId}.guidelines.json`);
   const now = (await runGuidelines(client, iflowId)).findings.filter(highFinding);
-  let baseline: GuidelineFinding[] = [];
-  if (deployedVersion) {
-    try { baseline = (await runGuidelines(client, iflowId, deployedVersion)).findings.filter(highFinding); } catch { /* version not available: all findings count as new */ }
-  }
-  const known = new Set(baseline.map(findingKey));
+  const known = new Set<string>(existsSync(record) ? (JSON.parse(readFileSync(record, 'utf8')) as { high: string[] }).high : []);
   const fresh = now.filter((f) => !known.has(findingKey(f)));
   const lines = fresh.map((f) => `${f.id}: ${f.name}${f.violated ? ` ${f.violated}` : ''}${f.fix ? ` (fix: ${f.fix})` : ''}`);
   if (fresh.length && tenant.guidelines === 'block') {
-    throw new Error(`not deployed: SAP's design guideline check reports new High findings (compared with deployed version ${deployedVersion ?? '(none)'}):\n  ${lines.join('\n  ')}\n` +
+    throw new Error(`not deployed: SAP's design guideline check reports new High findings (${existsSync(record) ? 'not present at the last deploy' : 'no deploy recorded yet, so all count as new'}):\n  ${lines.join('\n  ')}\n` +
       'Fix them, or set "guidelines": "warn" for this tenant');
   }
-  return { checked: true as const, highFindings: now.length, newHighFindings: lines, comparedWith: deployedVersion ?? null };
+  const accept = () => {
+    mkdirSync(dirname(record), { recursive: true });
+    writeFileSync(record, `${JSON.stringify({ high: now.map(findingKey), at: new Date().toISOString() }, null, 2)}\n`);
+  };
+  return { checked: true as const, highFindings: now.length, newHighFindings: lines, accept };
 }
 
 export function registerTenantWriteTools(server: McpServer) {
   server.registerTool(
     'cpi_push',
     {
-      title: 'Push an iFlow',
+      title: 'Push an iFlow as a new version',
       description:
-        'Upload a locally edited iFlow (pulled before with cpi_pull) to its tenant as the draft (no version is saved). ' +
+        'Upload a locally edited iFlow (pulled before with cpi_pull) to its tenant. Every upload is a new version in ' +
+        'Cloud Integration\'s history, so each push gets a version number and a one-line comment: call ' +
+        'cpi_version_proposal first and pass version and comment by the versioning rules; the user confirms or edits ' +
+        'both in a dialog. Collect and check related edits locally before pushing, rather than pushing every small step. ' +
         'Refuses when the tenant is not a development tenant, the package is not allowed or read-only, the local iFlow ' +
-        'has structural errors, the iFlow is open in the designer, or its content changed on the tenant since the pull. ' +
-        'Asks the user to confirm (with the changes) when "push" is in the configuration\'s confirm list.',
-      inputSchema: { iflow: z.string().describe('Local iFlow: Id, folder or .iflw'), tenant: tenantArg },
+        'has structural errors, the iFlow is open in the designer, or its content changed on the tenant since the pull.',
+      inputSchema: {
+        iflow: z.string().describe('Local iFlow: Id, folder or .iflw'),
+        version: z.string().optional().describe('Proposed version, e.g. 1.2.0 (default: the hint from the changes)'),
+        comment: z.string().optional().describe('Proposed comment: one brief line starting with the part, e.g. "minor: new step X adds header Y"'),
+        tenant: tenantArg,
+      },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
-    async ({ iflow, tenant: tenantName }) => {
+    async ({ iflow, version, comment, tenant: tenantName }) => {
       const ctx = await context(server).catch((e) => e as Error);
       if (ctx instanceof Error) return toolError(ctx);
       const api = tenantApi(ctx.config, tenantName);
@@ -91,68 +100,26 @@ export function registerTenantWriteTools(server: McpServer) {
         await assertMayChange(api.client, api.tenant, local.pulled.state.packageId);
         const errors = validate(local.doc, local.located).filter((i) => i.severity === 'error');
         if (errors.length) throw new Error(`not pushed: the local iFlow has errors (iflow_validate):\n${errors.map((i) => `  ${i.code} ${i.msg}`).join('\n')}`);
-        // the version number (MANIFEST Bundle-Version) belongs to the tenant: not a local change
+        // the version number (MANIFEST Bundle-Version) is set by the push itself: not a local change
         const files = localChanges(local.dir, local.pulled.zip).filter((f) => f !== 'META-INF/MANIFEST.MF');
-        if (!files.length) return toolResult({ iflow: id, pushed: false, reason: 'no local changes since the last pull' });
+        if (!files.length) return toolResult({ iflow: id, pushed: false, reason: 'no local changes since the last pull or push' });
         await assertNotLocked(api.client, id);
         const current = await assertTenantUnchanged(api.client, id, local.pulled.zip);
 
-        const base = iflowFromZip(local.pulled.zip);
-        const changes = diffIflows(describe(base, { maxLen: 0 }), describe(local.doc, { maxLen: 0 }), { docA: base, docB: local.doc });
-        await confirmAction(server, ctx.config, 'push',
-          `Push ${id} to tenant "${api.tenant.name}"${api.tenant.label ? ` (${api.tenant.label})` : ''}? (a draft: no version is saved)\n` +
-          `Changed files: ${files.join(', ')}\n${changes.slice(0, 30).join('\n')}${changes.length > 30 ? `\n… ${changes.length - 30} more lines` : ''}`);
-
-        await uploadIflow(api.client, id, withTenantVersion(zipFolder(local.dir), current));
+        const p = proposal(zipVersion(current), describe(iflowFromZip(local.pulled.zip), { maxLen: 0 }), describe(local.doc, { maxLen: 0 }));
+        const v = await askVersion(server, api.tenant,
+          `Push ${id} to tenant "${api.tenant.name}"${api.tenant.label ? ` (${api.tenant.label})` : ''} as a new version?\nChanged files: ${files.join(', ')}`,
+          p, { version, comment });
+        await uploadIflow(api.client, id, withVersion(zipFolder(local.dir), v.version), v.comment);
         const info = await getIflow(api.client, id);
-        ctx.workspace.updatePulledState(api.tenant.name, { iflowId: id, packageId: info.packageId, ...(info.version ? { version: info.version } : {}) },
-          await downloadIflow(api.client, id), local.dir);
-        audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_push', artifact: id, result: 'pushed', details: { files } });
+        ctx.workspace.updatePulledState(api.tenant.name, { iflowId: id, packageId: info.packageId, version: v.version }, await downloadIflow(api.client, id), local.dir);
+        const rec = recordVersion(ctx, api.tenant, 'cpi_push', id, info.packageId, v, local.dir);
         return toolResult({
-          iflow: id, pushed: true, files, lastSavedVersion: info.version ?? null,
-          next: 'the draft is on the tenant; cpi_deploy saves it as a new version and deploys it (or cpi_save_version on request)',
+          iflow: id, pushed: true, version: v.version, comment: v.comment, previous: p.lastVersion, files, changelog: rec.changelog,
+          next: 'deploy it with cpi_deploy when it should run',
         });
       } catch (e) {
         if (!(e instanceof Declined)) audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_push', artifact: id, result: `refused: ${(e as Error).message.split('\n')[0]}` });
-        return toolError(e);
-      }
-    },
-  );
-
-  server.registerTool(
-    'cpi_update_resource',
-    {
-      title: 'Update one script or mapping file',
-      description:
-        'Upload one changed file of a pulled iFlow (e.g. script/script1.groovy, mapping/x.xsl) without uploading the ' +
-        'whole iFlow. Same rules as cpi_push, checked for this file. New files, and names that exist twice on the tenant ' +
-        '(a script and its v2 copy), need cpi_push.',
-      inputSchema: {
-        iflow: z.string().describe('Local iFlow: Id, folder or .iflw'),
-        file: z.string().describe('Path below src/main/resources, e.g. script/script1.groovy'),
-        tenant: tenantArg,
-      },
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
-    },
-    async ({ iflow, file, tenant: tenantName }) => {
-      try {
-        const ctx = await context(server);
-        const api = tenantApi(ctx.config, tenantName);
-        const local = pulledIflow(ctx, iflow, api.tenant);
-        const id = local.pulled.state.iflowId;
-        const entry = `src/main/resources/${file.replace(/^\/+/, '')}`;
-        if (!(entry in unzipEntries(local.pulled.zip))) throw new Error(`${file} is not a file of the pulled iFlow; new files need cpi_push`);
-        await assertMayChange(api.client, api.tenant, local.pulled.state.packageId);
-        await assertNotLocked(api.client, id);
-        await assertTenantUnchanged(api.client, id, local.pulled.zip, entry);
-        await confirmAction(server, ctx.config, 'update_resource', `Upload ${file} of ${id} to tenant "${api.tenant.name}"?`);
-        const r = await updateResource(api.client, id, basename(file), new Uint8Array(readFileSync(join(local.dir, entry))));
-        const info = await getIflow(api.client, id);
-        ctx.workspace.updatePulledState(api.tenant.name, { iflowId: id, packageId: info.packageId, ...(info.version ? { version: info.version } : {}) },
-          await downloadIflow(api.client, id), local.dir);
-        audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_update_resource', artifact: id, result: 'updated', details: { file } });
-        return toolResult({ iflow: id, updated: file, resourceType: r.type, tenantVersion: info.version ?? null });
-      } catch (e) {
         return toolError(e);
       }
     },
@@ -163,21 +130,22 @@ export function registerTenantWriteTools(server: McpServer) {
     {
       title: 'Propose the next version',
       description:
-        'Everything needed to propose the next version of an iFlow: the versioning rules (the project\'s own file or the ' +
-        'default), the last saved version, the changes of the draft since then, a technical hint (major/minor/patch with ' +
-        'reasons) and the latest changelog entries. Decide by the rules, then pass version and a brief one-line comment to ' +
-        'cpi_save_version or cpi_deploy; the user confirms them.',
-      inputSchema: { iflow: iflowIdArg, tenant: tenantArg },
-      annotations: { readOnlyHint: true, openWorldHint: true },
+        'Everything needed to propose the version for a push: the versioning rules (the project\'s own file or the ' +
+        'default), the last version (from the pull), the local changes since then, a technical hint (major/minor/patch ' +
+        'with reasons) and the latest changelog entries. Decide by the rules, then pass version and a brief one-line ' +
+        'comment to cpi_push; the user confirms them.',
+      inputSchema: { iflow: z.string().describe('Local iFlow: Id, folder or .iflw'), tenant: tenantArg },
+      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ iflow, tenant: tenantName }) => {
       try {
         const ctx = await context(server);
         const api = tenantApi(ctx.config, tenantName);
-        const { info, draft: _draft, ...p } = await versionProposal(ctx, api.client, api.tenant, iflow);
+        const local = pulledIflow(ctx, iflow, api.tenant);
+        const p = proposal(zipVersion(local.pulled.zip), describe(iflowFromZip(local.pulled.zip), { maxLen: 0 }), describe(local.doc, { maxLen: 0 }));
         return toolResult({
-          iflow, rulesFile: ctx.config.versioning.rules ?? '(default)', rules: rulesOf(ctx),
-          ...p, deployed: info.runtime?.version ?? null,
+          iflow: local.pulled.state.iflowId, rulesFile: ctx.config.versioning.rules ?? '(default)', rules: rulesOf(ctx), ...p,
+          changelog: readChangelog(changelogFor(ctx, api.tenant, local.pulled.state.iflowId, local.pulled.state.packageId)),
         });
       } catch (e) {
         return toolError(e);
@@ -188,15 +156,15 @@ export function registerTenantWriteTools(server: McpServer) {
   server.registerTool(
     'cpi_save_version',
     {
-      title: 'Save a version',
+      title: 'Make the tenant\'s content a new version',
       description:
-        'Save the iFlow\'s current design-time content (draft) on the tenant as a new version. Call cpi_version_proposal ' +
-        'first and propose version and comment by the versioning rules; the user confirms or edits both in a dialog. ' +
-        'The comment goes to the iFlow\'s changelog in the workspace (Cloud Integration\'s API cannot store it).',
+        'Record the iFlow\'s current content on the tenant as a new version with number and comment, for example after ' +
+        'the user worked in the designer. (Local changes are versioned by cpi_push.) The content is uploaded again with ' +
+        'the new number; the user confirms number and comment in a dialog.',
       inputSchema: {
         iflow: iflowIdArg,
-        version: z.string().optional().describe('Proposed version, e.g. 1.1.0; default: the technical hint'),
-        comment: z.string().optional().describe('Proposed comment: one brief line, starting with the part, e.g. "minor: new step X adds header Y"'),
+        version: z.string().optional().describe('Proposed version'),
+        comment: z.string().optional().describe('Proposed comment: one brief line'),
         tenant: tenantArg,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
@@ -207,7 +175,22 @@ export function registerTenantWriteTools(server: McpServer) {
         const api = tenantApi(ctx.config, tenantName);
         const info = await getIflow(api.client, iflow);
         await assertMayChange(api.client, api.tenant, info.packageId);
-        return toolResult({ iflow, ...(await saveVersionAsked(server, ctx, api.client, api.tenant, iflow, { version, comment })) });
+        await assertNotLocked(api.client, iflow);
+        const current = await downloadIflow(api.client, iflow);
+        const pulled = ctx.workspace.pulledState(api.tenant.name, iflow);
+        // the changes since the pull are known when the iFlow was pulled; the user's designer work shows there
+        const p = pulled
+          ? proposal(zipVersion(current), describe(iflowFromZip(pulled.zip), { maxLen: 0 }), describe(iflowFromZip(current), { maxLen: 0 }))
+          : proposal(zipVersion(current));
+        const v = await askVersion(server, api.tenant, `Record ${iflow} on tenant "${api.tenant.name}" as a new version (its current content, unchanged)?`, p, { version, comment });
+        await uploadIflow(api.client, iflow, withVersion(current, v.version), v.comment);
+        // the local copy follows only if it holds no unpushed work
+        const localDir = pulled && !localChanges(pulled.state.dir, pulled.zip).filter((f) => f !== 'META-INF/MANIFEST.MF').length ? pulled.state.dir : undefined;
+        if (pulled && localDir && !zipChanges(pulled.zip, current).filter((f) => f !== 'META-INF/MANIFEST.MF').length) {
+          ctx.workspace.updatePulledState(api.tenant.name, { iflowId: iflow, packageId: info.packageId, version: v.version }, await downloadIflow(api.client, iflow), localDir);
+        }
+        const rec = recordVersion(ctx, api.tenant, 'cpi_save_version', iflow, info.packageId, v, localDir);
+        return toolResult({ iflow, version: v.version, comment: v.comment, previous: p.lastVersion, changelog: rec.changelog });
       } catch (e) {
         return toolError(e);
       }
@@ -219,47 +202,39 @@ export function registerTenantWriteTools(server: McpServer) {
     {
       title: 'Deploy an iFlow',
       description:
-        'Deploy the iFlow. First runs SAP\'s design guideline check when the tenant\'s "guidelines" setting asks for it ' +
-        '(block: new High findings stop the deploy). Then, with versioning.saveOn "deploy" (default), saves the draft as a ' +
-        'new version: call cpi_version_proposal first and pass version and comment by the versioning rules; the user ' +
-        'confirms both (and the deploy) in one dialog. With deploy mode "manual" (e.g. BTP trial tenants) the version is ' +
-        'saved and the user is asked to deploy it in the designer; check afterwards with cpi_runtime_status. Otherwise ' +
-        'deploys, waits, and reports errors with step names.',
-      inputSchema: {
-        iflow: iflowIdArg,
-        version: z.string().optional().describe('Proposed version for the save before deploying'),
-        comment: z.string().optional().describe('Proposed version comment: one brief line'),
-        tenant: tenantArg,
-      },
+        'Deploy the iFlow\'s current version (every push is a version). First runs SAP\'s design guideline check when ' +
+        'the tenant\'s "guidelines" setting asks for it (block: High findings not present at the last deploy stop it). ' +
+        'With deploy mode "manual" (e.g. BTP trial tenants) nothing is deployed: ask the user to deploy that version in ' +
+        'the designer, then check with cpi_runtime_status. Otherwise asks for confirmation (if configured), deploys, ' +
+        'waits, and reports errors with step names.',
+      inputSchema: { iflow: iflowIdArg, tenant: tenantArg },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
-    async ({ iflow, version, comment, tenant: tenantName }) => {
+    async ({ iflow, tenant: tenantName }) => {
       try {
         const ctx = await context(server);
         const api = tenantApi(ctx.config, tenantName);
         const info = await getIflow(api.client, iflow);
         await assertMayChange(api.client, api.tenant, info.packageId);
-        const gate = await guidelineGate(api.client, api.tenant, iflow, info.runtime?.version);
-        // a version before every deploy; its dialog also confirms the deploy
-        const saved = ctx.config.versioning.saveOn === 'deploy'
-          ? await saveVersionAsked(server, ctx, api.client, api.tenant, iflow, { version, comment, deploy: api.tenant.deploy === 'api' })
-          : undefined;
-        const deployVersion = saved?.version ?? info.version ?? 'active';
+        const gate = await guidelineGate(ctx, api.client, api.tenant, iflow);
+        const { accept, ...guidelines } = gate.checked ? gate : { ...gate, accept: undefined };
         if (api.tenant.deploy === 'manual') {
+          accept?.();
           return toolResult({
-            iflow, deployed: false, mode: 'manual', version: saved ?? null, guidelines: gate,
-            next: `Tenant "${api.tenant.name}" is configured for manual deploys: ask the user to deploy ${iflow} version ${deployVersion} ` +
+            iflow, deployed: false, mode: 'manual', version: info.version ?? null, guidelines,
+            next: `Tenant "${api.tenant.name}" is configured for manual deploys: ask the user to deploy ${iflow} version ${info.version ?? '(current)'} ` +
               'in the designer and to tell you when it is done; then check it with cpi_runtime_status.',
           });
         }
-        if (!saved?.saved) await confirmAction(server, ctx.config, 'deploy',
-          `Deploy ${iflow} (design-time version ${info.version ?? 'active'}) on tenant "${api.tenant.name}"?` +
+        await confirmAction(server, ctx.config, 'deploy',
+          `Deploy ${iflow} version ${info.version ?? '(current)'} on tenant "${api.tenant.name}"?` +
           `${info.runtime ? ` Currently deployed: ${info.runtime.version ?? '?'} (${info.runtime.status}).` : ' Not deployed yet.'}` +
           `${gate.checked && gate.newHighFindings.length ? `\nNew High guideline findings:\n${gate.newHighFindings.join('\n')}` : ''}`);
         const r = await deployIflow(api.client, iflow, { timeoutSeconds: ctx.config.timeouts.deploySeconds });
+        if (r.status === 'STARTED') accept?.();
         const name = await stepNamesFor(ctx, api.client, iflow);
-        audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_deploy', artifact: iflow, result: r.status });
-        const data = { iflow, deployed: r.status === 'STARTED', ...r, ...(r.error ? { error: translate(r.error, name) } : {}), savedVersion: saved ?? null, guidelines: gate };
+        audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_deploy', artifact: iflow, result: `${r.status} ${info.version ?? ''}`.trim() });
+        const data = { iflow, deployed: r.status === 'STARTED', ...r, ...(r.error ? { error: translate(r.error, name) } : {}), guidelines };
         return { ...toolResult(data), ...(r.status === 'STARTED' ? {} : { isError: true }) };
       } catch (e) {
         return toolError(e);

@@ -72,12 +72,11 @@ adds no generic file tools.
 
 | Tool | What it does | Status |
 |---|---|---|
-| `cpi_push` | Upload a local iFlow; refuses when the tenant changed since the last pull or the iFlow is locked in the designer | **Available**, v1 |
-| `cpi_update_resource` | Update one script or mapping file without uploading the whole iFlow | **Available**, v1 |
-| `cpi_version_proposal` | The versioning rules (default or your own file), the changes since the last saved version and a hint (major/minor/patch), so the agent can propose number and comment | **Available**, v1 |
-| `cpi_save_version` | Save the draft as a new version: you confirm number and comment in a dialog; the comment goes to the iFlow's changelog | **Available**, v1 |
+| `cpi_push` | Upload a local iFlow as a **new version**: the agent proposes number and one-line comment by the versioning rules, you confirm both in a dialog, and Cloud Integration's version history shows exactly that entry. Refuses when the tenant changed since the pull or the iFlow is open in the designer | **Available**, v1 |
+| `cpi_version_proposal` | The versioning rules (default or your own file), the local changes since the last version and a hint (major/minor/patch), so the agent can propose number and comment | **Available**, v1 |
+| `cpi_save_version` | Record the tenant's current content as a new version with number and comment, for example after work in the designer | **Available**, v1 |
 | `iflow_create` | Create an empty iFlow on the tenant and pull it | Prototyped |
-| `cpi_deploy` | Save a new version (confirmed by you), then deploy and wait; errors are reported with step names | **Available**, v1 |
+| `cpi_deploy` | Deploy the current version and wait; SAP's guideline check as an optional gate; errors are reported with step names | **Available**, v1 |
 | `cpi_undeploy` | Remove a deployed iFlow from the runtime | **Available** |
 | `cpi_config_set` | Set externalized parameter values | Planned |
 
