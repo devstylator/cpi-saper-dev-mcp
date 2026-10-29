@@ -84,6 +84,9 @@ mappings are supported for reading only). The mapping runtime is SAP-proprietary
 | The grant types of a service instance cannot be changed after it is created ("Updating the grant type is not allowed") | An existing instance cannot be switched to user login | Create a new instance | Measured |
 | Without the `refresh_token` grant, a user login lasts one token lifetime (`token-validity`, 12 h by default) | Log in again with `cpi_login` | Create the instance with both grant types | Measured |
 | Calls to deployed iFlows (`cpi_send_message`, the script runner) still use the technical client of `runtimeKey` | Message logs show the client as sender | — | Current state |
+| Version comments cannot be stored in Cloud Integration: the API's "save as version" takes only the number, and the designer's comment goes through an interface that accepts browser sessions only | Comments written by the agent are not visible in the designer's version history (and comments written in the designer are not in the changelog) | The changelog next to the iFlow (`<iflow>.CHANGELOG.md`) | Measured |
+| The API does not return the content of a saved version (asking for the latest number returns the draft; older numbers answer 404) | The changes since the last version are known exactly only for versions saved by this tool; for others the content at pull time is used, or the changes are unknown | Pull before working; save versions through the tool | Measured |
+| The tenant reports an iFlow's version from its `MANIFEST.MF` (`Bundle-Version`); uploading an older local manifest turns the number back | Fixed: uploads keep the tenant's number | — | Measured |
 | Pushing a new iFlow (one that does not exist on the tenant) is not supported yet | — | Create it in the designer, pull, then edit | Current state |
 
 ## Tenant access — added 2026-10-27/28
