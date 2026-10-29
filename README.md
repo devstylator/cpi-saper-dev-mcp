@@ -91,6 +91,24 @@ adds no generic file tools.
 **Safety:** changes are only allowed on tenants configured as development tenants; deploying asks for confirmation;
 credential values are never shown to the agent.
 
+## Try the development version
+
+Only `cpi_tenants` (shows your configuration) works so far; the other tools follow.
+
+```sh
+git clone https://github.com/devstylator/cpi-saper-dev-mcp.git
+cd cpi-saper-dev-mcp
+npm install
+npm test            # builds and runs the tests
+```
+
+Create `.cpi/config.json` in your project folder ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)), then register the
+server in your MCP client. For Claude Code, from your project folder:
+
+```sh
+claude mcp add cpi-saper-dev-mcp -- node /path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js
+```
+
 ## Requirements
 
 - Node.js 22 or later.

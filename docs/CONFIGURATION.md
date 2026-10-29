@@ -1,10 +1,13 @@
 # Configuration
 
-> **Planned.** This describes the configuration of the first release, which is being built. Names and defaults may
-> still change until then.
+> **Development version.** The server already reads and validates this file (`cpi_tenants` shows the result); each
+> setting takes effect as the tools that use it are built. Names and defaults may still change until the first release.
 
 The server reads one JSON file with general settings and a list of tenants. Service keys stay in their own files;
 the configuration only points to them, so it never contains secrets itself.
+
+**Paths** in the file are resolved from the folder the configuration file is in; `~` is your home folder. The file is
+read again on every tool call, so changes apply without restarting the server.
 
 ## Where the file is read from
 
@@ -35,7 +38,7 @@ The first one found is used:
 | `workspace` | Folder for pulled iFlows: `<workspace>/<package>/<iflow>/`, with SAP's file layout inside | the project folder |
 | `confirm` | Actions that need your explicit approval in the client before they run | `["push", "deploy", "undeploy"]` |
 | `experimental.trace` | Enables `cpi_trace`, which switches on tracing through an undocumented SAP endpoint | `false` |
-| `auditLog` | File recording every change to a tenant: time, tenant, tool, artifact, result | `.cpi/audit.log` |
+| `auditLog` | File recording every change to a tenant: time, tenant, tool, artifact, result | `audit.log` next to the configuration file |
 | `catalog` | Path to your own step catalog instead of the bundled one | bundled |
 | `output.maxChars` | Longest body or payload returned to the agent before it is cut | 20000 |
 | `redact` | Extra header and property names whose values are hidden, in addition to the built-in list (names containing auth, passport, password, secret, token, cookie or credential) | — |
@@ -50,8 +53,8 @@ The first one found is used:
     "trial": {
       "label": "Personal BTP trial",
       "role": "development",
-      "apiKey": ".cpi/keys/api.json",
-      "runtimeKey": ".cpi/keys/runtime.json",
+      "apiKey": "keys/api.json",
+      "runtimeKey": "keys/runtime.json",
       "deploy": "manual",
       "allowedPackages": ["Z01*"],
       "scriptRunner": "/v2/test/script",

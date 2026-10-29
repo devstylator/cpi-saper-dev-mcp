@@ -1,0 +1,21 @@
+{
+  "name": "cpi-saper-dev-mcp-workspace",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/core",
+    "packages/mcp-server"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -b packages/core packages/mcp-server",
+    "test": "npm run build && node --test \"packages/*/test/*.test.ts\"",
+    "clean": "tsc -b --clean packages/core packages/mcp-server"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2"
+  }
+}
