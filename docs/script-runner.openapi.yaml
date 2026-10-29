@@ -1,0 +1,284 @@
+openapi: 3.0.3
+info:
+  title: CPI Groovy script runner
+  version: 1.0.13
+  description: |
+    Runs a Groovy script on a Cloud Integration tenant without deploying it. The script runner iFlow
+    (https://github.com/devstylator/CPI_Iflow_GroovyScriptExe) receives the script, evaluates it with `GroovyShell`
+    inside a script step and returns the resulting message. Based on the btp_ci_toolkit "Groovy IDE" runner
+    (https://github.com/devstylator/btp_ci_toolkit/blob/main/docs/groovy-ide.md), extended in
+    version 1.0.12 with `delta`, `messageLogFactory`, error details and the `runnerFunction` option, and in
+    1.0.13 with a second executor for script step 2.x, selected by the `groovy-version` header.
+    The response fields of the original runner are unchanged, so the toolkit app keeps working.
+
+    **Runtimes** (measured on the BTP trial): a router picks the executor step by the `groovy-version` header.
+    - `groovy-version: 2`: script step 2.0.0, **Groovy 4.0.29**. The script uses the v2 API
+      (`import com.sap.it.script.v2.api.Message`, usually with `package script.v2`), as after the designer's "Upgrade".
+    - anything else or no header (default route): script step 1.1.2, **Groovy 2.4.21** on Java 21, API
+      `com.sap.gateway.ip.core.customdev.util.Message`.
+    A script sent to the wrong executor fails to compile (`unable to resolve class com.sap.it.script.v2.api.Message`
+    on 1.x, `unable to resolve class groovy.util.XmlSlurper` on 2.x), as it would in the real step.
+
+    **Security:** the runner executes any code it receives with the permissions of the Cloud
+    Integration runtime. There is no sandbox. Deploy it only on development or trial tenants.
+
+    **Limits:**
+    - Request body up to 40 MB (HTTPS sender `maximumBodySize`).
+    - About 60 s per call (per the toolkit documentation). A trivial script takes about 2 s round trip.
+    - Header and property names and values in `inputHdrs` and `inputParams` must not contain `;` or
+      `=`. Values in the response `delta` have no such restriction.
+    - Only one script file. Other script files and script collections cannot be imported.
+
+    **Responses carry no `Content-Type` header** (measured). Parse the body as JSON regardless.
+
+    **Differences from a real script step:**
+    - Errors report the line number in the posted script, but no file name.
+    - Credentials the runtime keeps in headers and properties (names containing auth, passport, password,
+      secret, token, cookie or credential) are returned as `<hidden>`.
+
+servers:
+  - url: https://{tenant}.it-{cluster}-rt.cfapps.{region}.hana.ondemand.com/http
+    description: Cloud Integration runtime (the `url` of a service key with plan `integration-flow`)
+    variables:
+      tenant:
+        default: mysubaccount
+      cluster:
+        default: cpitrial03
+      region:
+        default: eu10
+
+security:
+  - runtimeOAuth: []
+
+paths:
+  /v2/test/script:
+    post:
+      operationId: runScript
+      summary: Run a Groovy script against a test message
+      description: |
+        Order of processing inside the iFlow:
+        1. The JSON request becomes the message body. `inputPayload` is Base64-decoded and becomes the body.
+        2. `inputHdrs` and `inputParams` are decoded and set as headers and exchange properties.
+        3. The script is parsed and its function (`processData` unless `runnerFunction` is given) is
+           called with the message. `println` output is captured. `messageLogFactory` is available
+           as in a real script step.
+        4. The resulting body, headers and properties are returned, together with `delta`: what the
+           script itself set or removed.
+
+        If the script fails (compile error or exception), the runner still answers with the state up to
+        the failure, plus `error`, and HTTP status 400.
+      parameters:
+        - in: header
+          name: groovy-version
+          required: false
+          description: |
+            `2` runs the script in the script step 2.x executor (Groovy 4.0.29); any other value or no header runs it
+            in the 1.x executor (Groovy 2.4.21). Allowed through the HTTPS sender by the iFlow's `allowedHeaderList`.
+            Because the router runs after `inputHdrs` are applied, `groovy-version=2` in `inputHdrs` has the same effect.
+          schema:
+            type: string
+            enum: ['1', '2']
+            default: '1'
+        - in: header
+          name: Content-Type
+          required: true
+          schema:
+            type: string
+            enum: [application/json]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunRequest'
+            examples:
+              jsonEnrichment:
+                summary: Script that adds a header, a property and a JSON field
+                value:
+                  inputScript: aW1wb3J0IGNvbS5zYXAuZ2F0ZXdheS5pcC5jb3JlLmN1c3RvbWRldi51dGlsLk1lc3NhZ2UKLi4u
+                  inputPayload: eyJpcCI6IjEuMi4zLjQifQ==
+                  inputHdrs: WC1Jbj1h
+                  inputParams: UDE9Yg==
+      responses:
+        '200':
+          description: The script ran without error.
+          headers:
+            SAP_MessageProcessingLogID:
+              description: ID of the runner's message processing log on the tenant
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResult'
+              examples:
+                success:
+                  summary: Result of the example request
+                  value:
+                    properties: UDEgPSBiO0NsYXVkZVByb2Nlc3NlZCA9IHRydWU7Li4u
+                    headers: WC1JbiA9IGE7WC1Hcm9vdnktVmVyc2lvbiA9IDIuNC4yMTsuLi4=
+                    payload: eyJpcCI6IjEuMi4zLjQiLCJtb2RpZmllZCI6dHJ1ZX0=
+                    console: ''
+                    delta:
+                      headers:
+                        set:
+                          X-Groovy-Version: 2.4.21
+                        removed: []
+                      properties:
+                        set:
+                          ClaudeProcessed: 'true'
+                        removed: []
+        '400':
+          description: |
+            The script failed, or the runner itself failed.
+            - **Script failure** (compile error or exception in the script): all fields are present.
+              `error` is `<exception class>: <message> @ line <n>`. For compile errors it is the Groovy
+              compiler message, which contains the line and column.
+            - **Runner failure** (for example a request that is not valid JSON): the iFlow's exception
+              subprocess answers. `console` is empty, `delta` is null, `payload` is the request as
+              received, and `error` is the parser message (for example
+              `Use JsonReader.setStrictness(Strictness.LENIENT) to accept malformed JSON at line 1 column 1`). The properties and headers
+              text is separated by `; ` plus a line break instead of `;`.
+          headers:
+            SAP_MessageProcessingLogID:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/RunResult'
+                  - type: object
+                    required: [error]
+                    properties:
+                      error:
+                        type: string
+                        format: byte
+                        description: Base64 of the error text
+              examples:
+                exception:
+                  summary: Script printed a line, set a property, then threw
+                  value:
+                    properties: UGFydGlhbCA9IHllczsuLi4=
+                    headers: Q2FtZWxIdHRwTWV0aG9kID0gUE9TVDsuLi4=
+                    payload: eA==
+                    console: YmVmb3JlIGZhaWx1cmUK
+                    delta:
+                      headers:
+                        set: {}
+                        removed: []
+                      properties:
+                        set:
+                          Partial: 'yes'
+                        removed: []
+                    error: amF2YS5sYW5nLklsbGVnYWxTdGF0ZUV4Y2VwdGlvbjogYm9vbSBAIGxpbmUgNQ==
+        '401':
+          description: Missing or invalid token.
+        '403':
+          description: The client lacks the role required by the HTTPS sender (`ESBMessaging.send` by default).
+        '404':
+          description: Wrong path, or the runner iFlow is not deployed.
+        '500':
+          description: Runtime error outside the iFlow's error handling. The body is plain text.
+
+components:
+  securitySchemes:
+    runtimeOAuth:
+      type: oauth2
+      description: |
+        Client credentials from a Process Integration Runtime service key with plan
+        `integration-flow` (`clientid`, `clientsecret`, `tokenurl`). The token is sent as
+        `Authorization: Bearer`. No CSRF token is needed: the sender has CSRF protection off.
+      flows:
+        clientCredentials:
+          tokenUrl: https://{subaccount}.authentication.{region}.hana.ondemand.com/oauth/token
+          scopes: {}
+
+  schemas:
+    RunRequest:
+      type: object
+      required: [inputScript]
+      properties:
+        inputScript:
+          type: string
+          format: byte
+          description: |
+            Base64 (UTF-8) of the Groovy script. It must define the function to call, by default
+            `Message processData(Message message)`, and may import
+            `com.sap.gateway.ip.core.customdev.util.Message` as in a script step. If it is missing,
+            an empty script runs and fails with `MissingMethodException` (HTTP 400).
+        inputPayload:
+          type: string
+          format: byte
+          description: |
+            Base64 of the message body the script receives (as a stream, like in a script step).
+            Empty or omitted gives the script an empty body (measured on 1.0.12).
+        inputHdrs:
+          type: string
+          format: byte
+          description: Base64 of `Name=Value;Name=Value`. Set as message headers before the script runs.
+        inputParams:
+          type: string
+          format: byte
+          description: |
+            Base64 of `Name=Value;Name=Value`. Set as exchange properties before the script runs.
+            The reserved property `runnerFunction=<name>` selects the function to call instead of
+            `processData`. It is removed before the script runs.
+
+    RunResult:
+      type: object
+      required: [properties, headers, payload]
+      properties:
+        properties:
+          type: string
+          format: byte
+          description: |
+            Base64 of all exchange properties after the script, as `name = value;` text, including the
+            runtime's own (`SAP_*`, `Camel*`) and the runner's input properties. Values containing `;`
+            make this text ambiguous; use `delta` for exact values.
+        headers:
+          type: string
+          format: byte
+          description: Base64 of all message headers after the script, as `name = value;` text.
+        payload:
+          type: string
+          format: byte
+          description: Base64 of the message body after the script (as a string in the runtime's default charset).
+        console:
+          type: string
+          format: byte
+          description: Base64 of everything the script printed with `println`/`print`. Also present on script failure.
+        delta:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Delta'
+          description: |
+            Plain JSON, not Base64. Only what the script changed compared with the message it received.
+            Added in runner version 1.0.12. Null when the runner itself failed before the script ran.
+
+    Delta:
+      type: object
+      required: [headers, properties]
+      properties:
+        headers:
+          $ref: '#/components/schemas/Changes'
+        properties:
+          $ref: '#/components/schemas/Changes'
+
+    Changes:
+      type: object
+      required: [set, removed]
+      properties:
+        set:
+          type: object
+          description: |
+            Names the script added or changed, with the new value as a string (`toString()` of the
+            object; null stays null). Credential-like names have the value `<hidden>`.
+          additionalProperties:
+            type: string
+            nullable: true
+        removed:
+          type: array
+          description: Names that existed before the script and are gone afterwards.
+          items:
+            type: string

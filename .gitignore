@@ -1,0 +1,4 @@
+node_modules/
+# Service keys and local tenant state: never committed
+.cpi/
+*.tenant.zip

@@ -1,0 +1,3558 @@
+{
+ "format": 1,
+ "sources": [
+  {
+   "iflow": "palette",
+   "version": "1.0.10",
+   "harvested": "2026-10-28"
+  }
+ ],
+ "entries": {
+  "ctype::AdapterVariant/cname::AdobeSign/vendor::rojoconsultancy.com/tp::HTTPS/mp::REST/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "AdobeSign",
+   "versions": {
+    "1.0.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::AdobeSign/vendor::rojoconsultancy.com/tp::HTTPS/mp::REST/direction::Receiver/version::1.0.0",
+     "properties": {
+      "cursor": "",
+      "fileName": "",
+      "Description": "",
+      "reuseConnection": "",
+      "ComponentNS": "sap",
+      "pageSize": "",
+      "mimeType": "",
+      "httpMethod": "GET",
+      "Name": "AdobeSign",
+      "TransportProtocolVersion": "1.0.0",
+      "ComponentSWCVName": "external",
+      "socketTimeout": "60000",
+      "configurationType": "basic",
+      "connectionTimeout": "60000",
+      "MessageProtocol": "REST",
+      "ComponentSWCVId": "1.0.0",
+      "enablePayload": "false",
+      "direction": "Receiver",
+      "ComponentType": "AdobeSign",
+      "address": "",
+      "sourceRequestPayload": "uiConfigurable",
+      "query": "",
+      "componentVersion": "1.0",
+      "Vendor": "rojoconsultancy.com",
+      "relativeURL": "",
+      "integrationKeyCredential": "",
+      "system": "",
+      "requestHeaders": "",
+      "responseHeaders": "*",
+      "operationParameters": "",
+      "TransportProtocol": "HTTPS",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::AdobeSign/vendor::rojoconsultancy.com/tp::HTTPS/mp::REST/direction::Receiver/version::1.0.0",
+      "operation": "Create and send agreement (/agreements)",
+      "MessageProtocolVersion": "1.0.0",
+      "entity": "Agreements"
+     },
+     "seen": "palette 1.0.10: AdobeSign (MessageFlow_954)"
+    }
+   },
+   "latest": "1.0.0"
+  },
+  "ctype::AdapterVariant/cname::AdvancedEventMesh/vendor::SAP/tp::TCP/mp::SMF/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "AdvancedEventMesh",
+   "versions": {
+    "1.4.3": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::AdvancedEventMesh/vendor::SAP/tp::TCP/mp::SMF/direction::Receiver/version::1.4.3",
+     "properties": {
+      "applicationMessageType": "",
+      "senderTimestamp": "",
+      "Name": "AdvancedEventMesh",
+      "TransportProtocolVersion": "1.4.3",
+      "password": "",
+      "elidingEligible": "",
+      "messageType": "AUTOMATIC",
+      "deliveryMode": "DIRECT",
+      "host": "",
+      "userProperties": "",
+      "reply": "",
+      "ComponentSWCVId": "1.4.3",
+      "sequenceNumber": "",
+      "keyStoreAlias": "",
+      "endpointType": "TOPIC",
+      "cosValue": "",
+      "oauth2AuthorizationCodeCredentialName": "",
+      "componentVersion": "1.4",
+      "priority": "",
+      "replyToDestination": "",
+      "applicationMessageId": "",
+      "system": "",
+      "TransportProtocol": "TCP",
+      "replyTimeout": "1000",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::AdvancedEventMesh/vendor::SAP/tp::TCP/mp::SMF/direction::Receiver/version::1.4.3",
+      "MessageProtocolVersion": "1.4.3",
+      "replyToEndpointType": "",
+      "Description": "",
+      "oauth2ClientCredentialsCredentialName": "",
+      "oauthClientId": "",
+      "ComponentNS": "sap",
+      "oauthRefreshToken": "",
+      "ComponentSWCVName": "external",
+      "senderId": "",
+      "oauthAccessToken": "",
+      "messageVpn": "",
+      "dmqEligible": "true",
+      "oauthRefreshTokenUrl": "",
+      "locationId": "",
+      "destinationName": "",
+      "correlationId": "",
+      "jcsmpProperties": "",
+      "MessageProtocol": "SMF",
+      "direction": "Receiver",
+      "ComponentType": "AdvancedEventMesh",
+      "oauthCredentialType": "OAUTH2_CLIENT_CREDENTIALS",
+      "proxyType": "INTERNET",
+      "Vendor": "SAP",
+      "requestReply": "false",
+      "ttl": "",
+      "accessTokenFetchIntervalInSecs": "300",
+      "authenticationType": "BASIC",
+      "trustStoreAlias": "",
+      "username": "default"
+     },
+     "seen": "palette 1.0.10: AdvancedEventMesh (MessageFlow_959)"
+    }
+   },
+   "latest": "1.4.3"
+  },
+  "ctype::AdapterVariant/cname::AI/vendor::rojoconsultancy.com/tp::HTTPS/mp::Custom-Claude-REST/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "AI",
+   "versions": {
+    "1.1.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::AI/vendor::rojoconsultancy.com/tp::HTTPS/mp::Custom-Claude-REST/direction::Receiver/version::1.1.0",
+     "properties": {
+      "Description": "",
+      "reuseConnection": "",
+      "ComponentNS": "sap",
+      "httpMethod": "GET",
+      "customId": "",
+      "Name": "AI",
+      "TransportProtocolVersion": "1.1.0",
+      "ComponentSWCVName": "external",
+      "socketTimeout": "60000",
+      "maxTokens": "",
+      "model": "claude-opus-4-5-20251101",
+      "configurationType": "basic",
+      "secureParameter": "",
+      "connectionTimeout": "60000",
+      "MessageProtocol": "Custom-Claude-REST",
+      "ComponentSWCVId": "1.1.0",
+      "direction": "Receiver",
+      "ComponentType": "AI",
+      "address": "https://api.anthropic.com",
+      "sourceRequestPayload": "uiConfigured",
+      "query": "",
+      "Vendor": "rojoconsultancy.com",
+      "componentVersion": "1.1",
+      "relativeURL": "",
+      "system": "",
+      "requestHeaders": "",
+      "responseHeaders": "*",
+      "operationParameters": "",
+      "includeBody": "",
+      "messages": "",
+      "TransportProtocol": "HTTPS",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::AI/vendor::rojoconsultancy.com/tp::HTTPS/mp::Custom-Claude-REST/direction::Receiver/version::1.1.0",
+      "operation": "Create a Message (/v1/messages)",
+      "MessageProtocolVersion": "1.1.0",
+      "entity": "Messages"
+     },
+     "seen": "palette 1.0.10: AI (MessageFlow_964)"
+    }
+   },
+   "latest": "1.1.0"
+  },
+  "ctype::AdapterVariant/cname::AmazonDynamoDB/vendor::rojoconsultancy.com/tp::HTTPS/mp::REST/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "AmazonDynamoDB",
+   "versions": {
+    "1.0.2": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::AmazonDynamoDB/vendor::rojoconsultancy.com/tp::HTTPS/mp::REST/direction::Receiver/version::1.0.2",
+     "properties": {
+      "Description": "",
+      "ComponentNS": "sap",
+      "regionName": "eu-central-1",
+      "useExpression": "false",
+      "returnConsumedCapacity": "NONE",
+      "scanIndexForward": "true",
+      "Name": "AmazonDynamoDB",
+      "tableName": "",
+      "sortKeyValue": "",
+      "TransportProtocolVersion": "1.0.2",
+      "ComponentSWCVName": "external",
+      "consistentRead": "",
+      "socketTimeout": "60000",
+      "statement": "",
+      "limit": "50",
+      "partitionKeyValue": "",
+      "conditionSortKey": "EQ",
+      "itemOperation": "Scan",
+      "MessageProtocol": "REST",
+      "ComponentSWCVId": "1.0.2",
+      "direction": "Receiver",
+      "authentication": "accessKeyAndSecret",
+      "andSortKeyVal": "",
+      "ComponentType": "AmazonDynamoDB",
+      "secretKey": "",
+      "indexName": "",
+      "exclusiveStartKey": "",
+      "Vendor": "rojoconsultancy.com",
+      "componentVersion": "1.0",
+      "filters": "",
+      "attributesToProject": "",
+      "system": "",
+      "requestHeaders": "",
+      "responseHeaders": "*",
+      "accessKey": "",
+      "nextToken": "",
+      "TransportProtocol": "HTTPS",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::AmazonDynamoDB/vendor::rojoconsultancy.com/tp::HTTPS/mp::REST/direction::Receiver/version::1.0.2",
+      "connectionTimeOut": "60000",
+      "MessageProtocolVersion": "1.0.2"
+     },
+     "seen": "palette 1.0.10: AmazonDynamoDB (MessageFlow_974)"
+    }
+   },
+   "latest": "1.0.2"
+  },
+  "ctype::AdapterVariant/cname::AmazonEventBridge/vendor::rojoconsultancy.com/tp::HTTPS/mp::EventBridge/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "AmazonEventBridge",
+   "versions": {
+    "1.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::AmazonEventBridge/vendor::rojoconsultancy.com/tp::HTTPS/mp::EventBridge/direction::Receiver",
+     "properties": {
+      "Description": "",
+      "ComponentNS": "sap",
+      "regionName": "us-east-1",
+      "source": "",
+      "Name": "AmazonEventBridge",
+      "TransportProtocolVersion": "1.0.4",
+      "detailType": "",
+      "ComponentSWCVName": "external",
+      "checkFailedEntry": "false",
+      "socketTimeout": "60000",
+      "connectionTimeout": "60000",
+      "MessageProtocol": "EventBridge",
+      "ComponentSWCVId": "1.0.4",
+      "direction": "Receiver",
+      "authentication": "accessKeyAndSecret",
+      "ComponentType": "AmazonEventBridge",
+      "secretKey": "",
+      "busName": "",
+      "resources": "",
+      "checkBusExists": "false",
+      "componentVersion": "1.0",
+      "Vendor": "rojoconsultancy.com",
+      "entries": "${in.body}",
+      "system": "",
+      "requestHeaders": "",
+      "responseHeaders": "*",
+      "accessKey": "",
+      "operationType": "basic",
+      "TransportProtocol": "HTTPS",
+      "detail": "${in.body}",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::AmazonEventBridge/vendor::rojoconsultancy.com/tp::HTTPS/mp::EventBridge/direction::Receiver",
+      "MessageProtocolVersion": "1.0.4"
+     },
+     "seen": "palette 1.0.10: AmazonEventBridge (MessageFlow_980)"
+    }
+   },
+   "latest": "1.0"
+  },
+  "ctype::AdapterVariant/cname::AmazonKinesis/vendor::rojoconsultancy.com/tp::HTTPS/mp::DataStreams/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "AmazonKinesis",
+   "versions": {
+    "1.0.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::AmazonKinesis/vendor::rojoconsultancy.com/tp::HTTPS/mp::DataStreams/direction::Receiver/version::1.0.0",
+     "properties": {
+      "filterShard": "false",
+      "streamMode": "ON_DEMAND",
+      "tagKeys": "",
+      "adjacentShardMergeId": "",
+      "limitTags": "",
+      "Name": "AmazonKinesis",
+      "mode": "basic",
+      "TransportProtocolVersion": "1.0.0",
+      "streamArn": "",
+      "shardToSplit": "",
+      "roleArn": "",
+      "maxResults": "",
+      "socketTimeout": "60000",
+      "shardIterator": "",
+      "startSequenceNumber": "",
+      "limit": "",
+      "shardIteratorType": "AT_TIMESTAMP",
+      "ComponentSWCVId": "1.0.0",
+      "roleSessionName": "",
+      "startStreamName": "",
+      "query": "",
+      "componentVersion": "1.0",
+      "relativeURL": "",
+      "tags": "",
+      "system": "",
+      "requestHeaders": "",
+      "responseHeaders": "*",
+      "accessKey": "",
+      "msEntraIdCredential": "",
+      "nextToken": "",
+      "startShardId": "",
+      "TransportProtocol": "HTTPS",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::AmazonKinesis/vendor::rojoconsultancy.com/tp::HTTPS/mp::DataStreams/direction::Receiver/version::1.0.0",
+      "shardMergeId": "",
+      "MessageProtocolVersion": "1.0.0",
+      "Description": "",
+      "reuseConnection": "false",
+      "ComponentNS": "sap",
+      "regionName": "eu-central-1",
+      "expHashKey": "",
+      "httpMethod": "",
+      "partKey": "",
+      "ComponentSWCVName": "external",
+      "shardFilterType": "FROM_TRIM_HORIZON",
+      "consumerArn": "",
+      "stsTokenUrl": "https://sts.us-east-1.amazonaws.com/",
+      "connectionTimeout": "60000",
+      "MessageProtocol": "DataStreams",
+      "enforceDel": "false",
+      "direction": "Receiver",
+      "timestamp": "",
+      "retentionPeriod": "24",
+      "streamCreationTimestamp": "",
+      "ComponentType": "AmazonKinesis",
+      "address": "amazonaws.com",
+      "secretKey": "",
+      "sourceRequestPayload": "uiConfigured",
+      "newStartHashKey": "",
+      "externalId": "",
+      "shardId": "",
+      "streamNameMandatory": "",
+      "Vendor": "rojoconsultancy.com",
+      "exclusiveStartTag": "",
+      "streamName": "",
+      "consumerNameMandatory": "",
+      "resourceArn": "",
+      "authenticationType": "accessKeyAndSecret",
+      "operation": "PutRecord",
+      "shardCount": "",
+      "encodeData": "true",
+      "entity": "Records",
+      "streamArnMandatory": "",
+      "consumerArnMandatory": "",
+      "consumerName": ""
+     },
+     "seen": "palette 1.0.10: AmazonKinesis (MessageFlow_985)"
+    }
+   },
+   "latest": "1.0.0"
+  },
+  "ctype::AdapterVariant/cname::Anaplan/vendor::rojoconsultancy.com/tp::HTTPS/mp::REST/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "Anaplan",
+   "versions": {
+    "1.3.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::Anaplan/vendor::rojoconsultancy.com/tp::HTTPS/mp::REST/direction::Receiver/version::1.3.0",
+     "properties": {
+      "sourceId": "",
+      "getResource": "workspaces/:workspaceId/models/:modelId/processes/:processId/tasks/:taskId/dumps/:objectId",
+      "resourceParametersTable": "",
+      "Description": "",
+      "downloadResource": "workspaces/:workspaceId/models/:modelId/imports/:importId/tasks/:taskId/dump/chunks/:chunkId",
+      "modelId": "",
+      "ComponentNS": "sap",
+      "listResource": "workspaces/:workspaceId/models/:modelId/imports/:importId/tasks/:taskId/dump",
+      "waitCompleted": "true",
+      "anaplanCredentials": "",
+      "Name": "Anaplan",
+      "uploadResource": "workspaces/:workspaceId/models/:modelId/files/:fileId/chunks/:chunkId",
+      "TransportProtocolVersion": "1.3.0",
+      "ComponentSWCVName": "external",
+      "apiVersion": "/2/0/",
+      "deleteResource": "workspaces/:workspaceId/models/:modelId/files/:fileId",
+      "startActionResource": "workspaces/:workspaceId/models/:modelId/actions/:actionId/tasks",
+      "outputFormat": "json",
+      "MessageProtocol": "REST",
+      "ComponentSWCVId": "1.3.0",
+      "direction": "Receiver",
+      "workspaceId": "",
+      "ComponentType": "Anaplan",
+      "chunkSize": "10000",
+      "query": "",
+      "authHost": "https://auth.anaplan.com",
+      "Vendor": "rojoconsultancy.com",
+      "componentVersion": "1.3",
+      "inputFormat": "json",
+      "system": "",
+      "requestHeaders": "",
+      "responseHeaders": "*",
+      "maxRetryTime": "600",
+      "actionId": "",
+      "anaplanHost": "https://api.anaplan.com",
+      "modifyResource": "workspaces/:workspaceId/models/:modelId/lists/:listId/items?action=add",
+      "retryInterval": "10",
+      "TransportProtocol": "HTTPS",
+      "authenticationType": "basicAuth",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::Anaplan/vendor::rojoconsultancy.com/tp::HTTPS/mp::REST/direction::Receiver/version::1.3.0",
+      "anaplanAuthCodeCredentials": "",
+      "operation": "list",
+      "MessageProtocolVersion": "1.3.0"
+     },
+     "seen": "palette 1.0.10: Anaplan (MessageFlow_1000)"
+    }
+   },
+   "latest": "1.3.0"
+  },
+  "ctype::AdapterVariant/cname::AS2/tp::HTTP/mp::AS2/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "AS",
+   "versions": {
+    "1.11.1": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::AS2/tp::HTTP/mp::AS2/direction::Receiver/version::1.11.1",
+     "properties": {
+      "fileName": "",
+      "receipientURL": "",
+      "privateKeyAlias": "",
+      "encryptionAlgorithm": "DES3",
+      "requestMIC": "0",
+      "Name": "AS2",
+      "TransportProtocolVersion": "1.0",
+      "proxyPort": "",
+      "requestMDNSigningAlgorithm": "SHA1",
+      "keyLength": "128",
+      "messageIDRight": "",
+      "partnerAS2Name": "",
+      "contentType": "",
+      "ComponentSWCVId": "1.0",
+      "ownEmailAddress": "",
+      "doCompression": "0",
+      "requestMDNSigning": "0",
+      "componentVersion": "1.11",
+      "proxyHost": "",
+      "urlParametersPattern": "",
+      "system": "",
+      "TransportProtocol": "HTTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::AS2/tp::HTTP/mp::AS2/direction::Receiver/version::1.11.1",
+      "MessageProtocolVersion": "1.0",
+      "privateKeyAliasForSigning": "",
+      "ownAS2Name": "",
+      "Description": "",
+      "ComponentNS": "sap",
+      "publicKeyAliasForEncryption": "",
+      "timeout": "300000",
+      "failMessageOnNegativeMDN": "0",
+      "ComponentSWCVName": "SAP BASIS 7.31",
+      "messageEncoding": "binary",
+      "doEncryption": "0",
+      "publicKeyAliasForMDNVerification": "",
+      "verifyMDNSignature": "0",
+      "MessageProtocol": "AS2",
+      "direction": "Receiver",
+      "ComponentType": "AS2",
+      "messageIDLeft": "",
+      "verifyMIC": "0",
+      "messageSubject": "",
+      "proxyType": "default",
+      "mdnType": "None",
+      "userCredentialAlias": "",
+      "doSigning": "0",
+      "signingAlgorithm": "SHA1",
+      "locationID": "",
+      "mdnTargetURL": "",
+      "authenticationType": "None",
+      "customHeadersPattern": ""
+     },
+     "seen": "palette 1.0.10: AS2 (MessageFlow_1005)"
+    }
+   },
+   "latest": "1.11.1"
+  },
+  "ctype::AdapterVariant/cname::AS2/tp::HTTP/mp::AS2/direction::Sender": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "AS",
+   "versions": {
+    "1.17.1": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::AS2/tp::HTTP/mp::AS2/direction::Sender/version::1.17.1",
+     "properties": {
+      "mdnProxyPort": "",
+      "mdnTimeout": "300000",
+      "mdnPrivateKeyAlias": "",
+      "maximumAttachmentSize": "100",
+      "privateKeyAliasForMDNSigning": "",
+      "mdnLocationID": "",
+      "Name": "AS2",
+      "TransportProtocolVersion": "1.0",
+      "mdnAuthenticationType": "None",
+      "as2MsgIdDupCheck": "0",
+      "expectedMessageIDRight": "",
+      "partnerAS2Name": "",
+      "ComponentSWCVId": "1.0",
+      "skipAuthentication": "0",
+      "as2PidSource": "authorizedUser",
+      "maximumBodySize": "40",
+      "MaxRetryInterval": "60",
+      "mdnProxyHost": "",
+      "componentVersion": "1.17",
+      "ExponentialBackoff": "1",
+      "system": "",
+      "verificationOption": "NotRequired",
+      "TransportProtocol": "HTTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::AS2/tp::HTTP/mp::AS2/direction::Sender/version::1.17.1",
+      "propagateMDNDetails": "notRequired",
+      "mdnUserCredentialAlias": "",
+      "MessageProtocolVersion": "1.0",
+      "ownAS2Name": "",
+      "negativeMDNForFailures": "notRequired",
+      "doDecryption": "0",
+      "Description": "",
+      "signatureEncoding": "binary",
+      "ComponentNS": "sap",
+      "mdnProxyType": "default",
+      "useDeadLetterQueue": "1",
+      "publicKeyRootAliasForVerification": "",
+      "ComponentSWCVName": "SAP BASIS 7.31",
+      "fileNamePersistDuration": "1440",
+      "publicKeyAliasForVerification": "",
+      "fileNameMandatoryCheck": "0",
+      "encryptRMPersistence": "true",
+      "MessageProtocol": "AS2",
+      "direction": "Sender",
+      "clientCertificates": "",
+      "ComponentType": "AS2",
+      "address": "",
+      "as2MsgIdDupCheckResponse": "ErrorMDN",
+      "expectedMessageIDLeft": "",
+      "messageSubject": "",
+      "fileNameDupCheck": "0",
+      "numberConcurrentProcesses": "1",
+      "as2MsgIdPersistDuration": "1440",
+      "QualityOfService": "ExactlyOnce",
+      "RetryInterval": "1",
+      "userRole": "ESBMessaging.send",
+      "senderAuthType": "RoleBased",
+      "fileNameDupCheckResponse": "ErrorMDN",
+      "privateKeyAliasForDecryption": "",
+      "decryptionConfigurationType": "channelConfiguration"
+     },
+     "seen": "palette 1.0.10: AS2 (MessageFlow_63152081)"
+    }
+   },
+   "latest": "1.17.1"
+  },
+  "ctype::AdapterVariant/cname::JDBC/vendor::SAP/tp::JDBC/mp::JDBC/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "JDBC",
+   "versions": {
+    "1.7.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::JDBC/vendor::SAP/tp::JDBC/mp::JDBC/direction::Receiver/version::1.7.0",
+     "properties": {
+      "queryTimeout": "3",
+      "emptyStringSupport": "false",
+      "ComponentType": "JDBC",
+      "Description": "",
+      "ComponentNS": "sap",
+      "pageSize": "100000",
+      "Vendor": "SAP",
+      "componentVersion": "1.7",
+      "Name": "JDBC",
+      "TransportProtocolVersion": "1.7.1",
+      "ComponentSWCVName": "external",
+      "batchOperation": "atomic",
+      "dateWithBindMode": "false",
+      "sqlBindMode": "false",
+      "system": "",
+      "batchMode": "false",
+      "alias": "",
+      "TransportProtocol": "JDBC",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::JDBC/vendor::SAP/tp::JDBC/mp::JDBC/direction::Receiver/version::1.7.0",
+      "connectionTimeout": "3",
+      "MessageProtocol": "JDBC",
+      "ComponentSWCVId": "1.7.1",
+      "MessageProtocolVersion": "1.7.1",
+      "direction": "Receiver"
+     },
+     "seen": "palette 1.0.10: JDBC (MessageFlow_63151965)"
+    }
+   },
+   "latest": "1.7.0"
+  },
+  "ctype::AdapterVariant/cname::ProcessDirect/vendor::SAP/tp::Not Applicable/mp::Not Applicable/direction::Sender": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "ProcessDirect",
+   "versions": {
+    "1.1.2": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::ProcessDirect/vendor::SAP/tp::Not Applicable/mp::Not Applicable/direction::Sender/version::1.1.2",
+     "properties": {
+      "ComponentType": "ProcessDirect",
+      "Description": "",
+      "address": "",
+      "ComponentNS": "sap",
+      "Vendor": "SAP",
+      "componentVersion": "1.1",
+      "Name": "ProcessDirect",
+      "TransportProtocolVersion": "1.1.2",
+      "ComponentSWCVName": "external",
+      "system": "",
+      "TransportProtocol": "Not Applicable",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::ProcessDirect/vendor::SAP/tp::Not Applicable/mp::Not Applicable/direction::Sender/version::1.1.2",
+      "MessageProtocol": "Not Applicable",
+      "MessageProtocolVersion": "1.1.2",
+      "ComponentSWCVId": "1.1.2",
+      "direction": "Sender"
+     },
+     "seen": "palette 1.0.10: ProcessDirect (MessageFlow_63152116)"
+    }
+   },
+   "latest": "1.1.2"
+  },
+  "ctype::AdapterVariant/cname::sap:AMQP/tp::TCP/mp::AMQP1.0/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "AMQP",
+   "versions": {
+    "1.5.1": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:AMQP/tp::TCP/mp::AMQP1.0/direction::Receiver/version::1.5.1",
+     "properties": {
+      "Description": "",
+      "ComponentNS": "sap",
+      "location_id": "",
+      "Name": "AMQP",
+      "TransportProtocolVersion": "1.8.1",
+      "ComponentSWCVName": "external",
+      "proxyPort": "",
+      "messageType": "automatic",
+      "jmsKeyFormatStrategy": "passthrough",
+      "destinationName": "",
+      "host": "",
+      "alias": "",
+      "destinationType": "topic",
+      "MessageProtocol": "AMQP1.0",
+      "ComponentSWCVId": "1.8.1",
+      "direction": "Receiver",
+      "authentication": "SASL",
+      "delivery": "persistent",
+      "ComponentType": "AMQP",
+      "proxyType": "none",
+      "componentVersion": "1.5",
+      "proxyHost": "",
+      "connectWithTLS": "true",
+      "expirationPeriod": "",
+      "system": "",
+      "port": "",
+      "TransportProtocol": "TCP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:AMQP/tp::TCP/mp::AMQP1.0/direction::Receiver/version::1.5.1",
+      "credentialName": "",
+      "MessageProtocolVersion": "1.8.1"
+     },
+     "seen": "palette 1.0.10: AMQP (MessageFlow_990)"
+    }
+   },
+   "latest": "1.5.1"
+  },
+  "ctype::AdapterVariant/cname::sap:AMQP/tp::WS/mp::AMQP1.0/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "AMQP",
+   "versions": {
+    "1.4.2": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:AMQP/tp::WS/mp::AMQP1.0/direction::Receiver/version::1.4.2",
+     "properties": {
+      "Description": "",
+      "ComponentNS": "sap",
+      "location_id": "",
+      "Name": "AMQP",
+      "TransportProtocolVersion": "1.8.1",
+      "ComponentSWCVName": "external",
+      "path": "",
+      "proxyPort": "",
+      "messageType": "automatic",
+      "jmsKeyFormatStrategy": "passthrough",
+      "destinationName": "",
+      "host": "",
+      "destinationType": "topic",
+      "MessageProtocol": "AMQP1.0",
+      "ComponentSWCVId": "1.8.1",
+      "direction": "Receiver",
+      "authentication": "SASL",
+      "delivery": "persistent",
+      "ComponentType": "AMQP",
+      "proxyType": "none",
+      "componentVersion": "1.4",
+      "proxyHost": "",
+      "connectWithTLS": "true",
+      "expirationPeriod": "",
+      "system": "",
+      "port": "",
+      "TransportProtocol": "WS",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:AMQP/tp::WS/mp::AMQP1.0/direction::Receiver/version::1.4.2",
+      "credentialName": "",
+      "MessageProtocolVersion": "1.8.1"
+     },
+     "seen": "palette 1.0.10: AMQP (MessageFlow_995)"
+    }
+   },
+   "latest": "1.4.2"
+  },
+  "ctype::AdapterVariant/cname::sap:FTP/tp::FTP/mp::File/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "FTP",
+   "versions": {
+    "1.2.1": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:FTP/tp::FTP/mp::File/direction::Receiver/version::1.2.1",
+     "properties": {
+      "disconnect": "",
+      "fileName": "",
+      "Description": "",
+      "maximumReconnectAttempts": "3",
+      "stepwise": "0",
+      "fileExist": "Override",
+      "ComponentNS": "sap",
+      "autoCreate": "1",
+      "location_id": "",
+      "Name": "FTP",
+      "TransportProtocolVersion": "1.4.2",
+      "flatten": "",
+      "sftpSecEnabled": "1",
+      "useTempFile": "0",
+      "ComponentSWCVName": "external",
+      "path": "",
+      "proxyPort": "8080",
+      "encryption": "ftpes",
+      "host": "",
+      "connectTimeout": "10000",
+      "MessageProtocol": "File",
+      "ComponentSWCVId": "1.4.2",
+      "direction": "Receiver",
+      "ComponentType": "FTP",
+      "fileAppendTimeStamp": "",
+      "credential_name": "",
+      "proxyType": "none",
+      "proxyAlias": "",
+      "componentVersion": "1.2",
+      "reconnectDelay": "1000",
+      "proxyHost": "",
+      "system": "",
+      "tempFileName": "${file:name}.tmp",
+      "TransportProtocol": "FTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:FTP/tp::FTP/mp::File/direction::Receiver/version::1.2.1",
+      "MessageProtocolVersion": "1.4.2"
+     },
+     "seen": "palette 1.0.10: FTP (MessageFlow_63151955)"
+    }
+   },
+   "latest": "1.2.1"
+  },
+  "ctype::AdapterVariant/cname::sap:FTP/tp::FTP/mp::File/direction::Sender": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "FTP",
+   "versions": {
+    "1.4.2": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:FTP/tp::FTP/mp::File/direction::Sender/version::1.4.2",
+     "properties": {
+      "disconnect": "",
+      "fileName": "",
+      "Description": "",
+      "maximumReconnectAttempts": "3",
+      "stepwise": "0",
+      "ComponentNS": "sap",
+      "location_id": "",
+      "recursive": "",
+      "Name": "FTP",
+      "TransportProtocolVersion": "1.4.2",
+      "flatten": "",
+      "ComponentSWCVName": "external",
+      "path": "",
+      "proxyPort": "8080",
+      "noop": "delete",
+      "encryption": "ftpes",
+      "doneFileName": "${file:name}.done",
+      "file.move": ".archive",
+      "host": "",
+      "connectTimeout": "10000",
+      "file_sorting_criteria": "sort_by_none",
+      "maxMessagesPerPoll": "20",
+      "MessageProtocol": "File",
+      "ComponentSWCVId": "1.4.2",
+      "direction": "Sender",
+      "file_sorting_direction": "sort_direction_asc",
+      "ComponentType": "FTP",
+      "credential_name": "",
+      "readLock": "none",
+      "idempotentRepository": "database",
+      "proxyType": "none",
+      "proxyAlias": "",
+      "componentVersion": "1.4",
+      "reconnectDelay": "1000",
+      "proxyHost": "",
+      "system": "",
+      "scheduleKey": "<row><cell>dayValue</cell><cell></cell></row><row><cell>monthValue</cell><cell></cell></row><row><cell>yearValue</cell><cell></cell></row><row><cell>dateType</cell><cell>DAILY</cell></row><row><cell>secondValue</cell><cell>0</cell></row><row><cell>minutesValue</cell><cell></cell></row><row><cell>hourValue</cell><cell></cell></row><row><cell>toInterval</cell><cell>24</cell></row><row><cell>fromInterval</cell><cell>0</cell></row><row><cell>OnEverySecond</cell><cell>10</cell></row><row><cell>timeType</cell><cell>TIME_SECOND_INTERVAL</cell></row><row><cell>timeZone</cell><cell>( UTC 0:00 ) Greenwich Mean Time(Etc/GMT)</cell></row><row><cell>throwExceptionOnExpiry</cell><cell>true</cell></row><row><cell>second</cell><cell>0/10</cell></row><row><cell>minute</cell><cell>*</cell></row><row><cell>hour</cell><cell>0-24</cell></row><row><cell>day_of_month</cell><cell>?</cell></row><row><cell>month</cell><cell>*</cell></row><row><cell>dayOfWeek</cell><cell>*</cell></row><row><cell>year</cell><cell>*</cell></row><row><cell>startAt</cell><cell></cell></row><row><cell>endAt</cell><cell></cell></row><row><cell>attributeBehaviour</cell><cell>isRunOnceRequired,isScheduleOnDayRequired,isScheduleRecurRequired</cell></row><row><cell>triggerType</cell><cell>cron</cell></row><row><cell>noOfSchedules</cell><cell>1</cell></row><row><cell>schedule1</cell><cell>0/10+*+0-23+?+*+*+*&amp;trigger.timeZone=Etc/GMT</cell></row>",
+      "TransportProtocol": "FTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:FTP/tp::FTP/mp::File/direction::Sender/version::1.4.2",
+      "MessageProtocolVersion": "1.4.2",
+      "file_lock_timeout": "15"
+     },
+     "seen": "palette 1.0.10: FTP (MessageFlow_63152085)"
+    }
+   },
+   "latest": "1.4.2"
+  },
+  "ctype::AdapterVariant/cname::sap:HCIOData/tp::HTTP/mp::OData V2/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "OData",
+   "versions": {
+    "1.32.1": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:HCIOData/tp::HTTP/mp::OData V2/direction::Receiver/version::1.32.1",
+     "properties": {
+      "odataCertAuthPrivateKeyAlias": "",
+      "retryOnExceptionsTable": "",
+      "customQueryOptions": "",
+      "metadataAllowedURIParams": "",
+      "Name": "OData",
+      "internetProxyType": "",
+      "TransportProtocolVersion": "1.32.1",
+      "proxyPort": "",
+      "enableMPLAttachments": "true",
+      "receiveTimeOut": "1",
+      "contentType": "application/atom+xml",
+      "ComponentSWCVId": "1.32.1",
+      "providerName": "",
+      "queryOptions": "",
+      "clearStaleConnection": "false",
+      "componentVersion": "1.32",
+      "proxyHost": "",
+      "edmxFilePath": "",
+      "providerUrl": "",
+      "retryOnStatusCodes": "",
+      "system": "",
+      "authenticationMethod": "None",
+      "odataOperationExpression": "",
+      "retryOnFailure": "false",
+      "maxIdleTimeout": "",
+      "TransportProtocol": "HTTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:HCIOData/tp::HTTP/mp::OData V2/direction::Receiver/version::1.32.1",
+      "fields": "",
+      "characterEncoding": "none",
+      "MessageProtocolVersion": "1.32.1",
+      "providerRelativeUrl": "",
+      "Description": "",
+      "pagination": "",
+      "apiArtifactType": "",
+      "providerAuth": "",
+      "ComponentNS": "sap",
+      "resourcePath": "",
+      "apiprovider_location_id": "",
+      "retryOnException": "false",
+      "ComponentSWCVName": "external",
+      "alias": "",
+      "maxRetryIterations": "1",
+      "retryIntervalSec": "5",
+      "MessageProtocol": "OData V2",
+      "direction": "Receiver",
+      "scc_location_id": "",
+      "metadataAllowedHeaders": "",
+      "ComponentType": "HCIOData",
+      "address": "",
+      "isCSRFEnabled": "true",
+      "proxyType": "default",
+      "enableTLSSessionReuse": "true",
+      "odatapagesize": "",
+      "whitelistResponseHeaders": "traceparent",
+      "enableBatchProcessing": "",
+      "whitelistRequestHeaders": "traceparent",
+      "operation": "Query(GET)"
+     },
+     "seen": "palette 1.0.10: OData (MessageFlow_63151980)"
+    }
+   },
+   "latest": "1.32.1"
+  },
+  "ctype::AdapterVariant/cname::sap:HCIOData/tp::HTTP/mp::OData V4/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "OData",
+   "versions": {
+    "1.23.1": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:HCIOData/tp::HTTP/mp::OData V4/direction::Receiver/version::1.23.1",
+     "properties": {
+      "batchEntities": "",
+      "Description": "",
+      "pagination": "false",
+      "odataCertAuthPrivateKeyAlias": "",
+      "ComponentNS": "sap",
+      "odatav4OperationExpression": "",
+      "metadataAllowedURIParams": "",
+      "Name": "OData",
+      "TransportProtocolVersion": "1.32.1",
+      "ComponentSWCVName": "external",
+      "proxyPort": "",
+      "enableMPLAttachments": "true",
+      "csrfEnabled": "true",
+      "receiveTimeOut": "1",
+      "connectionReuse": "true",
+      "alias": "",
+      "MessageProtocol": "OData V4",
+      "ComponentSWCVId": "1.32.1",
+      "direction": "Receiver",
+      "scc_location_id": "",
+      "metadataAllowedHeaders": "",
+      "ComponentType": "HCIOData",
+      "address": "",
+      "resourcePathForOdatav4": "",
+      "isXSDGenerationRequired": "",
+      "allowChunking": "false",
+      "queryOptions": "",
+      "proxyType": "default",
+      "componentVersion": "1.23",
+      "proxyHost": "",
+      "edmxFilePath": "",
+      "system": "",
+      "authenticationMethod": "None",
+      "whitelistResponseHeaders": "traceparent",
+      "TransportProtocol": "HTTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:HCIOData/tp::HTTP/mp::OData V4/direction::Receiver/version::1.23.1",
+      "fields": "",
+      "whitelistRequestHeaders": "traceparent",
+      "operation": "get",
+      "MessageProtocolVersion": "1.32.1"
+     },
+     "seen": "palette 1.0.10: OData (MessageFlow_63151985)"
+    }
+   },
+   "latest": "1.23.1"
+  },
+  "ctype::AdapterVariant/cname::sap:HTTP/tp::HTTP/mp::None/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "HTTP",
+   "versions": {
+    "1.22.1": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:HTTP/tp::HTTP/mp::None/direction::Receiver/version::1.22.1",
+     "properties": {
+      "apiName": "",
+      "Description": "",
+      "methodSourceExpression": "",
+      "apiArtifactType": "",
+      "providerAuth": "",
+      "retryOnExceptionsTable": "",
+      "ComponentNS": "sap",
+      "privateKeyAlias": "",
+      "httpMethod": "POST",
+      "apiprovider_location_id": "",
+      "allowedResponseHeaders": "*",
+      "Name": "HTTP",
+      "internetProxyType": "",
+      "TransportProtocolVersion": "1.22.1",
+      "retryOnException": "false",
+      "proxyPort": "",
+      "ComponentSWCVName": "external",
+      "streaming": "false",
+      "enableMPLAttachments": "true",
+      "pooledConnectionIdleTimeout": "300000",
+      "httpAddressQuery": "",
+      "httpRequestTimeout": "60000",
+      "ComponentSWCVId": "1.22.1",
+      "providerName": "",
+      "allowedRequestHeaders": "traceparent",
+      "MessageProtocol": "None",
+      "direction": "Receiver",
+      "ComponentType": "HTTP",
+      "httpShouldSendBody": "false",
+      "throwExceptionOnFailure": "true",
+      "proxyType": "default",
+      "componentVersion": "1.22",
+      "retryIteration": "1",
+      "proxyHost": "",
+      "providerUrl": "",
+      "retryOnConnectionFailure": "false",
+      "system": "",
+      "authenticationMethod": "Client Certificate",
+      "locationID": "",
+      "retryInterval": "5",
+      "TransportProtocol": "HTTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:HTTP/tp::HTTP/mp::None/direction::Receiver/version::1.22.1",
+      "httpErrorResponseCodes": "",
+      "credentialName": "",
+      "apiDisplayName": "",
+      "MessageProtocolVersion": "1.22.1",
+      "providerRelativeUrl": "",
+      "httpAddressWithoutQuery": ""
+     },
+     "seen": "palette 1.0.10: HTTP (MessageFlow_944)"
+    }
+   },
+   "latest": "1.22.1"
+  },
+  "ctype::AdapterVariant/cname::sap:HTTPS/tp::HTTPS/mp::None/direction::Sender": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "HTTPS",
+   "versions": {
+    "1.5.3": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:HTTPS/tp::HTTPS/mp::None/direction::Sender/version::1.5.3",
+     "properties": {
+      "ComponentType": "HTTPS",
+      "Description": "",
+      "maximumBodySize": "40",
+      "ComponentNS": "sap",
+      "componentVersion": "1.5",
+      "urlPath": "",
+      "Name": "HTTPS",
+      "TransportProtocolVersion": "1.5.3",
+      "ComponentSWCVName": "external",
+      "system": "",
+      "xsrfProtection": "1",
+      "TransportProtocol": "HTTPS",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:HTTPS/tp::HTTPS/mp::None/direction::Sender/version::1.5.3",
+      "userRole": "ESBMessaging.send",
+      "senderAuthType": "RoleBased",
+      "MessageProtocol": "None",
+      "MessageProtocolVersion": "1.5.3",
+      "ComponentSWCVId": "1.5.3",
+      "direction": "Sender",
+      "clientCertificates": ""
+     },
+     "seen": "palette 1.0.10: HTTPS (MessageFlow_63152088)"
+    }
+   },
+   "latest": "1.5.3"
+  },
+  "ctype::AdapterVariant/cname::sap:IDOC/tp::HTTP/mp::IDoc SOAP/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "IDOC",
+   "versions": {
+    "1.8.3": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:IDOC/tp::HTTP/mp::IDoc SOAP/direction::Receiver/version::1.8.3",
+     "properties": {
+      "cleanupHeaders": "1",
+      "Description": "",
+      "ComponentNS": "sap",
+      "SapMessageIdDetermination": "Reuse",
+      "privateKeyAlias": "",
+      "Name": "IDOC",
+      "TransportProtocolVersion": "1.8.3",
+      "ComponentSWCVName": "external",
+      "proxyPort": "",
+      "IDocContentType": "application/x-sap.idoc",
+      "CompressMessage": "",
+      "sendHttpResponseCode": "0",
+      "MessageProtocol": "IDoc SOAP",
+      "ComponentSWCVId": "1.8.3",
+      "requestTimeout": "60000",
+      "direction": "Receiver",
+      "authentication": "Client Certificate",
+      "ComponentType": "IDOC",
+      "address": "",
+      "allowChunking": "1",
+      "proxyType": "default",
+      "componentVersion": "1.8",
+      "proxyHost": "",
+      "system": "",
+      "locationID": "",
+      "SourceForSapMessageId": "",
+      "TransportProtocol": "HTTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:IDOC/tp::HTTP/mp::IDoc SOAP/direction::Receiver/version::1.8.3",
+      "credentialName": "",
+      "MessageProtocolVersion": "1.8.3",
+      "KeepConnectionAlive": "1"
+     },
+     "seen": "palette 1.0.10: IDOC (MessageFlow_63151960)"
+    }
+   },
+   "latest": "1.8.3"
+  },
+  "ctype::AdapterVariant/cname::sap:IDOC/tp::HTTP/mp::IDoc SOAP/direction::Sender": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "IDOC",
+   "versions": {
+    "1.4.5": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:IDOC/tp::HTTP/mp::IDoc SOAP/direction::Sender/version::1.4.5",
+     "properties": {
+      "ComponentType": "IDOC",
+      "Description": "",
+      "address": "",
+      "maximumBodySize": "40",
+      "ComponentNS": "sap",
+      "maximumAttachmentSize": "100",
+      "componentVersion": "1.4",
+      "Name": "IDOC",
+      "xmlCharacterHandling": "throwException",
+      "TransportProtocolVersion": "1.8.3",
+      "ComponentSWCVName": "external",
+      "system": "",
+      "TransportProtocol": "HTTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:IDOC/tp::HTTP/mp::IDoc SOAP/direction::Sender/version::1.4.5",
+      "userRole": "ESBMessaging.send",
+      "senderAuthType": "RoleBased",
+      "MessageProtocol": "IDoc SOAP",
+      "MessageProtocolVersion": "1.8.3",
+      "ComponentSWCVId": "1.8.3",
+      "direction": "Sender",
+      "clientCertificates": ""
+     },
+     "seen": "palette 1.0.10: IDOC (MessageFlow_63152093)"
+    }
+   },
+   "latest": "1.4.5"
+  },
+  "ctype::AdapterVariant/cname::sap:JMS/tp::Not Applicable/mp::Not Applicable/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "JMS",
+   "versions": {
+    "1.6.3": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:JMS/tp::Not Applicable/mp::Not Applicable/direction::Receiver/version::1.6.3",
+     "properties": {
+      "ComponentType": "JMS",
+      "Description": "",
+      "ComponentNS": "sap",
+      "componentVersion": "1.6",
+      "UseMessageCompression": "1",
+      "Name": "JMS",
+      "TransportProtocolVersion": "1.6.3",
+      "ComponentSWCVName": "external",
+      "QueueName_outbound": "",
+      "system": "",
+      "EncryptMessage": "1",
+      "RetentionThresholdAlerting": "2",
+      "ExpirationPeriod": "30",
+      "TransportProtocol": "Not Applicable",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:JMS/tp::Not Applicable/mp::Not Applicable/direction::Receiver/version::1.6.3",
+      "TransferExchangeProperties": "0",
+      "MessageProtocol": "Not Applicable",
+      "MessageProtocolVersion": "1.6.3",
+      "ComponentSWCVId": "1.6.3",
+      "AccessType": "Non-Exclusive",
+      "direction": "Receiver"
+     },
+     "seen": "palette 1.0.10: JMS (MessageFlow_63151975)"
+    }
+   },
+   "latest": "1.6.3"
+  },
+  "ctype::AdapterVariant/cname::sap:JMS/tp::Not Applicable/mp::Not Applicable/direction::Sender": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "JMS",
+   "versions": {
+    "1.5.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:JMS/tp::Not Applicable/mp::Not Applicable/direction::Sender/version::1.5.0",
+     "properties": {
+      "ComponentType": "JMS",
+      "Description": "",
+      "NumberConcurrentProcesses": "1",
+      "MaxRetryInterval": "60",
+      "ComponentNS": "sap",
+      "componentVersion": "1.5",
+      "useDeadLetterQueue": "1",
+      "ExponentialBackoff": "1",
+      "Name": "JMS",
+      "TransportProtocolVersion": "1.6.3",
+      "ComponentSWCVName": "external",
+      "system": "",
+      "QueueName_inbound": "",
+      "TransportProtocol": "Not Applicable",
+      "RetryInterval": "1",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:JMS/tp::Not Applicable/mp::Not Applicable/direction::Sender/version::1.5.0",
+      "MessageProtocol": "Not Applicable",
+      "MessageProtocolVersion": "1.6.3",
+      "ComponentSWCVId": "1.6.3",
+      "AccessType": "Non-Exclusive",
+      "direction": "Sender"
+     },
+     "seen": "palette 1.0.10: JMS (MessageFlow_63152096)"
+    }
+   },
+   "latest": "1.5.0"
+  },
+  "ctype::AdapterVariant/cname::sap:Mail/tp::IMAP/mp::Not Applicable/direction::Sender": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "Mail",
+   "versions": {
+    "1.14.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:Mail/tp::IMAP/mp::Not Applicable/direction::Sender/version::1.14.0",
+     "properties": {
+      "server": "",
+      "disconnect": "1",
+      "Description": "",
+      "archiveMailFolder": "",
+      "auth": "loginEncrypted",
+      "ComponentNS": "sap",
+      "selectionReadFlag": "unread",
+      "ssl": "starttls_mandatory",
+      "timeout": "3000",
+      "Name": "Mail",
+      "TransportProtocolVersion": "1.14.0",
+      "ComponentSWCVName": "external",
+      "proxyPort": "8080",
+      "postProcessing": "delete",
+      "locationId": "",
+      "mimeDecodeHeaders": "1",
+      "maxMessagesPerPoll": "20",
+      "MessageProtocol": "Not Applicable",
+      "ComponentSWCVId": "1.14.0",
+      "direction": "Sender",
+      "ComponentType": "Mail",
+      "lockDuration": "60",
+      "proxyProtocol": "socks5",
+      "proxyType": "none",
+      "proxyAlias": "",
+      "componentVersion": "1.14",
+      "removeAttachments": "0",
+      "proxyHost": "",
+      "forwardOriginalMail": "0",
+      "system": "",
+      "folder": "INBOX",
+      "scheduleKey": "<row><cell>dayValue</cell><cell></cell></row><row><cell>monthValue</cell><cell></cell></row><row><cell>yearValue</cell><cell></cell></row><row><cell>dateType</cell><cell>DAILY</cell></row><row><cell>secondValue</cell><cell>0</cell></row><row><cell>minutesValue</cell><cell></cell></row><row><cell>hourValue</cell><cell></cell></row><row><cell>toInterval</cell><cell>24</cell></row><row><cell>fromInterval</cell><cell>0</cell></row><row><cell>OnEverySecond</cell><cell>10</cell></row><row><cell>timeType</cell><cell>TIME_SECOND_INTERVAL</cell></row><row><cell>timeZone</cell><cell>( UTC 0:00 ) Greenwich Mean Time(Etc/GMT)</cell></row><row><cell>throwExceptionOnExpiry</cell><cell>true</cell></row><row><cell>second</cell><cell>0/10</cell></row><row><cell>minute</cell><cell>*</cell></row><row><cell>hour</cell><cell>0-24</cell></row><row><cell>day_of_month</cell><cell>?</cell></row><row><cell>month</cell><cell>*</cell></row><row><cell>dayOfWeek</cell><cell>*</cell></row><row><cell>year</cell><cell>*</cell></row><row><cell>startAt</cell><cell></cell></row><row><cell>endAt</cell><cell></cell></row><row><cell>attributeBehaviour</cell><cell>isRunOnceRequired,isScheduleOnDayRequired,isScheduleRecurRequired</cell></row><row><cell>triggerType</cell><cell>cron</cell></row><row><cell>noOfSchedules</cell><cell>1</cell></row><row><cell>schedule1</cell><cell>0/10+*+0-23+?+*+*+*&amp;trigger.timeZone=Etc/GMT</cell></row>",
+      "TransportProtocol": "IMAP",
+      "tokenCredential": "",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:Mail/tp::IMAP/mp::Not Applicable/direction::Sender/version::1.14.0",
+      "user": "",
+      "MessageProtocolVersion": "1.14.0"
+     },
+     "seen": "palette 1.0.10: Mail (MessageFlow_63152099)"
+    }
+   },
+   "latest": "1.14.0"
+  },
+  "ctype::AdapterVariant/cname::sap:Mail/tp::SMTP/mp::None/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "Mail",
+   "versions": {
+    "1.13.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:Mail/tp::SMTP/mp::None/direction::Receiver/version::1.13.0",
+     "properties": {
+      "server": "",
+      "Description": "",
+      "bcc": "",
+      "attachments": "",
+      "auth": "loginEncrypted",
+      "subject": "",
+      "encrypt.smime.aes.keysize": "128",
+      "ComponentNS": "com.sap.it.ide.mail.ui.namespace2",
+      "keep_attachments": "0",
+      "body": "${in.body}",
+      "ssl": "starttls_mandatory",
+      "timeout": "30000",
+      "Name": "Mail",
+      "TransportProtocolVersion": "1.0",
+      "ComponentSWCVName": "com.sap.it.ide.mail.ui.archive2",
+      "proxyPort": "8080",
+      "encrypt.smime.des.keysize": "128",
+      "content_type": "text/plain",
+      "locationId": "",
+      "encrypt.smime.algorithm": "aes",
+      "signature.smime.table": "",
+      "from": "",
+      "MessageProtocol": "None",
+      "ComponentSWCVId": "com.sap.it.ide.mail.ui.archive2",
+      "direction": "Receiver",
+      "cc": "",
+      "attachmentTransferEncoding": "auto",
+      "encrypt.smime.aes.gcm.keysize": "128",
+      "ComponentType": "Mail",
+      "proxyProtocol": "socks5",
+      "content_encoding": "UTF-8",
+      "proxyType": "none",
+      "proxyAlias": "",
+      "componentVersion": "1.13",
+      "proxyHost": "",
+      "system": "",
+      "signature.smime.clearText": "1",
+      "encrypt.type": "none",
+      "TransportProtocol": "SMTP",
+      "tokenCredential": "",
+      "to": "",
+      "encrypt.smime.keys": "",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:Mail/tp::SMTP/mp::None/direction::Receiver/version::1.13.0",
+      "user": "",
+      "MessageProtocolVersion": "1.0"
+     },
+     "seen": "palette 1.0.10: Mail (MessageFlow_63152009)"
+    }
+   },
+   "latest": "1.13.0"
+  },
+  "ctype::AdapterVariant/cname::sap:ODataSender/tp::HTTP/mp::OData V2/direction::Sender": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "OData",
+   "versions": {
+    "1.3.1": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:ODataSender/tp::HTTP/mp::OData V2/direction::Sender/version::1.3.1",
+     "properties": {
+      "ComponentType": "ODataSender",
+      "Description": "",
+      "entitySet": "",
+      "ComponentNS": "sap",
+      "edmxPath": "",
+      "componentVersion": "1.3",
+      "Name": "OData",
+      "TransportProtocolVersion": "1.3",
+      "ComponentSWCVName": "external",
+      "system": "",
+      "TransportProtocol": "HTTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:ODataSender/tp::HTTP/mp::OData V2/direction::Sender/version::1.3.1",
+      "userRole": "ESBMessaging.send",
+      "operation": "GET_FEED",
+      "MessageProtocol": "OData V2",
+      "MessageProtocolVersion": "1.3",
+      "ComponentSWCVId": "1.3",
+      "direction": "Sender",
+      "authentication": "basic",
+      "clientCertificates": ""
+     },
+     "seen": "palette 1.0.10: OData (MessageFlow_63152102)"
+    }
+   },
+   "latest": "1.3.1"
+  },
+  "ctype::AdapterVariant/cname::sap:RFC/tp::RFC/mp::Synchronous RFC/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "RFC",
+   "versions": {
+    "1.3.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:RFC/tp::RFC/mp::Synchronous RFC/direction::Receiver/version::1.3.0",
+     "properties": {
+      "ComponentType": "RFC",
+      "Description": "",
+      "ComponentNS": "sap",
+      "destination": "",
+      "componentVersion": "1.3",
+      "Name": "RFC",
+      "TransportProtocolVersion": "1.3.0",
+      "ComponentSWCVName": "external",
+      "system": "",
+      "transactioncommit": "0",
+      "newConnection": "0",
+      "TransportProtocol": "RFC",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:RFC/tp::RFC/mp::Synchronous RFC/direction::Receiver/version::1.3.0",
+      "MessageProtocol": "Synchronous RFC",
+      "MessageProtocolVersion": "1.3.0",
+      "ComponentSWCVId": "1.3.0",
+      "direction": "Receiver"
+     },
+     "seen": "palette 1.0.10: RFC (MessageFlow_63151990)"
+    }
+   },
+   "latest": "1.3.0"
+  },
+  "ctype::AdapterVariant/cname::sap:SFTP/tp::SFTP/mp::File/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "SFTP",
+   "versions": {
+    "1.14.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:SFTP/tp::SFTP/mp::File/direction::Receiver/version::1.14.0",
+     "properties": {
+      "disconnect": "0",
+      "fileName": "",
+      "Description": "",
+      "maximumReconnectAttempts": "3",
+      "stepwise": "1",
+      "fileExist": "Override",
+      "ComponentNS": "sap",
+      "autoCreate": "1",
+      "privateKeyAlias": "",
+      "location_id": "",
+      "Name": "SFTP",
+      "TransportProtocolVersion": "1.21.0",
+      "flatten": "",
+      "sftpSecEnabled": "1",
+      "useTempFile": "0",
+      "ComponentSWCVName": "external",
+      "path": "",
+      "proxyPort": "8080",
+      "host": "",
+      "connectTimeout": "10000",
+      "fastExistsCheck": "1",
+      "MessageProtocol": "File",
+      "ComponentSWCVId": "1.21.0",
+      "direction": "Receiver",
+      "authentication": "public_key",
+      "ComponentType": "SFTP",
+      "fileAppendTimeStamp": "",
+      "credential_name": "",
+      "proxyProtocol": "socks5",
+      "proxyType": "none",
+      "proxyAlias": "",
+      "componentVersion": "1.14",
+      "reconnectDelay": "1000",
+      "proxyHost": "",
+      "system": "",
+      "tempFileName": "${file:name}.tmp",
+      "allowDeprecatedAlgorithms": "0",
+      "TransportProtocol": "SFTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:SFTP/tp::SFTP/mp::File/direction::Receiver/version::1.14.0",
+      "MessageProtocolVersion": "1.21.0",
+      "username": ""
+     },
+     "seen": "palette 1.0.10: SFTP (MessageFlow_945)"
+    }
+   },
+   "latest": "1.14.0"
+  },
+  "ctype::AdapterVariant/cname::sap:SFTP/tp::SFTP/mp::File/direction::Sender": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "SFTP",
+   "versions": {
+    "1.21.0": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:SFTP/tp::SFTP/mp::File/direction::Sender/version::1.21.0",
+     "properties": {
+      "disconnect": "1",
+      "fileName": "",
+      "maximumFileSize": "40",
+      "privateKeyAlias": "",
+      "emptyFileHandling": "processFile",
+      "location_id": "",
+      "Name": "SFTP",
+      "TransportProtocolVersion": "1.21.0",
+      "flatten": "",
+      "proxyPort": "8080",
+      "path": "",
+      "useClusterLock": "0",
+      "regex_filter": "0",
+      "host": "",
+      "connectTimeout": "10000",
+      "file_sorting_criteria": "sort_by_none",
+      "maxMessagesPerPoll": "20",
+      "fastExistsCheck": "1",
+      "ComponentSWCVId": "1.21.0",
+      "credential_name": "",
+      "readLock": "none",
+      "componentVersion": "1.21",
+      "proxyHost": "",
+      "system": "",
+      "stopOnException": "1",
+      "scheduleKey": "<row><cell>dayValue</cell><cell></cell></row><row><cell>monthValue</cell><cell></cell></row><row><cell>yearValue</cell><cell></cell></row><row><cell>dateType</cell><cell>DAILY</cell></row><row><cell>secondValue</cell><cell>0</cell></row><row><cell>minutesValue</cell><cell></cell></row><row><cell>hourValue</cell><cell></cell></row><row><cell>toInterval</cell><cell>24</cell></row><row><cell>fromInterval</cell><cell>0</cell></row><row><cell>OnEverySecond</cell><cell>10</cell></row><row><cell>timeType</cell><cell>TIME_SECOND_INTERVAL</cell></row><row><cell>timeZone</cell><cell>( UTC 0:00 ) Greenwich Mean Time(Etc/GMT)</cell></row><row><cell>throwExceptionOnExpiry</cell><cell>true</cell></row><row><cell>second</cell><cell>0/10</cell></row><row><cell>minute</cell><cell>*</cell></row><row><cell>hour</cell><cell>0-24</cell></row><row><cell>day_of_month</cell><cell>?</cell></row><row><cell>month</cell><cell>*</cell></row><row><cell>dayOfWeek</cell><cell>*</cell></row><row><cell>year</cell><cell>*</cell></row><row><cell>startAt</cell><cell></cell></row><row><cell>endAt</cell><cell></cell></row><row><cell>attributeBehaviour</cell><cell>isRunOnceRequired,isScheduleOnDayRequired,isScheduleRecurRequired</cell></row><row><cell>triggerType</cell><cell>cron</cell></row><row><cell>noOfSchedules</cell><cell>1</cell></row><row><cell>schedule1</cell><cell>0/10+*+0-23+?+*+*+*&amp;trigger.timeZone=Etc/GMT</cell></row>",
+      "allowDeprecatedAlgorithms": "0",
+      "TransportProtocol": "SFTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:SFTP/tp::SFTP/mp::File/direction::Sender/version::1.21.0",
+      "MessageProtocolVersion": "1.21.0",
+      "file_lock_timeout": "15",
+      "Description": "",
+      "readLockCheckInterval": "5000",
+      "maximumReconnectAttempts": "3",
+      "stepwise": "0",
+      "ComponentNS": "sap",
+      "recursive": "0",
+      "ComponentSWCVName": "external",
+      "noop": "delete",
+      "doneFileName": "${file:name}.done",
+      "file.move": ".archive",
+      "MessageProtocol": "File",
+      "direction": "Sender",
+      "authentication": "public_key",
+      "file_sorting_direction": "sort_direction_asc",
+      "ComponentType": "SFTP",
+      "proxyProtocol": "socks5",
+      "idempotentRepository": "database",
+      "proxyType": "none",
+      "proxyAlias": "",
+      "reconnectDelay": "1000",
+      "username": ""
+     },
+     "seen": "palette 1.0.10: SFTP (MessageFlow_63152105)"
+    }
+   },
+   "latest": "1.21.0"
+  },
+  "ctype::AdapterVariant/cname::sap:SOAP/tp::HTTP/mp::SOAP 1.x/direction::Receiver": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "SOAP",
+   "versions": {
+    "1.14.1": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:SOAP/tp::HTTP/mp::SOAP 1.x/direction::Receiver/version::1.14.1",
+     "properties": {
+      "cleanupHeaders": "1",
+      "WsdlUserNameTokenCredentialName": "",
+      "privateKeyAlias": "",
+      "location_id": "",
+      "Name": "SOAP",
+      "internetProxyType": "",
+      "TransportProtocolVersion": "1.14.1",
+      "UserNameTokenOption": "None",
+      "proxyPort": "",
+      "WSSecurity_SignatureAlgorithm": "SHA1",
+      "recipientX509TokenAssertion": "WssX509V3Token10",
+      "providerName": "",
+      "ComponentSWCVId": "1.14.1",
+      "X509TokenAssertion": "WssX509V3Token10",
+      "allowChunking": "1",
+      "soapWsdlPortName": "",
+      "componentVersion": "1.14",
+      "proxyHost": "",
+      "providerUrl": "",
+      "system": "",
+      "SenderBasicSecurityProfileCompliant": "1",
+      "UserNameTokenCredentialName": "",
+      "AlgorithmSuiteAssertion": "Basic128Rsa15",
+      "TransportProtocol": "HTTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:SOAP/tp::HTTP/mp::SOAP 1.x/direction::Receiver/version::1.14.1",
+      "MessageProtocolVersion": "1.14.1",
+      "providerRelativeUrl": "",
+      "Description": "",
+      "WSSecurityType_outbound": "SignMessage",
+      "InitiatorTokenIncludeStrategy_outbound": "AlwaysToRecipient",
+      "apiArtifactType": "",
+      "providerAuth": "",
+      "SetTimeStamp": "0",
+      "ComponentNS": "sap",
+      "apiprovider_location_id": "",
+      "ComponentSWCVName": "external",
+      "PublicKeyAliasEncryption_wsdl": "",
+      "soapWsdlURL": "",
+      "CompressMessage": "0",
+      "sendHttpResponseCode": "0",
+      "soapServiceName": "",
+      "MessageProtocol": "SOAP 1.x",
+      "requestTimeout": "60000",
+      "direction": "Receiver",
+      "authentication": "Client Certificate",
+      "PrivateKeyAliasSigning": "",
+      "ComponentType": "SOAP",
+      "address": "",
+      "SenderBasicSecurityProfileCompliant_wsdl": "1",
+      "proxyType": "default",
+      "operationName": "",
+      "PrivateKeyAliasSigning_wsdl": "",
+      "PublicKeyAliasEncryption": "",
+      "WSSecurity_outbound": "None",
+      "RecipientTokenIncludeStrategy": "Never",
+      "credentialName": "",
+      "KeepConnectionAlive": "1",
+      "Layout_outbound": "Strict"
+     },
+     "seen": "palette 1.0.10: SOAP (MessageFlow_63151995)"
+    }
+   },
+   "latest": "1.14.1"
+  },
+  "ctype::AdapterVariant/cname::sap:SOAP/tp::HTTP/mp::SOAP 1.x/direction::Sender": {
+   "kind": "adapter",
+   "bpmn": "messageFlow",
+   "label": "SOAP",
+   "versions": {
+    "1.9.4": {
+     "cmdVariantUri": "ctype::AdapterVariant/cname::sap:SOAP/tp::HTTP/mp::SOAP 1.x/direction::Sender/version::1.9.4",
+     "properties": {
+      "Description": "",
+      "WSSecurityType": "VerifyMessage",
+      "PublicKeyAliasResponseEncryption": "",
+      "ComponentNS": "sap",
+      "maximumAttachmentSize": "100",
+      "Name": "SOAP",
+      "TransportProtocolVersion": "1.14.1",
+      "ComponentSWCVName": "external",
+      "useWSAddressing": "0",
+      "soapWsdlURL": "",
+      "soapOptions": "cxfRobust",
+      "CheckTimeStamp": "0",
+      "soapServiceName": "",
+      "WSSecurity_SignatureAlgorithm_Inbound": "SHA1",
+      "SigningOrder": "SignBeforeEncryption",
+      "MessageProtocol": "SOAP 1.x",
+      "ComponentSWCVId": "1.14.1",
+      "direction": "Sender",
+      "clientCertificates": "",
+      "X509TokenAssertion": "WssX509V3Token10",
+      "ComponentType": "SOAP",
+      "address": "",
+      "maximumBodySize": "40",
+      "soapWsdlPortName": "",
+      "componentVersion": "1.9",
+      "messageExchangePattern": "RequestReply",
+      "WSSecurity": "None",
+      "PrivateKeyAliasResponseSigning": "",
+      "system": "",
+      "SaveIncomingSignedMessage": "0",
+      "SenderBasicSecurityProfileCompliant": "1",
+      "RecipientTokenIncludeStrategy": "Never",
+      "AlgorithmSuiteAssertion": "Basic128Rsa15",
+      "serviceDefinition": "Manual",
+      "TransportProtocol": "HTTP",
+      "cmdVariantUri": "ctype::AdapterVariant/cname::sap:SOAP/tp::HTTP/mp::SOAP 1.x/direction::Sender/version::1.9.4",
+      "userRole": "ESBMessaging.send",
+      "InitiatorTokenIncludeStrategy": "AlwaysToRecipient",
+      "senderAuthType": "RoleBased",
+      "MessageProtocolVersion": "1.14.1"
+     },
+     "seen": "palette 1.0.10: SOAP (MessageFlow_63152112)"
+    }
+   },
+   "latest": "1.9.4"
+  },
+  "ctype::FlowElementVariant/cname::IntegrationProcess": {
+   "kind": "process",
+   "bpmn": "process",
+   "label": "Integration Process",
+   "versions": {
+    "1.2.1": {
+     "cmdVariantUri": "ctype::FlowElementVariant/cname::IntegrationProcess/version::1.2.1",
+     "properties": {
+      "transactionTimeout": "30",
+      "componentVersion": "1.2",
+      "cmdVariantUri": "ctype::FlowElementVariant/cname::IntegrationProcess/version::1.2.1",
+      "transactionalHandling": "Not Required"
+     },
+     "seen": "palette 1.0.10: Integration Process (Process_1)"
+    }
+   },
+   "latest": "1.2.1"
+  },
+  "ctype::FlowElementVariant/cname::LocalIntegrationProcess": {
+   "kind": "process",
+   "bpmn": "process",
+   "label": "Local Integration Process",
+   "versions": {
+    "1.1.3": {
+     "cmdVariantUri": "ctype::FlowElementVariant/cname::LocalIntegrationProcess/version::1.1.3",
+     "properties": {
+      "transactionTimeout": "30",
+      "processType": "directCall",
+      "componentVersion": "1.1",
+      "cmdVariantUri": "ctype::FlowElementVariant/cname::LocalIntegrationProcess/version::1.1.3",
+      "transactionalHandling": "From Calling Process"
+     },
+     "seen": "palette 1.0.10: Local Integration Process 1 (Process_14)"
+    }
+   },
+   "latest": "1.1.3"
+  },
+  "ctype::FlowstepVariant/cname::Aggregator": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Aggregator",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Aggregator/version::1.2.0",
+     "properties": {
+      "incomingFormat": "XML_SAME_FORMAT",
+      "timeoutFrom": "first-message",
+      "aggregationAlgorithm": "sap-sequenced-id-list",
+      "lastMessageCondition": "",
+      "messageSequenceExpression": "",
+      "correlationExpression": "",
+      "completionSize": "",
+      "datastoreName": "Aggregator-2",
+      "componentVersion": "1.2",
+      "activityType": "Aggregator",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Aggregator/version::1.2.0",
+      "timeout": "60"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Aggregator 2 (CallActivity_63152023)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::Base64 Decode": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Base64 Decoder",
+   "versions": {
+    "1.0.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Base64 Decode/version::1.0.1",
+     "properties": {
+      "componentVersion": "1.0",
+      "activityType": "Decoder",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Base64 Decode/version::1.0.1",
+      "encoderType": "Base64 Decode"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Base64 Decoder 1 (CallActivity_465)"
+    }
+   },
+   "latest": "1.0.1"
+  },
+  "ctype::FlowstepVariant/cname::Base64 Encode": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Base64 Encoder",
+   "versions": {
+    "1.0.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Base64 Encode/version::1.0.1",
+     "properties": {
+      "componentVersion": "1.0",
+      "activityType": "Encoder",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Base64 Encode/version::1.0.1",
+      "encoderType": "Base64 Encode"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Base64 Encoder 1 (CallActivity_480)"
+    }
+   },
+   "latest": "1.0.1"
+  },
+  "ctype::FlowstepVariant/cname::Camel": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Iterating Splitter",
+   "versions": {
+    "1.6.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Camel/version::1.6.0",
+     "properties": {
+      "exprType": "Token",
+      "Streaming": "true",
+      "StopOnExecution": "true",
+      "splitExprValue": "",
+      "ParallelProcessing": "false",
+      "componentVersion": "1.6",
+      "grouping": "",
+      "splitType": "Camel",
+      "timeOut": "300",
+      "SplitterThreads": "10",
+      "activityType": "Splitter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Camel/version::1.6.0",
+      "tokenValue": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Iterating Splitter 1 (CallActivity_63152026)"
+    }
+   },
+   "latest": "1.6.0"
+  },
+  "ctype::FlowstepVariant/cname::contentEnricherWithLookup": {
+   "kind": "step",
+   "bpmn": "serviceTask",
+   "label": "Content Enricher",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::contentEnricherWithLookup/version::1.2.0",
+     "properties": {
+      "enrichmentType": "multiMappingAggregation",
+      "resourceMessageNodePath": "",
+      "originalMessageNodePath": "",
+      "originalMessageKeyElement": "",
+      "resourceMessageKeyElement": "",
+      "componentVersion": "1.2",
+      "activityType": "contentEnricherWithLookup",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::contentEnricherWithLookup/version::1.2.0"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Content Enricher 1 (ServiceTask_930)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::CsvToXmlConverter": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "CSV to XML Converter",
+   "versions": {
+    "1.4.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::CsvToXmlConverter/version::1.4.0",
+     "properties": {
+      "Field_Separator_in_CSV": ",",
+      "ignoreFirstLineAsHeader": "false",
+      "XML_Schema_File_Path": "",
+      "headerMapping": "mapHeadersToXSD",
+      "Record_Identifier_in_CSV": "",
+      "componentVersion": "1.4",
+      "activityType": "CsvToXmlConverter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::CsvToXmlConverter/version::1.4.0",
+      "XPath_Field_Location": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: CSV to XML Converter 1 (CallActivity_447)"
+    }
+   },
+   "latest": "1.4.0"
+  },
+  "ctype::FlowstepVariant/cname::Decrypt": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "PKCS7Decryptor",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Decrypt/version::1.2.0",
+     "properties": {
+      "isBodyBase64Encoded": "false",
+      "publicKeyAliases": "",
+      "componentVersion": "1.2",
+      "activityType": "Decrypt",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Decrypt/version::1.2.0",
+      "PKCS7SignContentType": "EnvelopedData"
+     },
+     "size": {
+      "w": 120,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: PKCS7Decryptor 1 (CallActivity_525)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::delete": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Delete",
+   "versions": {
+    "1.7.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::delete/version::1.7.1",
+     "properties": {
+      "visibility": "local",
+      "messageId": "",
+      "componentVersion": "1.7",
+      "activityType": "DBstorage",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::delete/version::1.7.1",
+      "operation": "delete",
+      "storageName": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Delete 1 (CallActivity_549)"
+    }
+   },
+   "latest": "1.7.1"
+  },
+  "ctype::FlowstepVariant/cname::EDIExtractor": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "EDI Extractor",
+   "versions": {
+    "2.3.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::EDIExtractor/version::2.3.0",
+     "properties": {
+      "componentVersion": "2.3",
+      "activityType": "EDIExtractor",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::EDIExtractor/version::2.3.0"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: EDI Extractor 1 (CallActivity_477)"
+    }
+   },
+   "latest": "2.3.0"
+  },
+  "ctype::FlowstepVariant/cname::EDItoXMLConverter": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "EDI to XML Converter",
+   "versions": {
+    "2.10.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::EDItoXMLConverter/version::2.10.0",
+     "properties": {
+      "edifactSourceEncoding": "ISO-8859-1",
+      "tradacomsHeaderName": "",
+      "tradacomsConversionPreference": "No",
+      "x12EmptySegment": "Exclude",
+      "vdaSourceEncoding": "ISO-8859-1",
+      "edifactEnvelopeTruncator": "true",
+      "x12TargetRootElement": "interchange",
+      "vdaHeaderName": "",
+      "x12EdiSchemaSource": "IntegrationProject",
+      "edifactTargetRootElement": "interchange",
+      "x12EnvelopeTruncator": "true",
+      "tradacomsSchemaTable": "",
+      "x12SchemaTable": "",
+      "vdaTargetEncoding": "ISO-8859-1",
+      "edifactTargetEncoding": "ISO-8859-1",
+      "edifactSchemaTable": "",
+      "tradacomsSourceEncoding": "ISO-8859-1",
+      "vdaEdiSchemaSource": "IntegrationProject",
+      "x12SourceEncoding": "ISO-8859-1",
+      "vdaConversionPreference": "no",
+      "tradacomsEmptySegment": "Exclude",
+      "tradacomsEdiSchemaSource": "IntegrationProject",
+      "edifactEmptySegment": "Exclude",
+      "componentVersion": "2.10",
+      "edifactHeaderName": "",
+      "edifactDecimalCharacter": "fromIncomingPayload",
+      "x12HeaderName": "",
+      "edifactEdiSchemaSource": "IntegrationProject",
+      "activityType": "EDItoXMLConverter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::EDItoXMLConverter/version::2.10.0",
+      "vdaSchemaTable": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: EDI to XML Converter 1 (CallActivity_453)"
+    }
+   },
+   "latest": "2.10.0"
+  },
+  "ctype::FlowstepVariant/cname::EDIValidator": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "EDI Validator",
+   "versions": {
+    "1.7.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::EDIValidator/version::1.7.0",
+     "properties": {
+      "headerName": "",
+      "ediSchemaSource": "IntegrationProject",
+      "sourceEncoding": "ISO-8859-1",
+      "preventException": "",
+      "componentVersion": "1.7",
+      "activityType": "EDIValidator",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::EDIValidator/version::1.7.0",
+      "schemaTable": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: EDI Validator 1 (CallActivity_904)"
+    }
+   },
+   "latest": "1.7.0"
+  },
+  "ctype::FlowstepVariant/cname::Encrypt": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "PKCS7Encryptor",
+   "versions": {
+    "1.3.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Encrypt/version::1.3.0",
+     "properties": {
+      "headers": "",
+      "Block_Size": "2048",
+      "Key_Length": "128",
+      "PKCS7PrivateKeyAliases": "",
+      "shouldEncodeBodyKey": "false",
+      "Encryption_Algorithem": "AES/CBC/PKCS5Padding",
+      "componentVersion": "1.3",
+      "activityType": "Encrypt",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Encrypt/version::1.3.0",
+      "PKCS7SignContentType": "enveloped"
+     },
+     "size": {
+      "w": 120,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: PKCS7Encryptor (CallActivity_531)"
+    }
+   },
+   "latest": "1.3.0"
+  },
+  "ctype::FlowstepVariant/cname::EndEvent": {
+   "kind": "event",
+   "bpmn": "endEvent",
+   "label": "End",
+   "versions": {
+    "": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::EndEvent",
+     "properties": {
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::EndEvent",
+      "activityType": "EndEvent"
+     },
+     "size": {
+      "w": 32,
+      "h": 32
+     },
+     "seen": "palette 1.0.10: End 2 (EndEvent_16)"
+    }
+   },
+   "latest": ""
+  },
+  "ctype::FlowstepVariant/cname::Enricher": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Content Modifier",
+   "versions": {
+    "1.6.6": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Enricher/version::1.6.6",
+     "properties": {
+      "bodyType": "constant",
+      "propertyTable": "",
+      "headerTable": "",
+      "wrapContent": "",
+      "componentVersion": "1.6",
+      "activityType": "Enricher",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Enricher/version::1.6.6"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Content Modifier 1 (CallActivity_444)"
+    }
+   },
+   "latest": "1.6.6"
+  },
+  "ctype::FlowstepVariant/cname::ErrorEndEvent": {
+   "kind": "event",
+   "bpmn": "endEvent",
+   "label": "Error End",
+   "versions": {
+    "": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::ErrorEndEvent",
+     "properties": {},
+     "eventDefinition": {
+      "element": "errorEventDefinition",
+      "properties": {
+       "cmdVariantUri": "ctype::FlowstepVariant/cname::ErrorEndEvent",
+       "activityType": "EndErrorEvent"
+      }
+     },
+     "size": {
+      "w": 32,
+      "h": 32
+     },
+     "seen": "palette 1.0.10: Error End 1 (EndEvent_918)"
+    }
+   },
+   "latest": ""
+  },
+  "ctype::FlowstepVariant/cname::ErrorEventSubProcessTemplate": {
+   "kind": "step",
+   "bpmn": "subProcess",
+   "label": "Exception Subprocess",
+   "versions": {
+    "1.1.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::ErrorEventSubProcessTemplate/version::1.1.0",
+     "properties": {
+      "componentVersion": "1.1",
+      "activityType": "ErrorEventSubProcessTemplate",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::ErrorEventSubProcessTemplate/version::1.1.0"
+     },
+     "size": {
+      "w": 662,
+      "h": 140
+     },
+     "seen": "palette 1.0.10: Exception Subprocess 1 (SubProcess_912)"
+    }
+   },
+   "latest": "1.1.0"
+  },
+  "ctype::FlowstepVariant/cname::ErrorStartEvent": {
+   "kind": "event",
+   "bpmn": "startEvent",
+   "label": "Error Start",
+   "versions": {
+    "": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::ErrorStartEvent",
+     "properties": {},
+     "eventDefinition": {
+      "element": "errorEventDefinition",
+      "properties": {
+       "cmdVariantUri": "ctype::FlowstepVariant/cname::ErrorStartEvent",
+       "activityType": "StartErrorEvent"
+      }
+     },
+     "size": {
+      "w": 32,
+      "h": 32
+     },
+     "seen": "palette 1.0.10: Error Start 1 (StartEvent_913)"
+    }
+   },
+   "latest": ""
+  },
+  "ctype::FlowstepVariant/cname::EscalationEndEvent": {
+   "kind": "event",
+   "bpmn": "endEvent",
+   "label": "Escalation End",
+   "versions": {
+    "1.0.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::EscalationEndEvent/version::1.0.0",
+     "properties": {},
+     "eventDefinition": {
+      "element": "escalationEventDefinition",
+      "properties": {
+       "ErrorCode": "ReceiverNotFound",
+       "componentVersion": "1.0",
+       "cmdVariantUri": "ctype::FlowstepVariant/cname::EscalationEndEvent/version::1.0.0",
+       "activityType": "EscalationEndEvent"
+      }
+     },
+     "size": {
+      "w": 32,
+      "h": 32
+     },
+     "seen": "palette 1.0.10: Escalation End 1 (EndEvent_63152066)"
+    }
+   },
+   "latest": "1.0.0"
+  },
+  "ctype::FlowstepVariant/cname::ExclusiveGateway": {
+   "kind": "step",
+   "bpmn": "exclusiveGateway",
+   "label": "Router",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::ExclusiveGateway/version::1.2.0",
+     "properties": {
+      "componentVersion": "1.2",
+      "activityType": "ExclusiveGateway",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::ExclusiveGateway/version::1.2.0",
+      "throwException": "false"
+     },
+     "size": {
+      "w": 40,
+      "h": 40
+     },
+     "seen": "palette 1.0.10: Router 1 (ExclusiveGateway_924)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::ExternalCall": {
+   "kind": "step",
+   "bpmn": "serviceTask",
+   "label": "Request Reply",
+   "versions": {
+    "1.0.4": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::ExternalCall/version::1.0.4",
+     "properties": {
+      "componentVersion": "1.0",
+      "activityType": "ExternalCall",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::ExternalCall/version::1.0.4"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Request Reply 1 (ServiceTask_927)"
+    }
+   },
+   "latest": "1.0.4"
+  },
+  "ctype::FlowstepVariant/cname::Filter": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Filter",
+   "versions": {
+    "1.1.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Filter/version::1.1.0",
+     "properties": {
+      "xpathType": "Nodelist",
+      "wrapContent": "",
+      "componentVersion": "1.1",
+      "activityType": "Filter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Filter/version::1.1.0"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Filter 1 (CallActivity_492)"
+    }
+   },
+   "latest": "1.1.0"
+  },
+  "ctype::FlowstepVariant/cname::GatewayRoute": {
+   "kind": "route",
+   "bpmn": "sequenceFlow",
+   "label": "Route",
+   "versions": {
+    "1.0.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::GatewayRoute/version::1.0.0",
+     "properties": {
+      "expressionType": "XML",
+      "componentVersion": "1.0",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::GatewayRoute/version::1.0.0"
+     },
+     "seen": "palette 1.0.10: Route 1 (SequenceFlow_925)"
+    }
+   },
+   "latest": "1.0.0"
+  },
+  "ctype::FlowstepVariant/cname::Gather": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Gather",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Gather/version::1.2.0",
+     "properties": {
+      "targetXPath": "",
+      "sourceXPath": "",
+      "messageType": "SameXMLFormat",
+      "aggregationAlgorithm": "sap-identical-multi-mapping",
+      "componentVersion": "1.2",
+      "activityType": "Gather",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Gather/version::1.2.0",
+      "gatherFileNames": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Gather 1 (CallActivity_63152044)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::GeneralSplitter": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "General Splitter",
+   "versions": {
+    "1.6.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::GeneralSplitter/version::1.6.0",
+     "properties": {
+      "exprType": "XPath",
+      "Streaming": "true",
+      "StopOnExecution": "true",
+      "SplitterThreads": "10",
+      "splitExprValue": "",
+      "ParallelProcessing": "false",
+      "componentVersion": "1.6",
+      "activityType": "Splitter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::GeneralSplitter/version::1.6.0",
+      "grouping": "",
+      "splitType": "GeneralSplitter",
+      "timeOut": "300"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: General Splitter 1 (CallActivity_63152014)"
+    }
+   },
+   "latest": "1.6.0"
+  },
+  "ctype::FlowstepVariant/cname::get": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Get",
+   "versions": {
+    "1.7.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::get/version::1.7.1",
+     "properties": {
+      "visibility": "local",
+      "dataStoreId": "",
+      "componentVersion": "1.7",
+      "activityType": "DBstorage",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::get/version::1.7.1",
+      "operation": "get",
+      "delete": "false",
+      "stopOnMissingEntry": "true",
+      "storageName": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Get 1 (CallActivity_889)"
+    }
+   },
+   "latest": "1.7.1"
+  },
+  "ctype::FlowstepVariant/cname::GroovyScript": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Groovy Script",
+   "versions": {
+    "2.0.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::GroovyScript/version::2.0.0",
+     "properties": {
+      "scriptFunction": "",
+      "scriptBundleId": "",
+      "componentVersion": "2.0",
+      "activityType": "Script",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::GroovyScript/version::2.0.0",
+      "subActivityType": "GroovyScript",
+      "script": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Groovy Script v2 (CallActivity_517)"
+    },
+    "1.1.2": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::GroovyScript/version::1.1.2",
+     "properties": {
+      "scriptFunction": "",
+      "scriptBundleId": "",
+      "componentVersion": "1.1",
+      "activityType": "Script",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::GroovyScript/version::1.1.2",
+      "subActivityType": "GroovyScript",
+      "script": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Groovy Script 1 (CallActivity_498)"
+    }
+   },
+   "latest": "2.0.0"
+  },
+  "ctype::FlowstepVariant/cname::GZIP Compress": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "GZIP Compression",
+   "versions": {
+    "1.0.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::GZIP Compress/version::1.0.1",
+     "properties": {
+      "componentVersion": "1.0",
+      "activityType": "Encoder",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::GZIP Compress/version::1.0.1",
+      "encoderType": "GZIP Compress"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: GZIP Compression 1 (CallActivity_483)"
+    }
+   },
+   "latest": "1.0.1"
+  },
+  "ctype::FlowstepVariant/cname::GZIP Decompress": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "GZIP Decompression",
+   "versions": {
+    "1.0.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::GZIP Decompress/version::1.0.1",
+     "properties": {
+      "componentVersion": "1.0",
+      "activityType": "Decoder",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::GZIP Decompress/version::1.0.1",
+      "encoderType": "GZIP Decompress"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: GZIP Decompression 1 (CallActivity_468)"
+    }
+   },
+   "latest": "1.0.1"
+  },
+  "ctype::FlowstepVariant/cname::IDMapper": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "ID Mapping",
+   "versions": {
+    "1.0.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::IDMapper/version::1.0.0",
+     "properties": {
+      "visibility": "local",
+      "sourceMessageID": "",
+      "expire": "30",
+      "context": "IDMapper1",
+      "targetHeader": "",
+      "componentVersion": "1.0",
+      "activityType": "IDMapper",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::IDMapper/version::1.0.0"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: ID Mapping 1 (CallActivity_506)"
+    }
+   },
+   "latest": "1.0.0"
+  },
+  "ctype::FlowstepVariant/cname::IDoc": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "IDoc Splitter",
+   "versions": {
+    "1.1.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::IDoc/version::1.1.0",
+     "properties": {
+      "componentVersion": "1.1",
+      "activityType": "Splitter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::IDoc/version::1.1.0",
+      "splitType": "IDoc"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: IDoc Splitter 1 (CallActivity_63152020)"
+    }
+   },
+   "latest": "1.1.0"
+  },
+  "ctype::FlowstepVariant/cname::intermediatetimer": {
+   "kind": "event",
+   "bpmn": "startEvent",
+   "label": "Start Timer",
+   "versions": {
+    "1.4.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::intermediatetimer/version::1.4.0",
+     "properties": {},
+     "eventDefinition": {
+      "element": "timerEventDefinition",
+      "properties": {
+       "scheduleKey": "<row><cell>dateType</cell><cell></cell></row><row><cell>timeType</cell><cell></cell></row><row><cell>dayValue</cell><cell></cell></row><row><cell>monthValue</cell><cell></cell></row><row><cell>yearValue</cell><cell></cell></row><row><cell>onWeekly</cell><cell></cell></row><row><cell>onMonthly</cell><cell></cell></row><row><cell>OnEveryMinute</cell><cell></cell></row><row><cell>fromInterval</cell><cell></cell></row><row><cell>toInterval</cell><cell></cell></row><row><cell>timeZone</cell><cell>( UTC 0:00 ) Greenwich Mean Time(Etc/GMT)</cell></row><row><cell>secondValue</cell><cell>0</cell></row><row><cell>minutesValue</cell><cell></cell></row><row><cell>hourValue</cell><cell></cell></row><row><cell>triggerType</cell><cell>simple</cell></row><row><cell>noOfSchedules</cell><cell>1</cell></row><row><cell>schedule1</cell><cell>fireNow=true</cell></row>",
+       "componentVersion": "1.4",
+       "cmdVariantUri": "ctype::FlowstepVariant/cname::intermediatetimer/version::1.4.0",
+       "activityType": "StartTimerEvent"
+      }
+     },
+     "size": {
+      "w": 32,
+      "h": 32
+     },
+     "seen": "palette 1.0.10: Start Timer 1 (StartEvent_6)"
+    }
+   },
+   "latest": "1.4.0"
+  },
+  "ctype::FlowstepVariant/cname::JavaScript": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "JavaScript",
+   "versions": {
+    "1.1.2": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::JavaScript/version::1.1.2",
+     "properties": {
+      "scriptFunction": "",
+      "scriptBundleId": "",
+      "componentVersion": "1.1",
+      "activityType": "Script",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::JavaScript/version::1.1.2",
+      "subActivityType": "JavaScript",
+      "script": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: JavaScript 1 (CallActivity_500)"
+    }
+   },
+   "latest": "1.1.2"
+  },
+  "ctype::FlowstepVariant/cname::Join": {
+   "kind": "step",
+   "bpmn": "parallelGateway",
+   "label": "Join",
+   "versions": {
+    "1.0.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Join/version::1.0.0",
+     "properties": {
+      "componentVersion": "1.0",
+      "activityType": "Join",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Join/version::1.0.0",
+      "subActivityType": "parallel"
+     },
+     "size": {
+      "w": 40,
+      "h": 40
+     },
+     "seen": "palette 1.0.10: Join 1 (ParallelGateway_63152054)"
+    }
+   },
+   "latest": "1.0.0"
+  },
+  "ctype::FlowstepVariant/cname::JsonToXmlConverter": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "JSON to XML Converter",
+   "versions": {
+    "1.1.2": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::JsonToXmlConverter/version::1.1.2",
+     "properties": {
+      "additionalRootElementName": "root",
+      "jsonNamespaceMapping": "",
+      "componentVersion": "1.1",
+      "activityType": "JsonToXmlConverter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::JsonToXmlConverter/version::1.1.2",
+      "useNamespaces": "true",
+      "addXMLRootElement": "true",
+      "additionalRootElementNamespace": "",
+      "jsonNamespaceSeparator": ":"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: JSON to XML Converter 1 (CallActivity_462)"
+    }
+   },
+   "latest": "1.1.2"
+  },
+  "ctype::FlowstepVariant/cname::LoopingProcess": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Looping Process Call",
+   "versions": {
+    "1.3.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::LoopingProcess/version::1.3.0",
+     "properties": {
+      "postProcessing": "throwException",
+      "loopId": "StandardLoopCharacteristics_1793185134126",
+      "processId": "",
+      "expressionType": "Non XML",
+      "componentVersion": "1.3",
+      "activityType": "ProcessCallElement",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::LoopingProcess/version::1.3.0",
+      "subActivityType": "LoopingProcess"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Looping Process Call 1 (CallActivity_11)"
+    }
+   },
+   "latest": "1.3.0"
+  },
+  "ctype::FlowstepVariant/cname::MessageDigest": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Message Digest",
+   "versions": {
+    "1.1.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::MessageDigest/version::1.1.1",
+     "properties": {
+      "filter": "",
+      "canonicalizationMethod": "xml-c14n",
+      "targetHeader": "SAPMessageDigest",
+      "digestAlgorithm": "SHA-512",
+      "componentVersion": "1.1",
+      "activityType": "MessageDigest",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::MessageDigest/version::1.1.1"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Message Digest 1 (CallActivity_495)"
+    }
+   },
+   "latest": "1.1.1"
+  },
+  "ctype::FlowstepVariant/cname::MessageEndEvent": {
+   "kind": "event",
+   "bpmn": "endEvent",
+   "label": "End",
+   "versions": {
+    "1.1.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::MessageEndEvent/version::1.1.0",
+     "properties": {
+      "componentVersion": "1.1",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::MessageEndEvent/version::1.1.0"
+     },
+     "eventDefinition": {
+      "element": "messageEventDefinition",
+      "properties": {}
+     },
+     "size": {
+      "w": 32,
+      "h": 32
+     },
+     "seen": "palette 1.0.10: End (EndEvent_2)"
+    }
+   },
+   "latest": "1.1.0"
+  },
+  "ctype::FlowstepVariant/cname::MessageMapping": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Message Mapping",
+   "versions": {
+    "1.3.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::MessageMapping/version::1.3.1",
+     "properties": {
+      "mappinguri": "",
+      "mappingname": "",
+      "mappingSourceValue": "",
+      "mappingType": "MessageMapping",
+      "mappingReference": "static",
+      "mappingpath": "",
+      "componentVersion": "1.3",
+      "activityType": "Mapping",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::MessageMapping/version::1.3.1",
+      "messageMappingBundleId": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Message Mapping 1 (CallActivity_509)"
+    }
+   },
+   "latest": "1.3.1"
+  },
+  "ctype::FlowstepVariant/cname::MessageStartEvent": {
+   "kind": "event",
+   "bpmn": "startEvent",
+   "label": "Start",
+   "versions": {
+    "1.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::MessageStartEvent/version::1.0",
+     "properties": {
+      "componentVersion": "1.0",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::MessageStartEvent/version::1.0"
+     },
+     "eventDefinition": {
+      "element": "messageEventDefinition",
+      "properties": {}
+     },
+     "size": {
+      "w": 32,
+      "h": 32
+     },
+     "seen": "palette 1.0.10: Start (StartEvent_2)"
+    }
+   },
+   "latest": "1.0"
+  },
+  "ctype::FlowstepVariant/cname::MIME Multipart Message Decode": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "MIME Multipart Decoder",
+   "versions": {
+    "1.0.2": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::MIME Multipart Message Decode/version::1.0.2",
+     "properties": {
+      "MultipartHeadersInline": "false",
+      "componentVersion": "1.0",
+      "activityType": "Decoder",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::MIME Multipart Message Decode/version::1.0.2",
+      "encoderType": "MIME Multipart Message Decode"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: MIME Multipart Decoder 1 (CallActivity_471)"
+    }
+   },
+   "latest": "1.0.2"
+  },
+  "ctype::FlowstepVariant/cname::MIME Multipart Message Encode": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "MIME Multipart Encoder",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::MIME Multipart Message Encode/version::1.2.0",
+     "properties": {
+      "MultipartAddHeadersInline": "false",
+      "MultipartSubtype": "Mixed",
+      "IncludeHeaders": "",
+      "FoldLongHeaders": "false",
+      "componentVersion": "1.2",
+      "activityType": "Encoder",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::MIME Multipart Message Encode/version::1.2.0",
+      "encoderType": "MIME Multipart Message Encode"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: MIME Multipart Encoder 1 (CallActivity_486)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::Multicast": {
+   "kind": "step",
+   "bpmn": "parallelGateway",
+   "label": "Parallel Multicast",
+   "versions": {
+    "1.1.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Multicast/version::1.1.1",
+     "properties": {
+      "componentVersion": "1.1",
+      "activityType": "Multicast",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Multicast/version::1.1.1",
+      "subActivityType": "parallel"
+     },
+     "size": {
+      "w": 40,
+      "h": 40
+     },
+     "seen": "palette 1.0.10: Parallel Multicast 1 (ParallelGateway_63152046)"
+    }
+   },
+   "latest": "1.1.1"
+  },
+  "ctype::FlowstepVariant/cname::NonLoopingProcess": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Process Call",
+   "versions": {
+    "1.0.4": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::NonLoopingProcess/version::1.0.4",
+     "properties": {
+      "processId": "",
+      "componentVersion": "1.0",
+      "activityType": "ProcessCallElement",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::NonLoopingProcess/version::1.0.4",
+      "subActivityType": "NonLoopingProcess"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Process Call 1 (CallActivity_7)"
+    }
+   },
+   "latest": "1.0.4"
+  },
+  "ctype::FlowstepVariant/cname::OperationMapping": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Operation Mapping",
+   "versions": {
+    "1.1.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::OperationMapping/version::1.1.0",
+     "properties": {
+      "mappinguri": "",
+      "mappingname": "",
+      "mappingType": "OperationMapping",
+      "mappingpath": "",
+      "componentVersion": "1.1",
+      "activityType": "Mapping",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::OperationMapping/version::1.1.0"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Operation Mapping 1 (CallActivity_512)"
+    }
+   },
+   "latest": "1.1.0"
+  },
+  "ctype::FlowstepVariant/cname::Persist": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Persist",
+   "versions": {
+    "1.0.2": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Persist/version::1.0.2",
+     "properties": {
+      "stepid": "Persist1",
+      "componentVersion": "1.0",
+      "activityType": "Persist",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Persist/version::1.0.2",
+      "enableEncrypt": "true"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Persist 1 (CallActivity_898)"
+    }
+   },
+   "latest": "1.0.2"
+  },
+  "ctype::FlowstepVariant/cname::PgpDecrypt": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "PGPDecryptor",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::PgpDecrypt/version::1.2.0",
+     "properties": {
+      "PgpDecryptionSignerUserIDs": "",
+      "PgpDecryptionSignatureOption": "no_signature_allowed",
+      "componentVersion": "1.2",
+      "activityType": "PgpDecrypt",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::PgpDecrypt/version::1.2.0"
+     },
+     "size": {
+      "w": 120,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: PGPDecryptor 1 (CallActivity_522)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::PgpEncrypt": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "PGPEncryptor",
+   "versions": {
+    "1.3.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::PgpEncrypt/version::1.3.1",
+     "properties": {
+      "PgpSignerUserIDs": "",
+      "Key_Length": "128",
+      "PgpArmored": "true",
+      "PgpDigestAlgorithm": "SHA-512",
+      "PgpContentEncryptionAlgorithm": "AES",
+      "componentVersion": "1.3",
+      "activityType": "PgpEncrypt",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::PgpEncrypt/version::1.3.1",
+      "PgpSignatureOption": "NoSignature",
+      "PgpCompressionAlgorithm": "ZLIB",
+      "PgpIntegrity": "true",
+      "PgpEncryptionUserIDs": ""
+     },
+     "size": {
+      "w": 120,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: PGPEncryptor 1 (CallActivity_528)"
+    }
+   },
+   "latest": "1.3.1"
+  },
+  "ctype::FlowstepVariant/cname::PKCS#7/CMS Signature-Content Splitter": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "PKCS#7/CMS Splitter",
+   "versions": {
+    "1.1.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::PKCS#7/CMS Signature-Content Splitter/version::1.1.1",
+     "properties": {
+      "PK7_WrapContent": "true",
+      "PK7_Base64_Payload": "",
+      "PK7_Base64_SIG": "",
+      "tokenValue2": "",
+      "PK7_Payload": "true",
+      "componentVersion": "1.1",
+      "activityType": "Splitter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::PKCS#7/CMS Signature-Content Splitter/version::1.1.1",
+      "tokenValue": "",
+      "splitType": "PKCS#7/CMS Signature-Content Splitter"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: PKCS#7/CMS Splitter 1 (CallActivity_63152032)"
+    }
+   },
+   "latest": "1.1.1"
+  },
+  "ctype::FlowstepVariant/cname::PollEnrich": {
+   "kind": "step",
+   "bpmn": "serviceTask",
+   "label": "Poll Enrich",
+   "versions": {
+    "1.1.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::PollEnrich/version::1.1.0",
+     "properties": {
+      "aggregationAlgorithm": "UseLatest",
+      "componentVersion": "1.1",
+      "activityType": "PollEnrich",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::PollEnrich/version::1.1.0",
+      "stopOnNoMsgFound": "false"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Poll Enrich 1 (ServiceTask_932)"
+    }
+   },
+   "latest": "1.1.0"
+  },
+  "ctype::FlowstepVariant/cname::put": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Write",
+   "versions": {
+    "1.7.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::put/version::1.7.1",
+     "properties": {
+      "visibility": "local",
+      "alert": "2",
+      "encrypt": "true",
+      "expire": "30",
+      "messageId": "",
+      "componentVersion": "1.7",
+      "override": "false",
+      "activityType": "DBstorage",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::put/version::1.7.1",
+      "operation": "put",
+      "storageName": "",
+      "includeMessageHeaders": "false"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Write 1 (CallActivity_895)"
+    }
+   },
+   "latest": "1.7.1"
+  },
+  "ctype::FlowstepVariant/cname::select": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Select",
+   "versions": {
+    "1.7.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::select/version::1.7.1",
+     "properties": {
+      "visibility": "local",
+      "maxresults": "1",
+      "componentVersion": "1.7",
+      "activityType": "DBstorage",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::select/version::1.7.1",
+      "operation": "select",
+      "delete": "false",
+      "storageName": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Select 1 (CallActivity_892)"
+    }
+   },
+   "latest": "1.7.1"
+  },
+  "ctype::FlowstepVariant/cname::Send": {
+   "kind": "step",
+   "bpmn": "serviceTask",
+   "label": "Send",
+   "versions": {
+    "1.0.4": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Send/version::1.0.4",
+     "properties": {
+      "componentVersion": "1.0",
+      "activityType": "Send",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Send/version::1.0.4"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Send 1 (ServiceTask_934)"
+    }
+   },
+   "latest": "1.0.4"
+  },
+  "ctype::FlowstepVariant/cname::SequentialMulticast": {
+   "kind": "step",
+   "bpmn": "parallelGateway",
+   "label": "Sequential Multicast",
+   "versions": {
+    "1.1.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::SequentialMulticast/version::1.1.0",
+     "properties": {
+      "routingSequenceTable": "",
+      "componentVersion": "1.1",
+      "activityType": "SequentialMulticast",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::SequentialMulticast/version::1.1.0",
+      "subActivityType": "parallel"
+     },
+     "size": {
+      "w": 40,
+      "h": 40
+     },
+     "seen": "palette 1.0.10: Sequential Multicast 1 (ParallelGateway_63152058)"
+    }
+   },
+   "latest": "1.1.0"
+  },
+  "ctype::FlowstepVariant/cname::SignMessage": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "PKCS7 Signer",
+   "versions": {
+    "1.5.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::SignMessage/version::1.5.0",
+     "properties": {
+      "headers": "",
+      "Block_Size": "2048",
+      "shouldEncodeSignedData": "false",
+      "componentVersion": "1.5",
+      "activityType": "SignMessage",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::SignMessage/version::1.5.0",
+      "OIDContentType": "1.2.840.113549.1.7.1",
+      "shouldIncludeContentInSign": "true"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: PKCS7 Signer 1 (CallActivity_534)"
+    }
+   },
+   "latest": "1.5.0"
+  },
+  "ctype::FlowstepVariant/cname::SimpleSignMessage": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Simple Signer",
+   "versions": {
+    "1.3.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::SimpleSignMessage/version::1.3.0",
+     "properties": {
+      "privateKeyAlias": "",
+      "componentVersion": "1.3",
+      "activityType": "SimpleSignMessage",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::SimpleSignMessage/version::1.3.0",
+      "signatureAlgorithm": "SHA512/RSA",
+      "signatureTargetHeader": "SAPSimpleSignatureValue"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Simple Signer 1 (CallActivity_537)"
+    }
+   },
+   "latest": "1.3.0"
+  },
+  "ctype::FlowstepVariant/cname::StartEvent": {
+   "kind": "event",
+   "bpmn": "startEvent",
+   "label": "Start",
+   "versions": {
+    "": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::StartEvent",
+     "properties": {
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::StartEvent",
+      "activityType": "StartEvent"
+     },
+     "size": {
+      "w": 32,
+      "h": 32
+     },
+     "seen": "palette 1.0.10: Start 1 (StartEvent_15)"
+    }
+   },
+   "latest": ""
+  },
+  "ctype::FlowstepVariant/cname::TerminateEndEvent": {
+   "kind": "event",
+   "bpmn": "endEvent",
+   "label": "End",
+   "versions": {
+    "": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::TerminateEndEvent",
+     "properties": {
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::TerminateEndEvent",
+      "activityType": "TerminateEvent"
+     },
+     "eventDefinition": {
+      "element": "terminateEventDefinition",
+      "properties": {}
+     },
+     "size": {
+      "w": 32,
+      "h": 32
+     },
+     "seen": "palette 1.0.10: End 4 (EndEvent_936)"
+    }
+   },
+   "latest": ""
+  },
+  "ctype::FlowstepVariant/cname::Variables": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Write Variables",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::Variables/version::1.2.0",
+     "properties": {
+      "visibility": "local",
+      "encrypt": "true",
+      "expire": "90",
+      "variable": "",
+      "componentVersion": "1.2",
+      "activityType": "Variables",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::Variables/version::1.2.0"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Write Variables 1 (CallActivity_901)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::VerifySign": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "PKCS7 Signature Verifier",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::VerifySign/version::1.2.0",
+     "properties": {
+      "isBodyBase64Encoded": "false",
+      "isHeaderBase64Encoded": "false",
+      "publicKeyAliases": "",
+      "componentVersion": "1.2",
+      "activityType": "VerifySign",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::VerifySign/version::1.2.0"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: PKCS7 Signature Verifier 1 (CallActivity_543)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::XMLDigitalSignMessage": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "XML Signer",
+   "versions": {
+    "1.3.3": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::XMLDigitalSignMessage/version::1.3.3",
+     "properties": {
+      "keyInfoHasKeyValue": "false",
+      "omitXmlDeclaration": "false",
+      "signatureId": "",
+      "privateKeyAlias": "",
+      "xadesEpesSignaturePolicy": "None",
+      "xpathToIdAttribute": "",
+      "parentLocalName": "",
+      "signatureProductionPlacePostalCode": "",
+      "signatureProductionPlaceCity": "",
+      "xadesIdentifierName": "",
+      "prefixForXmlSignatureNamespace": "ds",
+      "signatureProductionPlaceCountry": "",
+      "signatureXMLNamespace": "",
+      "transformMethod": "Inclusive XML Canonicalization",
+      "xadesDataObjectFormatMimeType": "",
+      "signatureProductionPlaceState": "",
+      "addKeyInfoReference": "false",
+      "xadesEpesIdentifierQualifier": "",
+      "xadesSignerRoleClaimedRoles": "",
+      "signatureCommitment": "",
+      "xadesIdentifierDocumentationReference": "",
+      "signatureType": "Enveloping XML signature",
+      "xpathExpression": "",
+      "componentVersion": "1.3",
+      "xadesSigningCertificateDigestAlgorithm": "SHA-512",
+      "signatureXMLNamespacePrefix": "etsi",
+      "keyInfoHasX509CertChain": "true",
+      "xadesAddSigningCertificate": "None",
+      "xadesPolicyQualifierTab": "",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::XMLDigitalSignMessage/version::1.3.3",
+      "xadesIdentifierQualifier": "",
+      "canonicalizationMethod": "Inclusive XML Canonicalization",
+      "signatureCommitmentDescription": "",
+      "xadesCertificateUri": "",
+      "xadesDocumentationReferenceTab": "",
+      "parentNamespace": "",
+      "xadesIdentifierDescription": "",
+      "keyInfoHasIssuerName": "false",
+      "xadesEpesDigestValue": "",
+      "contentReferenceType": "",
+      "commitmentDocumentationReferenceTable": "",
+      "xadesSignerRoleCertifiedRoles": "",
+      "xadesDataObjectFormatDescription": "",
+      "xadesEpesDigestAlgorithm": "SHA-512",
+      "keyInfoHasX509Certificate": "false",
+      "xadesEpesDescription": "",
+      "xadesEpesIdentifier": "",
+      "digestAlgorithm": "",
+      "signatureAlgorithm": "SHA512/RSA",
+      "schemaResourceUri": "",
+      "parentNodeSpecification": "Specified by Name and Namespace",
+      "outputEncoding": "UTF-8",
+      "disallowDoctypeDecl": "true",
+      "commitmentQualifierTable": "",
+      "activityType": "XMLDigitalSignMessage",
+      "xadesAddSigningTime": "false"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: XML Signer 1 (CallActivity_540)"
+    }
+   },
+   "latest": "1.3.3"
+  },
+  "ctype::FlowstepVariant/cname::XMLDigitalVerifySign": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "XML Signature Verifier",
+   "versions": {
+    "1.1.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::XMLDigitalVerifySign/version::1.1.0",
+     "properties": {
+      "omitXmlDeclaration": "false",
+      "verifySignatureType": "Enveloping or Enveloped XML Signature",
+      "publicKeyAliases": "",
+      "disallowDoctypeDecl": "true",
+      "schemaFieldPath": "",
+      "componentVersion": "1.1",
+      "activityType": "XMLDigitalVerifySign",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::XMLDigitalVerifySign/version::1.1.0",
+      "CheckForKeyInfo": "false"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: XML Signature Verifier 1 (CallActivity_546)"
+    }
+   },
+   "latest": "1.1.0"
+  },
+  "ctype::FlowstepVariant/cname::XmlModifier": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "XML Modifier",
+   "versions": {
+    "1.1.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::XmlModifier/version::1.1.0",
+     "properties": {
+      "removeExternalDTDs": "0",
+      "removeXmlDeclaration": "0",
+      "componentVersion": "1.1",
+      "activityType": "XmlModifier",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::XmlModifier/version::1.1.0",
+      "xmlCharacterHandling": "none"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: XML Modifier 1 (CallActivity_503)"
+    }
+   },
+   "latest": "1.1.0"
+  },
+  "ctype::FlowstepVariant/cname::XmlToCsvConverter": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "XML to CSV Converter",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::XmlToCsvConverter/version::1.2.0",
+     "properties": {
+      "Field_Separator_in_CSV": ",",
+      "CSV_Header": "none",
+      "XML_Schema_File_Path": "",
+      "Include_Attribute": "false",
+      "Include_Master": "false",
+      "componentVersion": "1.2",
+      "activityType": "XmlToCsvConverter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::XmlToCsvConverter/version::1.2.0",
+      "Master_XPath_Field_Location": "",
+      "XPath_Field_Location": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: XML to CSV Converter 1 (CallActivity_450)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::XMLtoEDIConverter": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "XML to EDI Converter",
+   "versions": {
+    "2.10.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::XMLtoEDIConverter/version::2.10.0",
+     "properties": {
+      "edifactUseCustomSeparator": "false",
+      "edifactSourceEncoding": "ISO-8859-1",
+      "tradacomsHeaderName": "",
+      "tradacomsConversionPreference": "No",
+      "x12DataElementSeparator": "#x2a",
+      "x12EmptySegment": "Exclude",
+      "x12CompositeSeparator": "#x3a",
+      "vdaSourceEncoding": "ISO-8859-1",
+      "x12EdiSchemaSource": "IntegrationProject",
+      "vdaHeaderName": "",
+      "tradacomsSchemaTable": "",
+      "x12SchemaTable": "",
+      "vdaTargetEncoding": "ISO-8859-1",
+      "edifactTargetEncoding": "ISO-8859-1",
+      "edifactSchemaTable": "",
+      "tradacomsSourceEncoding": "ISO-8859-1",
+      "vdaEdiSchemaSource": "IntegrationProject",
+      "edifactSegmentTerminator": "#x27",
+      "x12SourceEncoding": "ISO-8859-1",
+      "vdaConversionPreference": "no",
+      "edifactCompositeSeparator": "#x3a",
+      "edifactDataElementSeparator": "#x2b",
+      "x12SegmentTerminator": "#x7e",
+      "x12UseCustomSeparator": "false",
+      "tradacomsEmptySegment": "Exclude",
+      "tradacomsEdiSchemaSource": "IntegrationProject",
+      "edifactEmptySegment": "Exclude",
+      "componentVersion": "2.10",
+      "edifactHeaderName": "",
+      "edifactDecimalCharacter": "#x2e",
+      "x12HeaderName": "",
+      "edifactEdiSchemaSource": "IntegrationProject",
+      "activityType": "XMLtoEDIConverter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::XMLtoEDIConverter/version::2.10.0",
+      "vdaSegmentTerminator": "none",
+      "edifactEscapeCharacter": "#x3f",
+      "vdaSchemaTable": "",
+      "x12RepetitionSeparator": "#x5e"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: XML to EDI Converter 1 (CallActivity_456)"
+    }
+   },
+   "latest": "2.10.0"
+  },
+  "ctype::FlowstepVariant/cname::XmlToJsonConverter": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "XML to JSON Converter",
+   "versions": {
+    "1.0.8": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::XmlToJsonConverter/version::1.0.8",
+     "properties": {
+      "xmlJsonUseStreaming": "false",
+      "xmlJsonSuppressRootElement": "false",
+      "xmlJsonPathTable": "",
+      "jsonOutputEncoding": "",
+      "jsonNamespaceMapping": "",
+      "xmlJsonConvertAllElements": "specific",
+      "componentVersion": "1.0",
+      "activityType": "XmlToJsonConverter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::XmlToJsonConverter/version::1.0.8",
+      "useNamespaces": "true",
+      "jsonNamespaceSeparator": ":"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: XML to JSON Converter 1 (CallActivity_459)"
+    }
+   },
+   "latest": "1.0.8"
+  },
+  "ctype::FlowstepVariant/cname::XmlValidator": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "XML Validator",
+   "versions": {
+    "2.2.3": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::XmlValidator/version::2.2.3",
+     "properties": {
+      "xmlSchemaSource": "iflowOption",
+      "preventException": "false",
+      "xsd": "",
+      "componentVersion": "2.2",
+      "activityType": "XmlValidator",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::XmlValidator/version::2.2.3",
+      "headerSource": ""
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: XML Validator 1 (CallActivity_906)"
+    }
+   },
+   "latest": "2.2.3"
+  },
+  "ctype::FlowstepVariant/cname::XSLTMapping": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "XSLT Mapping",
+   "versions": {
+    "1.2.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::XSLTMapping/version::1.2.0",
+     "properties": {
+      "mappingoutputformat": "Bytes",
+      "mappingHeaderNameKey": "",
+      "mappingpath": "",
+      "mappingSource": "mappingSrcIflow",
+      "componentVersion": "1.2",
+      "activityType": "Mapping",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::XSLTMapping/version::1.2.0",
+      "subActivityType": "XSLTMapping"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: XSLT Mapping 1 (CallActivity_515)"
+    }
+   },
+   "latest": "1.2.0"
+  },
+  "ctype::FlowstepVariant/cname::ZIP Compress": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "ZIP Compression",
+   "versions": {
+    "1.0.1": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::ZIP Compress/version::1.0.1",
+     "properties": {
+      "componentVersion": "1.0",
+      "activityType": "Encoder",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::ZIP Compress/version::1.0.1",
+      "encoderType": "ZIP Compress"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: ZIP Compression 2 (CallActivity_489)"
+    }
+   },
+   "latest": "1.0.1"
+  },
+  "ctype::FlowstepVariant/cname::ZIP Decompress": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "ZIP Decompression",
+   "versions": {
+    "1.0.2": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::ZIP Decompress/version::1.0.2",
+     "properties": {
+      "componentVersion": "1.0",
+      "activityType": "Decoder",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::ZIP Decompress/version::1.0.2",
+      "encoderType": "ZIP Decompress"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: ZIP Decompression 2 (CallActivity_474)"
+    }
+   },
+   "latest": "1.0.2"
+  },
+  "ctype::FlowstepVariant/cname::ZipSplitter": {
+   "kind": "step",
+   "bpmn": "callActivity",
+   "label": "Zip Splitter",
+   "versions": {
+    "1.0.0": {
+     "cmdVariantUri": "ctype::FlowstepVariant/cname::ZipSplitter/version::1.0.0",
+     "properties": {
+      "stopOnExecution": "true",
+      "zipSplitFileName": "",
+      "componentVersion": "1.0",
+      "activityType": "Splitter",
+      "cmdVariantUri": "ctype::FlowstepVariant/cname::ZipSplitter/version::1.0.0",
+      "splitType": "ZipSplitter"
+     },
+     "size": {
+      "w": 100,
+      "h": 60
+     },
+     "seen": "palette 1.0.10: Zip Splitter 1 (CallActivity_63152038)"
+    }
+   },
+   "latest": "1.0.0"
+  },
+  "participant::EndpointRecevier": {
+   "kind": "participant",
+   "bpmn": "participant",
+   "label": "Receiver",
+   "versions": {
+    "": {
+     "properties": {
+      "ifl:type": "EndpointRecevier"
+     },
+     "attributes": {
+      "ifl:type": "EndpointRecevier"
+     },
+     "size": {
+      "w": 100,
+      "h": 140
+     },
+     "seen": "palette 1.0.10: Receiver1 (Participant_940)"
+    }
+   },
+   "latest": ""
+  },
+  "participant::EndpointSender": {
+   "kind": "participant",
+   "bpmn": "participant",
+   "label": "Sender",
+   "versions": {
+    "": {
+     "properties": {
+      "enableBasicAuthentication": "false",
+      "ifl:type": "EndpointSender"
+     },
+     "attributes": {
+      "ifl:type": "EndpointSender"
+     },
+     "size": {
+      "w": 100,
+      "h": 140
+     },
+     "seen": "palette 1.0.10: Sender1 (Participant_63152080)"
+    }
+   },
+   "latest": ""
+  },
+  "participant::IntegrationProcess": {
+   "kind": "participant",
+   "bpmn": "participant",
+   "label": "Integration Process",
+   "versions": {
+    "": {
+     "properties": {},
+     "attributes": {
+      "ifl:type": "IntegrationProcess"
+     },
+     "size": {
+      "w": 540,
+      "h": 220
+     },
+     "seen": "palette 1.0.10: Integration Process (Participant_Process_1)"
+    }
+   },
+   "latest": ""
+  }
+ }
+}
