@@ -1,6 +1,6 @@
 // Structural checks an agent gets as feedback before anything reaches the tenant.
 import type { Document, Element, Node } from '@xmldom/xmldom';
-import { byTag, children, NS, resourceRefs, serializeIflw } from './model.js';
+import { byTag, children, NS, parseVariant, readProps, resourceRefs, serializeIflw, type Props } from './model.js';
 
 export interface Issue { severity: 'error' | 'warning'; code: string; msg: string }
 
@@ -13,6 +13,32 @@ export interface ValidateContext {
   /** parameter names declared in parameters.propdef (enables the undeclared-parameter check) */
   declaredParameters?: Set<string>;
 }
+
+/**
+ * Settings a step cannot do without, by component name. Cloud Integration refuses these only when it generates the
+ * runtime (at deploy) or, for mappings, on every message. error: the refusal was observed on a tenant; warning: assumed.
+ */
+const REQUIRED: Record<string, { key: string; when?: (p: Props) => boolean; what: string; severity: Issue['severity'] }[]> = {
+  GeneralSplitter: [{ key: 'splitExprValue', what: 'the split expression (XPath)', severity: 'error' }],
+  Camel: [{ key: 'splitExprValue', what: 'the split expression', severity: 'warning' }],
+  SimpleSignMessage: [{ key: 'privateKeyAlias', what: 'the private key alias', severity: 'error' }],
+  XMLDigitalSignMessage: [{ key: 'privateKeyAlias', what: 'the private key alias', severity: 'warning' }],
+  XSLTMapping: [{ key: 'mappinguri', when: (p) => p.mappingSource === 'mappingSrcIflow', what: 'the mapping file (iflow_edit "mapping")', severity: 'error' }],
+  MessageMapping: [{ key: 'mappinguri', when: (p) => p.mappingReference === 'static', what: 'the mapping file (iflow_edit "mapping")', severity: 'error' }],
+  GroovyScript: [{ key: 'script', what: 'the script file', severity: 'error' }],
+  JavaScript: [{ key: 'script', what: 'the script file', severity: 'error' }],
+};
+
+/** Steps that only work with an adapter attached; error: observed on a tenant, warning: assumed */
+const NEEDS_ADAPTER: Record<string, { what: string; severity: Issue['severity'] }> = {
+  contentEnricherWithLookup: { what: 'a receiver adapter to fetch the lookup message from', severity: 'error' },
+  ExternalCall: { what: 'a receiver adapter (Request Reply calls it)', severity: 'warning' },
+  Send: { what: 'a receiver adapter', severity: 'warning' },
+  PollEnrich: { what: 'a sender adapter to poll from', severity: 'warning' },
+};
+
+/** Sender authorization values the tenant accepts (observed: None and Basic are refused at deploy) */
+const SENDER_AUTH = new Set(['RoleBased', 'ClientCertificate']);
 
 export function validate(doc: Document, { resourceFiles, declaredParameters }: ValidateContext = {}): Issue[] {
   const issues: Issue[] = [];
@@ -74,6 +100,25 @@ export function validate(doc: Document, { resourceFiles, declaredParameters }: V
         add('warning', 'UNREACHABLE', `${n.getAttribute('id')} (${n.getAttribute('name') ?? ''})`);
       }
     }
+  }
+
+  const adapterOn = new Set(byTag(doc, 'messageFlow').flatMap((mf) => [mf.getAttribute('sourceRef'), mf.getAttribute('targetRef')]));
+  for (const el of [...byTag(doc, 'callActivity'), ...byTag(doc, 'serviceTask')]) {
+    const p = readProps(el);
+    const cname = parseVariant(p.cmdVariantUri).cname ?? p.activityType ?? '';
+    const label = `${el.getAttribute('id')} (${el.getAttribute('name') ?? ''})`;
+    for (const r of REQUIRED[cname] ?? []) {
+      if (!p[r.key]?.trim() && (!r.when || r.when(p))) add(r.severity, 'MISSING_SETTING', `${label}: ${r.key} is empty; set ${r.what}`);
+    }
+    const need = NEEDS_ADAPTER[cname];
+    if (need && !adapterOn.has(el.getAttribute('id'))) add(need.severity, 'NO_ADAPTER', `${label} needs ${need.what} (iflow_edit add_adapter)`);
+  }
+  for (const mf of byTag(doc, 'messageFlow')) {
+    const p = readProps(mf);
+    if (p.direction !== 'Sender' || p.senderAuthType === undefined) continue;
+    const label = `${mf.getAttribute('id')} (${mf.getAttribute('name') ?? ''})`;
+    if (!SENDER_AUTH.has(p.senderAuthType)) add('error', 'INVALID_SETTING', `${label}: senderAuthType "${p.senderAuthType}" is refused by Cloud Integration; use RoleBased (with userRole) or ClientCertificate`);
+    else if (p.senderAuthType === 'ClientCertificate' && !p.clientCertificates?.trim()) add('error', 'MISSING_SETTING', `${label}: senderAuthType ClientCertificate needs clientCertificates (at least one certificate row)`);
   }
 
   if (resourceFiles) {

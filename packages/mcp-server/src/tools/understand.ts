@@ -60,8 +60,11 @@ export function registerUnderstandTools(server: McpServer) {
       title: 'Check an iFlow',
       description:
         'Structural checks of a local iFlow before it goes to the tenant: duplicate ids, dangling or inconsistent flows, ' +
-        'missing diagram shapes, unreachable steps, script/mapping files that do not exist, and {{parameters}} not ' +
-        'declared in parameters.propdef. Errors would break the iFlow; warnings deserve a look.',
+        'missing diagram shapes, unreachable steps, script/mapping files that do not exist, {{parameters}} not ' +
+        'declared in parameters.propdef, and some settings the tenant only refuses at deploy: empty required settings ' +
+        '(split expression, key alias, mapping or script file), steps that need an adapter (Content Enricher, Request ' +
+        'Reply, Send, Poll Enrich), sender authorization values the tenant refuses. Not every deploy check is covered. ' +
+        'Errors would break the iFlow; warnings deserve a look.',
       inputSchema: { iflow: iflowArg },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },

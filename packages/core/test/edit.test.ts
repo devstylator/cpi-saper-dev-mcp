@@ -233,3 +233,29 @@ test('XSLT Mapping: "mapping" sets uri, path and name as the designer does; a ma
   assert.equal(readProps(findElement(doc, id)).mappingname, 'Other');
   assert.throws(() => applyEdits(fresh(), [{ op: 'set', element: 'CallActivity_10', mapping: 'a.xsl' }], catalog), /XSLT Mapping and Message Mapping steps only/);
 });
+
+test('validate: settings and adapters the tenant needs at deploy', () => {
+  const codes = (doc: ReturnType<typeof fresh>) => validate(doc).filter((i) => i.severity === 'error').map((i) => `${i.code} ${i.msg.split(' ')[0]}`);
+  const doc = fresh();
+  const log = applyEdits(doc, [
+    { op: 'insert_step', after: 'CallActivity_10', type: 'General Splitter' },
+    { op: 'insert_step', after: 'CallActivity_10', type: 'Simple Signer' },
+    { op: 'insert_step', after: 'CallActivity_10', type: 'Content Enricher' },
+  ], catalog);
+  const [splitter, signer, enricher] = log.map((l) => l.match(/inserted (\S+)/)![1]!);
+  assert.deepEqual(codes(doc).sort(), [`MISSING_SETTING ${splitter}`, `MISSING_SETTING ${signer}`, `NO_ADAPTER ${enricher}`].sort());
+  applyEdits(doc, [
+    { op: 'set', element: splitter!, settings: { splitExprValue: '//order' } },
+    { op: 'set', element: signer!, settings: { privateKeyAlias: 'sign' } },
+    { op: 'add_adapter', step: enricher!, type: 'HTTP' },
+  ], catalog);
+  assert.deepEqual(codes(doc), []);
+
+  const empty = parseIflw(EMPTY);
+  applyEdits(empty, [{ op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS', settings: { senderAuthType: 'None' } }], catalog);
+  assert.match(validate(empty).map((i) => i.code).join(), /INVALID_SETTING/);
+  applyEdits(empty, [{ op: 'set', element: 'HTTPS', settings: { senderAuthType: 'ClientCertificate' } }], catalog);
+  assert.match(validate(empty).map((i) => i.msg).join(), /ClientCertificate needs clientCertificates/);
+  applyEdits(empty, [{ op: 'set', element: 'HTTPS', settings: { senderAuthType: 'RoleBased' } }], catalog);
+  assert.deepEqual(validate(empty).filter((i) => i.severity === 'error'), []);
+});
