@@ -46,6 +46,7 @@ The first one found is used:
 | `output.maxChars` | Longest body or payload returned to the agent before it is cut | 20000 |
 | `redact` | Extra header and property names whose values are hidden, in addition to the built-in list (names containing auth, passport, password, secret, token, cookie or credential) | — |
 | `timeouts.deploySeconds` | How long `cpi_deploy` waits before reporting "still deploying" | 180 |
+| `unattendedTestMode` | **Test only, not for real development.** `true` removes every question to you: confirmations (`confirm`) are skipped and the agent's version number and comment are used without the dialog. See [Unattended test mode](#unattended-test-mode-test-only) | `false` |
 | `versioning.rules` | Your own versioning rules (Markdown, like a skill): when to raise the major, minor or patch part, and how to write the comment. Replaces the [default rules](../packages/core/rules/versioning.md) completely | default |
 
 ## Example
@@ -118,6 +119,38 @@ designer. Write your own rules as a Markdown file and point `versioning.rules` t
 
 A copy of every comment goes to a changelog next to the iFlow in your workspace (`<workspace>/<package>/<iflow>.CHANGELOG.md`,
 newest first, with date and user), so the history is also in git; the API cannot read the version history itself.
+
+## Unattended test mode (test only)
+
+> **Warning: for testing the server with AI agents only. Do not use it for real development.** With it, an agent
+> creates, uploads, versions and deploys iFlows without anyone checking what it does.
+
+```json
+{ "unattendedTestMode": true }
+```
+
+What changes:
+
+- No confirmation is asked for any action, whatever `confirm` says.
+- `cpi_push` and `cpi_save_version` use the version number and comment the agent passes (or, if it passes none, the
+  hint and a generated comment) without the dialog. The number must still be valid and higher than the last one.
+- Clients without MCP elicitation support work too.
+
+What stays: every [fixed rule](#fixed-rules-not-configurable), `role`, `allowedPackages`, the guideline gate
+(`guidelines`), `deploy: manual`, and the checks before a push (validation, designer lock, tenant changed since
+the pull). The audit log marks each entry with `"mode": "unattendedTestMode"`, the iFlow changelogs mark the
+versions, `cpi_tenants` shows a warning and the server writes one to its log.
+
+For agents to run fully on their own, also consider:
+
+- `login: "user"` needs a browser login (`cpi_login`), which an agent cannot do: log in before the test run (it lasts
+  as long as your login session) or use `login: "client"`.
+- `deploy: "manual"` leaves deploying to you: use `deploy: "api"` if the agents should deploy.
+- `guidelines: "block"` stops deploys of iFlows with new High findings of SAP's design guideline check: use
+  `"warn"` if that should not stop a test.
+- Limit `allowedPackages` to a package made for the test.
+
+Turn it off (`false` or remove the line) when testing is done.
 
 ## Fixed rules (not configurable)
 

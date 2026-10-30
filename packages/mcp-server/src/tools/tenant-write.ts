@@ -124,7 +124,7 @@ export function registerTenantWriteTools(server: McpServer) {
         'Upload a locally edited iFlow (pulled before with cpi_pull) to its tenant. Every upload is a new version in ' +
         'Cloud Integration\'s history, so each push gets a version number and a one-line comment: call ' +
         'cpi_version_proposal first and pass version and comment by the versioning rules; the user confirms or edits ' +
-        'both in a dialog. Collect and check related edits locally before pushing, rather than pushing every small step. ' +
+        'both in a dialog (in unattendedTestMode, test only, they are used as passed). Collect and check related edits locally before pushing, rather than pushing every small step. ' +
         'Refuses when the tenant is not a development tenant, the package is not allowed or read-only, the local iFlow ' +
         'has structural errors, the iFlow is open in the designer, or its content changed on the tenant since the pull.',
       inputSchema: {
@@ -153,7 +153,7 @@ export function registerTenantWriteTools(server: McpServer) {
         const current = await assertTenantUnchanged(api.client, id, local.pulled.zip);
 
         const p = proposal(zipVersion(current), describe(iflowFromZip(local.pulled.zip), { maxLen: 0 }), describe(local.doc, { maxLen: 0 }));
-        const v = await askVersion(server, api.tenant,
+        const v = await askVersion(server, ctx.config, api.tenant,
           `Push ${id} to tenant "${api.tenant.name}"${api.tenant.label ? ` (${api.tenant.label})` : ''} as a new version?\nChanged files: ${files.join(', ')}`,
           p, { version, comment });
         await uploadIflow(api.client, id, withVersion(zipFolder(local.dir), v.version), v.comment);
@@ -228,7 +228,7 @@ export function registerTenantWriteTools(server: McpServer) {
         const p = pulled
           ? proposal(zipVersion(current), describe(iflowFromZip(pulled.zip), { maxLen: 0 }), describe(iflowFromZip(current), { maxLen: 0 }))
           : proposal(zipVersion(current));
-        const v = await askVersion(server, api.tenant, `Record ${iflow} on tenant "${api.tenant.name}" as a new version (its current content, unchanged)?`, p, { version, comment });
+        const v = await askVersion(server, ctx.config, api.tenant, `Record ${iflow} on tenant "${api.tenant.name}" as a new version (its current content, unchanged)?`, p, { version, comment });
         await uploadIflow(api.client, iflow, withVersion(current, v.version), v.comment);
         // the local copy follows only if it holds no unpushed work
         const localDir = pulled && !localChanges(pulled.state.dir, pulled.zip).filter((f) => f !== 'META-INF/MANIFEST.MF').length ? pulled.state.dir : undefined;

@@ -20,15 +20,19 @@ type Field =
 
 export class Declined extends Error {}
 
+export const UNATTENDED_WARNING = 'unattendedTestMode is on (TEST ONLY): the agent changes, versions and deploys without ' +
+  'asking the user. Not for real development: turn it off in the configuration when testing is done.';
+
 /**
  * Ask the user to confirm an action through MCP elicitation when the configuration lists it in "confirm".
  * The question goes to the user, not to the agent. Clients that cannot ask (no elicitation capability) are refused
  * with an explanation, so a configured confirmation can never be skipped silently.
  * Returns the form values the user entered (empty when no confirmation is configured).
+ * In unattendedTestMode nothing is asked (test only).
  */
 export async function confirmAction(server: McpServer, config: Config, action: ConfirmableAction, message: string,
   fields: Record<string, Field> = {}): Promise<Record<string, unknown>> {
-  if (!config.confirm.includes(action)) return {};
+  if (!config.confirm.includes(action) || config.unattendedTestMode) return {};
   if (!server.server.getClientCapabilities()?.elicitation) {
     throw new Error(`"${action}" needs your confirmation (setting "confirm" in ${config.path}), but this client cannot ask ` +
       '(no MCP elicitation support). Use a client that supports it (for example Claude Code 2.1.76 or later, or VS Code), ' +
@@ -47,7 +51,8 @@ export async function confirmAction(server: McpServer, config: Config, action: C
 export function audit(config: Config, entry: { tenant: string; tool: string; artifact: string; result: string; details?: Record<string, unknown> }) {
   try {
     mkdirSync(dirname(config.auditLog), { recursive: true });
-    appendFileSync(config.auditLog, `${JSON.stringify({ time: new Date().toISOString(), ...entry })}\n`);
+    const mode = config.unattendedTestMode ? { mode: 'unattendedTestMode' } : {};
+    appendFileSync(config.auditLog, `${JSON.stringify({ time: new Date().toISOString(), ...entry, ...mode })}\n`);
   } catch (e) {
     console.error(`cpi-saper-dev-mcp: audit log ${config.auditLog} not writable: ${(e as Error).message}`);
   }

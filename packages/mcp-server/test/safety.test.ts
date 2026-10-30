@@ -52,3 +52,18 @@ test('audit: one JSON line per change', () => {
   assert.deepEqual(lines.map((l) => [l.tool, l.result]), [['cpi_push', 'pushed'], ['cpi_deploy', 'STARTED']]);
   assert.match(lines[0].time, /^\d{4}-\d\d-\d\dT/);
 });
+
+test('unattendedTestMode (test only): no questions, the agent\'s version is used but still checked; audit lines are marked', async () => {
+  const c = parseConfig({ tenants: { t: { apiKey: 'k' } }, unattendedTestMode: true }, join(mkdtempSync(join(tmpdir(), 'cpi-unattended-')), 'config.json'));
+  const { askVersion, proposal } = await import('../dist/versioning.js');
+  const { server, asked } = fakeServer(false);
+  assert.deepEqual(await confirmAction(server, c, 'deploy', 'Deploy?'), {});
+  const p = proposal('1.2.0');
+  assert.deepEqual(await askVersion(server, c, c.tenants.t!, 'Push?', p, { version: '1.3.0', comment: 'minor: new step' }), { version: '1.3.0', comment: 'minor: new step' });
+  assert.deepEqual(await askVersion(server, c, c.tenants.t!, 'Push?', p, {}), { version: '1.2.1', comment: 'patch: changes' }, 'the hint when the agent passes nothing');
+  await assert.rejects(askVersion(server, c, c.tenants.t!, 'Push?', p, { version: '1.1.0', comment: 'x' }), /must be higher than 1\.2\.0/);
+  assert.equal(asked.length, 0);
+  audit(c, { tenant: 't', tool: 'cpi_deploy', artifact: 'Flow', result: 'STARTED' });
+  assert.equal(JSON.parse(readFileSync(c.auditLog, 'utf8')).mode, 'unattendedTestMode');
+  assert.equal(parseConfig({ tenants: { t: { apiKey: 'k' } } }, c.path).unattendedTestMode, false, 'off by default');
+});

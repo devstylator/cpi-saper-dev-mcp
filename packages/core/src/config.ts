@@ -33,6 +33,7 @@ const ConfigSchema = z.object({
   redact: z.array(z.string().min(1)).default([]),
   timeouts: z.object({ deploySeconds: z.number().int().positive().default(180) }).strict().default({ deploySeconds: 180 }),
   versioning: z.object({ rules: z.string().optional() }).strict().default({}),
+  unattendedTestMode: z.boolean().default(false),
 }).strict();
 
 export interface TenantConfig {
@@ -70,6 +71,11 @@ export interface Config {
   timeouts: { deploySeconds: number };
   /** rules: own versioning rules file (else the bundled default) */
   versioning: { rules?: string };
+  /**
+   * TEST ONLY: no questions to the user. Confirmations are skipped and the agent's version number and comment are
+   * used as given, so agents can test the server on their own. Not for real development.
+   */
+  unattendedTestMode: boolean;
 }
 
 export class ConfigError extends Error {}
@@ -160,6 +166,7 @@ export function parseConfig(raw: unknown, path: string, { cwd = process.cwd(), h
     redact: c.redact,
     timeouts: c.timeouts,
     versioning: { ...(c.versioning.rules !== undefined ? { rules: abs(c.versioning.rules) } : {}) },
+    unattendedTestMode: c.unattendedTestMode,
   };
 }
 

@@ -3,6 +3,7 @@ import { checkServiceKey, type Config } from '@cpi-saper-dev-mcp/core';
 import { currentConfig } from '../project.js';
 import { tokenStoreOf } from '../context.js';
 import { toolError, toolResult } from '../result.js';
+import { UNATTENDED_WARNING } from '../safety.js';
 
 // Who changes are recorded under: the logged-in user, or nobody yet (never token values)
 function userLogin(config: Config, t: Config['tenants'][string]) {
@@ -31,8 +32,9 @@ export function describeConfig(config: Config) {
       runtimeKey: t.runtimeKey ? checkServiceKey(t.runtimeKey) : { status: 'not configured' },
     })),
     workspace: config.workspace,
-    confirm: config.confirm,
+    confirm: config.unattendedTestMode ? 'none: unattendedTestMode' : config.confirm,
     experimental: config.experimental,
+    ...(config.unattendedTestMode ? { unattendedTestMode: UNATTENDED_WARNING } : {}),
   };
 }
 
@@ -45,7 +47,8 @@ export function registerTenantTools(server: McpServer) {
         'List the configured Cloud Integration tenants and what may be done on each: role (readonly or ' +
         'development), deploy mode (api or manual: the user deploys in the designer), packages the agent may ' +
         'change, script runner, guideline check, and whether the service keys are present (with the tenant host). ' +
-        'Also shows which actions need the user\'s confirmation.',
+        'Also shows which actions need the user\'s confirmation, and whether unattendedTestMode (test only: no ' +
+        'questions to the user; the agent passes version and comment to cpi_push itself) is on.',
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () => {

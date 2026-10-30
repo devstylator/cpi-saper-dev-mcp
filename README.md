@@ -70,6 +70,11 @@ adds no generic file tools.
 
 ### Tenant: change (development tenants only)
 
+Changes ask for your confirmation, and every version needs a number and comment you confirm. For letting AI agents
+test the server on their own there is an
+[unattended test mode](docs/CONFIGURATION.md#unattended-test-mode-test-only): **test only, not for real
+development.**
+
 | Tool | What it does | Status |
 |---|---|---|
 | `cpi_push` | Upload a local iFlow as a **new version**: the agent proposes number and one-line comment by the versioning rules, you confirm both in a dialog, and Cloud Integration's version history shows exactly that entry. Refuses when the tenant changed since the pull or the iFlow is open in the designer | **Available**, v1 |

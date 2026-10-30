@@ -8,6 +8,7 @@ import {
   appendChangelog, bumpVersion, changelogPath, cmpVersion, isVersion, loadVersioningRules, readChangelog, suggestPart,
   type IflowModel, type TenantConfig, type VersionPart,
 } from '@cpi-saper-dev-mcp/core';
+import type { Config } from '@cpi-saper-dev-mcp/core';
 import { tokenStoreOf, type ToolContext } from './context.js';
 import { audit, Declined } from './safety.js';
 
@@ -29,16 +30,20 @@ export function proposal(lastVersion: string | undefined, before?: IflowModel, a
 
 /**
  * Ask the user for the version number and comment (one dialog, prefilled with the agent's proposal or the hint).
- * Every version needs both, so this always asks; clients that cannot ask are refused.
+ * Every version needs both, so this always asks; clients that cannot ask are refused. In unattendedTestMode (test
+ * only) the agent's proposal (or the hint) is used without asking, checked the same way.
  */
-export async function askVersion(server: McpServer, tenant: TenantConfig, intro: string, p: ReturnType<typeof proposal>,
+export async function askVersion(server: McpServer, config: Config, tenant: TenantConfig, intro: string, p: ReturnType<typeof proposal>,
   agent: { version?: string | undefined; comment?: string | undefined }): Promise<{ version: string; comment: string }> {
+  if (config.unattendedTestMode) {
+    return checkVersion(p, agent.version ?? p.hint.version, agent.comment ?? defaultComment(p));
+  }
   if (!server.server.getClientCapabilities()?.elicitation) {
     throw new Error('every version needs a number and a comment confirmed by you, but this client cannot ask (no MCP elicitation support); ' +
       'use a client that supports it (for example Claude Code 2.1.76 or later, or VS Code)');
   }
   const version = agent.version ?? p.hint.version;
-  const comment = agent.comment ?? `${p.hint.part}: ${p.changes.find((l) => /^[+~-] /.test(l))?.replace(/\s*\[[^\]]*\]/g, '') ?? 'changes'}`.slice(0, 120);
+  const comment = agent.comment ?? defaultComment(p);
   const r = await server.server.elicitInput({
     mode: 'form',
     message: `${intro}\nLast version: ${p.lastVersion ?? '(none)'}. Hint: ${p.hint.part} (${p.hint.reasons.join('; ')}).\n` +
@@ -55,8 +60,15 @@ export async function askVersion(server: McpServer, tenant: TenantConfig, intro:
   if (r.action !== 'accept') {
     throw new Declined(r.action === 'decline' ? `the user declined: nothing was uploaded to ${tenant.name}` : 'the user closed the question without deciding: nothing was uploaded');
   }
-  const v = String(r.content?.version ?? version).trim();
-  const c = String(r.content?.comment ?? comment).trim();
+  return checkVersion(p, String(r.content?.version ?? version), String(r.content?.comment ?? comment));
+}
+
+const defaultComment = (p: ReturnType<typeof proposal>) =>
+  `${p.hint.part}: ${p.changes.find((l) => /^[+~-] /.test(l))?.replace(/\s*\[[^\]]*\]/g, '') ?? 'changes'}`.slice(0, 120);
+
+function checkVersion(p: ReturnType<typeof proposal>, version: string, comment: string) {
+  const v = version.trim();
+  const c = comment.trim();
   if (!isVersion(v)) throw new Error(`"${v}" is not a version like 1.0.14`);
   if (p.lastVersion && isVersion(p.lastVersion) && cmpVersion(v, p.lastVersion) <= 0) throw new Error(`version ${v} must be higher than ${p.lastVersion}`);
   if (!c) throw new Error('every version needs a comment');
@@ -68,7 +80,8 @@ export function recordVersion(ctx: ToolContext, tenant: TenantConfig, tool: stri
   v: { version: string; comment: string }, localDir?: string) {
   const mf = localDir && join(localDir, 'META-INF', 'MANIFEST.MF');
   if (mf && existsSync(mf)) writeFileSync(mf, readFileSync(mf, 'utf8').replace(/^Bundle-Version:\s*\S+/m, `Bundle-Version: ${v.version}`));
-  const user = tenant.login === 'user' ? (tokenStoreOf(ctx.config, tenant).read()?.email ?? 'user') : 'technical client (service key)';
+  const user = (tenant.login === 'user' ? (tokenStoreOf(ctx.config, tenant).read()?.email ?? 'user') : 'technical client (service key)') +
+    (ctx.config.unattendedTestMode ? ', unattended test mode' : '');
   const log = changelogFor(ctx, tenant, iflowId, packageId);
   appendChangelog(log, iflowId, { version: v.version, date: new Date().toISOString().slice(0, 10), user, comment: v.comment });
   audit(ctx.config, { tenant: tenant.name, tool, artifact: iflowId, result: `version ${v.version}`, details: { comment: v.comment } });

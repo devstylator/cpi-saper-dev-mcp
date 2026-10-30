@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { loadConfig, type Config } from '@cpi-saper-dev-mcp/core';
+import { UNATTENDED_WARNING } from './safety.js';
 
 // The project folder: clients start servers with different working folders (VS Code's workspace-root .mcp.json
 // has no cwd setting), so ask the client for its roots (open workspace folders) when it supports them.
@@ -22,6 +23,13 @@ export async function projectFolder(server: McpServer): Promise<string> {
 }
 
 /** Configuration for the current project, read fresh on every call */
+let warned = false;
+
 export async function currentConfig(server: McpServer): Promise<Config> {
-  return loadConfig({ cwd: await projectFolder(server) });
+  const config = loadConfig({ cwd: await projectFolder(server) });
+  if (config.unattendedTestMode && !warned) {
+    warned = true;
+    console.error(`cpi-saper-dev-mcp: ${UNATTENDED_WARNING} (${config.path})`);
+  }
+  return config;
 }
