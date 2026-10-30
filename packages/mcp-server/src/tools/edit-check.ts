@@ -30,6 +30,7 @@ const operation = z.discriminatedUnion('op', [
     version: z.string().optional().describe('Component version; default: the version this iFlow already uses, else the latest'),
     name: z.string().optional().describe('Step name; default: the catalog label'),
     settings: kv.optional().describe('Settings to change from the catalog defaults; script steps need "script" (file under script/, v2/<name>.groovy for 2.x)'),
+    mapping: z.string().optional().describe('XSLT Mapping / Message Mapping: the file under src/main/resources, e.g. "mapping/orders.xsl" (a bare name means mapping/); sets mappinguri, mappingpath and mappingname as the designer does'),
     headers: z.array(row).optional().describe('Content Modifier: message headers to set'),
     properties: z.array(row).optional().describe('Content Modifier: exchange properties to set'),
   }),
@@ -48,7 +49,8 @@ const operation = z.discriminatedUnion('op', [
   z.object({
     op: z.literal('set'),
     element: z.string().describe('Step, adapter (message flow) id or unique name, or "integrationFlow" for the iFlow\'s own settings'),
-    settings: kv,
+    settings: kv.optional(),
+    mapping: z.string().optional().describe('XSLT Mapping / Message Mapping: the file under src/main/resources, e.g. "mapping/orders.xsl" (a bare name means mapping/); sets mappinguri, mappingpath and mappingname as the designer does'),
     allowNewKeys: z.boolean().default(false).describe('Allow keys the element does not have yet (normally a typo)'),
   }),
   z.object({ op: z.literal('rename'), element: z.string(), name: z.string() }),

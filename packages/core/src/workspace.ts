@@ -84,9 +84,10 @@ export class Workspace {
     return { state: JSON.parse(readFileSync(meta, 'utf8')) as PulledState, zip: new Uint8Array(readFileSync(zip)) };
   }
 
-  /** The pulled state that belongs to a local iFlow folder, whichever tenant it came from */
-  pulledStateFor(dir: string): { state: PulledState; zip: Uint8Array } | undefined {
-    if (!existsSync(this.stateDir)) return undefined;
+  /** Pulled-state records (meta files) of a local iFlow folder, from any tenant */
+  private recordsFor(dir: string): { state: PulledState; meta: string }[] {
+    if (!existsSync(this.stateDir)) return [];
+    const out: { state: PulledState; meta: string }[] = [];
     for (const tenant of readdirSync(this.stateDir)) {
       const tdir = join(this.stateDir, tenant);
       if (!statSync(tdir).isDirectory()) continue;
@@ -95,15 +96,31 @@ export class Workspace {
         try { st = JSON.parse(readFileSync(join(tdir, f), 'utf8')) as Partial<PulledState>; } catch { continue; }
         // only pulled-state records count (other JSON files may live here)
         if (typeof st.dir !== 'string' || typeof st.tenant !== 'string' || typeof st.iflowId !== 'string') continue;
-        if (resolve(st.dir) === resolve(dir)) return this.pulledState(st.tenant, st.iflowId);
+        if (resolve(st.dir) === resolve(dir)) out.push({ state: st as PulledState, meta: join(tdir, f) });
       }
     }
-    return undefined;
+    return out;
   }
 
-  /** Record the tenant's current content as the pulled state without touching local files (after a push or save) */
-  updatePulledState(tenant: string, info: { iflowId: string; packageId: string; version?: string }, zip: Uint8Array, dir: string): PulledState {
+  /**
+   * The pulled state that belongs to a local iFlow folder: the record of the given tenant if there is one, else the
+   * most recent pull (records left behind by a renamed tenant must not win over the current pull)
+   */
+  pulledStateFor(dir: string, tenant?: string): { state: PulledState; zip: Uint8Array } | undefined {
+    const records = this.recordsFor(dir);
+    const pick = records.find((r) => r.state.tenant === tenant)
+      ?? records.sort((a, b) => String(b.state.pulledAt).localeCompare(String(a.state.pulledAt)))[0];
+    return pick ? this.pulledState(pick.state.tenant, pick.state.iflowId) : undefined;
+  }
+
+  /** Store the zip and its record; records of the same folder from other tenants no longer describe it and are removed */
+  private saveState(tenant: string, info: { iflowId: string; packageId: string; version?: string }, zip: Uint8Array, dir: string): PulledState {
     const { zip: zipPath, meta } = this.statePaths(tenant, info.iflowId);
+    for (const r of this.recordsFor(dir)) {
+      if (r.meta === meta) continue;
+      rmSync(r.meta, { force: true });
+      rmSync(r.meta.replace(/\.json$/, '.zip'), { force: true });
+    }
     mkdirSync(dirname(zipPath), { recursive: true });
     writeFileSync(zipPath, zip);
     const state: PulledState = {
@@ -112,6 +129,11 @@ export class Workspace {
     };
     writeFileSync(meta, `${JSON.stringify(state, null, 2)}\n`);
     return state;
+  }
+
+  /** Record the tenant's current content as the pulled state without touching local files (after a push or save) */
+  updatePulledState(tenant: string, info: { iflowId: string; packageId: string; version?: string }, zip: Uint8Array, dir: string): PulledState {
+    return this.saveState(tenant, info, zip, dir);
   }
 
   /**
@@ -139,14 +161,7 @@ export class Workspace {
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, data);
     }
-    const { zip: zipPath, meta } = this.statePaths(tenant, info.iflowId);
-    mkdirSync(dirname(zipPath), { recursive: true });
-    writeFileSync(zipPath, zip);
-    const state: PulledState = {
-      tenant, iflowId: info.iflowId, packageId: info.packageId, ...(info.version ? { version: info.version } : {}),
-      pulledAt: new Date().toISOString(), dir,
-    };
-    writeFileSync(meta, `${JSON.stringify(state, null, 2)}\n`);
+    const state = this.saveState(tenant, info, zip, dir);
     return { dir, files: Object.keys(files).sort(), state };
   }
 }

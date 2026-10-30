@@ -3408,6 +3408,8 @@
      "properties": {
       "mappingoutputformat": "Bytes",
       "mappingHeaderNameKey": "",
+      "mappinguri": "",
+      "mappingname": "",
       "mappingpath": "",
       "mappingSource": "mappingSrcIflow",
       "componentVersion": "1.2",

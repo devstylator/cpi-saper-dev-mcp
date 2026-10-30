@@ -57,6 +57,17 @@ test('pull refuses a non-empty folder it did not create', () => {
   assert.ok(existsSync(dir));
 });
 
+test('a renamed tenant: the stale record of the old name neither wins nor survives a new pull', () => {
+  const ws = workspace();
+  const { dir } = ws.pull('dev', INFO, zipOf(join(FIXTURES, 'sample-before')));
+  // the tenant was renamed dev -> trial: the record under dev/ is left behind
+  assert.equal(ws.pulledStateFor(dir, 'trial')?.state.tenant, 'dev', 'only record: still found');
+  ws.pull('trial', INFO, zipOf(join(FIXTURES, 'sample-before')), { overwrite: true });
+  assert.equal(ws.pulledStateFor(dir, 'trial')?.state.tenant, 'trial');
+  assert.equal(ws.pulledStateFor(dir)?.state.tenant, 'trial');
+  assert.equal(ws.pulledState('dev', 'SampleFlow'), undefined, 'stale record removed');
+});
+
 test('localChanges ignores the timestamp comment in .prop files', () => {
   const ws = workspace();
   const { dir } = ws.pull('trial', INFO, zipOf(join(FIXTURES, 'sample-before')));

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  applyEdits, CpiClient, describe, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
+  applyEdits, CpiClient, describe, mappingSettings, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
   mappingText, parseIflw, readMapping, readProps, removeStep, runScript, runXslt, serializeIflw, validate,
 } from '../dist/index.js';
 
@@ -210,4 +210,26 @@ test('layout: a straight flow in one even row, pool fitted, sender left, receive
   assert.deepEqual(box('Participant_2').slice(1), [678, 340], 'receiver below its step');
   assert.deepEqual(validate(doc), []);
   assert.throws(() => applyEdits(fresh(), [{ op: 'layout' }], catalog), /straight flows only/);
+});
+
+test('XSLT Mapping: "mapping" sets uri, path and name as the designer does; a mapping step without a file is refused', () => {
+  const doc = fresh();
+  const log = applyEdits(doc, [{ op: 'insert_step', after: 'CallActivity_10', type: 'XSLT Mapping', name: 'Rows to items', mapping: 'rows2items.xsl' }], catalog);
+  const id = log[0]!.match(/inserted (\S+)/)![1]!;
+  const p = readProps(findElement(doc, id));
+  assert.equal(p.mappinguri, 'dir://mapping/xslt/src/main/resources/mapping/rows2items.xsl');
+  assert.equal(p.mappingpath, 'src/main/resources/mapping/rows2items');
+  assert.equal(p.mappingname, 'rows2items');
+  assert.ok(describe(doc) && validate(doc).length === 0);
+  assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'XSLT Mapping' }], catalog), /needs "mapping"/);
+  assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'XSLT Mapping', mapping: 'x.groovy' }], catalog), /\.xsl or \.xslt/);
+  // from a header: no file needed
+  applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'XSLT Mapping', settings: { mappingSource: 'mappingSrcHeader' } }], catalog);
+  // set on an existing step
+  applyEdits(doc, [{ op: 'set', element: id, mapping: 'mapping/Other.xslt' }], catalog);
+  assert.deepEqual(mappingSettings('MessageMapping', 'src/main/resources/mapping/Orders.mmap'), {
+    mappinguri: 'dir://mmap/src/main/resources/mapping/Orders.mmap', mappingpath: 'src/main/resources/mapping/Orders', mappingname: 'Orders',
+  });
+  assert.equal(readProps(findElement(doc, id)).mappingname, 'Other');
+  assert.throws(() => applyEdits(fresh(), [{ op: 'set', element: 'CallActivity_10', mapping: 'a.xsl' }], catalog), /XSLT Mapping and Message Mapping steps only/);
 });

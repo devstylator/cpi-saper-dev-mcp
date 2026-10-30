@@ -20,7 +20,7 @@ const translate = (text: string, name: (id: string) => string | undefined) => te
 /** The local copy of an iFlow pulled from this tenant, with its pulled state */
 function pulledIflow(ctx: ToolContext, iflow: string, tenant: TenantConfig) {
   const local = localIflow(ctx, iflow);
-  const pulled = local.located.dir ? ctx.workspace.pulledStateFor(local.located.dir) : undefined;
+  const pulled = local.located.dir ? ctx.workspace.pulledStateFor(local.located.dir, tenant.name) : undefined;
   if (!pulled) throw new Error(`${iflow} was not pulled with cpi_pull; pull it first (changes are only pushed onto the state they were made on)`);
   if (pulled.state.tenant !== tenant.name) throw new Error(`${iflow} was pulled from tenant "${pulled.state.tenant}", not "${tenant.name}"`);
   return { ...local, pulled, dir: local.located.dir! };
