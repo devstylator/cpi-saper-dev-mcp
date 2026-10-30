@@ -3,7 +3,7 @@ import { dirname, join, relative } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  checkModel, createIflow, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
+  checkModel, createIflow, deleteIflow, DEPLOY_CHECKS, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
   IFLOW_ID, resolvePackage, runGuidelines, runtimeError, undeployIflow, uploadIflow, validate, withVersion, zipChanges, zipFolder, zipVersion,
   type CpiClient, type GuidelineFinding, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
@@ -117,6 +117,46 @@ export function registerTenantWriteTools(server: McpServer) {
   );
 
   server.registerTool(
+    'iflow_delete',
+    {
+      title: 'Delete an iFlow',
+      description:
+        'Delete an iFlow from a development tenant with its whole version history; this cannot be undone. Meant for ' +
+        'cleaning up test iFlows. Refuses a deployed iFlow (cpi_undeploy first), one open in the designer, packages ' +
+        'that are not allowed or read-only, and non-development tenants. Always asks for confirmation unless removed ' +
+        'from "confirm" (or in unattendedTestMode). The local folder stays; its pulled state is removed, so it cannot be pushed.',
+      inputSchema: { iflow: iflowIdArg, tenant: tenantArg },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+    },
+    async ({ iflow, tenant: tenantName }) => {
+      const ctx = await context(server).catch((e) => e as Error);
+      if (ctx instanceof Error) return toolError(ctx);
+      const api = tenantApi(ctx.config, tenantName);
+      try {
+        const info = await getIflow(api.client, iflow);
+        await assertMayChange(api.client, api.tenant, info.packageId);
+        if (info.runtime) throw new Error(`${iflow} is deployed (version ${info.runtime.version ?? '?'}, ${info.runtime.status}); undeploy it with cpi_undeploy first`);
+        await assertNotLocked(api.client, iflow);
+        await confirmAction(server, ctx.config, 'delete',
+          `Delete the iFlow ${iflow} ("${info.name}", version ${info.version ?? '?'}) from package ${info.packageId} on tenant "${api.tenant.name}"? ` +
+          'Its whole version history is deleted; this cannot be undone.');
+        await deleteIflow(api.client, iflow);
+        audit(ctx.config, { tenant: api.tenant.name, tool: 'iflow_delete', artifact: iflow, result: `deleted from ${info.packageId} (was ${info.version ?? '?'})` });
+        const dir = ctx.workspace.iflowDir(info.packageId, iflow);
+        const forgot = ctx.workspace.forgetPulledState(api.tenant.name, iflow);
+        return toolResult({
+          iflow, deleted: true, package: info.packageId, lastVersion: info.version ?? null,
+          ...(existsSync(dir) ? { localFolder: relative(ctx.workspace.root, dir), localFolderNote: 'kept; delete it yourself if it is no longer needed' } : {}),
+          pulledStateRemoved: forgot,
+        });
+      } catch (e) {
+        if (!(e instanceof Declined)) audit(ctx.config, { tenant: api.tenant.name, tool: 'iflow_delete', artifact: iflow, result: `refused: ${(e as Error).message.split('\n')[0]}` });
+        return toolError(e);
+      }
+    },
+  );
+
+  server.registerTool(
     'cpi_push',
     {
       title: 'Push an iFlow as a new version',
@@ -144,7 +184,9 @@ export function registerTenantWriteTools(server: McpServer) {
         const local = pulledIflow(ctx, iflow, api.tenant);
         id = local.pulled.state.iflowId;
         await assertMayChange(api.client, api.tenant, local.pulled.state.packageId);
-        const errors = validate(local.doc, local.located).filter((i) => i.severity === 'error');
+        const issues = validate(local.doc, local.located);
+        const errors = issues.filter((i) => i.severity === 'error' && !DEPLOY_CHECKS.has(i.code));
+        const deployWillFail = issues.filter((i) => i.severity === 'error' && DEPLOY_CHECKS.has(i.code)).map((i) => i.msg);
         if (errors.length) throw new Error(`not pushed: the local iFlow has errors (iflow_validate):\n${errors.map((i) => `  ${i.code} ${i.msg}`).join('\n')}`);
         // the version number (MANIFEST Bundle-Version) is set by the push itself: not a local change
         const files = localChanges(local.dir, local.pulled.zip).filter((f) => f !== 'META-INF/MANIFEST.MF');
@@ -162,7 +204,8 @@ export function registerTenantWriteTools(server: McpServer) {
         const rec = recordVersion(ctx, api.tenant, 'cpi_push', id, info.packageId, v, local.dir);
         return toolResult({
           iflow: id, pushed: true, version: v.version, comment: v.comment, previous: p.lastVersion, files, changelog: rec.changelog,
-          next: 'deploy it with cpi_deploy when it should run',
+          ...(deployWillFail.length ? { deployWillFail } : {}),
+          next: deployWillFail.length ? 'fix deployWillFail before cpi_deploy' : 'deploy it with cpi_deploy when it should run',
         });
       } catch (e) {
         if (!(e instanceof Declined)) audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_push', artifact: id, result: `refused: ${(e as Error).message.split('\n')[0]}` });
@@ -252,7 +295,7 @@ export function registerTenantWriteTools(server: McpServer) {
         'the tenant\'s "guidelines" setting asks for it (block: High findings not present at the last deploy stop it). ' +
         'With deploy mode "manual" (e.g. BTP trial tenants) nothing is deployed: ask the user to deploy that version in ' +
         'the designer, then check with cpi_runtime_status. Otherwise asks for confirmation (if configured), deploys, ' +
-        'waits, and reports errors with step names.',
+        'waits, and reports errors with step names. A failed deploy also stops the version that was running before.',
       inputSchema: { iflow: iflowIdArg, tenant: tenantArg },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
@@ -274,13 +317,17 @@ export function registerTenantWriteTools(server: McpServer) {
         }
         await confirmAction(server, ctx.config, 'deploy',
           `Deploy ${iflow} version ${info.version ?? '(current)'} on tenant "${api.tenant.name}"?` +
-          `${info.runtime ? ` Currently deployed: ${info.runtime.version ?? '?'} (${info.runtime.status}).` : ' Not deployed yet.'}` +
+          `${info.runtime ? ` Currently deployed: ${info.runtime.version ?? '?'} (${info.runtime.status}); if this deploy fails, that version stops running too.` : ' Not deployed yet.'}` +
           `${gate.checked && gate.newHighFindings.length ? `\nNew High guideline findings:\n${gate.newHighFindings.join('\n')}` : ''}`);
         const r = await deployIflow(api.client, iflow, { timeoutSeconds: ctx.config.timeouts.deploySeconds });
         if (r.status === 'STARTED') accept?.();
         const name = await stepNamesFor(ctx, api.client, iflow);
         audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_deploy', artifact: iflow, result: `${r.status} ${info.version ?? ''}`.trim() });
-        const data = { iflow, deployed: r.status === 'STARTED', ...r, ...(r.error ? { error: translate(r.error, name) } : {}), guidelines };
+        // measured: Cloud Integration undeploys the running version before it builds the new one
+        const lost = r.status !== 'STARTED' && info.runtime?.status === 'STARTED'
+          ? { previouslyRunning: `${info.runtime.version ?? '?'} was running before and is stopped now; fix and deploy again, or deploy the previous version` }
+          : {};
+        const data = { iflow, deployed: r.status === 'STARTED', ...r, ...(r.error ? { error: translate(r.error, name) } : {}), ...lost, guidelines };
         return { ...toolResult(data), ...(r.status === 'STARTED' ? {} : { isError: true }) };
       } catch (e) {
         return toolError(e);

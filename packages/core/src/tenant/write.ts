@@ -144,6 +144,11 @@ export async function runtimeError(client: CpiClient, id: string): Promise<strin
   }
 }
 
+/** Delete an iFlow's design-time artifact with its whole version history (cannot be undone) */
+export async function deleteIflow(client: CpiClient, id: string): Promise<void> {
+  await client.raw('DELETE', artifact(id));
+}
+
 export async function undeployIflow(client: CpiClient, id: string): Promise<void> {
   await client.raw('DELETE', `/IntegrationRuntimeArtifacts('${q(id)}')`);
 }

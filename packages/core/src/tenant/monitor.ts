@@ -51,6 +51,8 @@ export interface MessageDetail extends MessageSummary {
   logLevel?: string;
   error?: { type?: string; lastFailingStep?: string; lastFailingStepName?: string; text: string };
   steps: RunStep[];
+  /** why steps is empty, when the tenant recorded none */
+  note?: string;
 }
 
 /** One message log with its error and the processing steps; stepName maps the model's step ids to names */
@@ -85,6 +87,10 @@ export async function getMessage(client: CpiClient, id: string, stepName: (stepI
         runId: String(run.Id), childCount: Number(s.ChildCount),
       });
     }
+  }
+  // measured: at log level INFO the tenant keeps steps for failed messages only
+  if (!detail.steps.length && detail.status === 'COMPLETED' && detail.logLevel === 'INFO') {
+    detail.note = 'no steps: at log level INFO Cloud Integration records processing steps only for failed messages; set the iFlow\'s log level to Debug or Trace (cpi_trace) to see them';
   }
   return detail;
 }

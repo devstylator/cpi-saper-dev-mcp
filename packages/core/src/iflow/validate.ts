@@ -37,6 +37,9 @@ const NEEDS_ADAPTER: Record<string, { what: string; severity: Issue['severity'] 
   PollEnrich: { what: 'a sender adapter to poll from', severity: 'warning' },
 };
 
+/** Issues the tenant reports only at deploy: they do not block edits or uploads, which the tenant accepts */
+export const DEPLOY_CHECKS = new Set(['MISSING_SETTING', 'NO_ADAPTER', 'INVALID_SETTING']);
+
 /** Sender authorization values the tenant accepts (observed: None and Basic are refused at deploy) */
 const SENDER_AUTH = new Set(['RoleBased', 'ClientCertificate']);
 

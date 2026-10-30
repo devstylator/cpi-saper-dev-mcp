@@ -43,11 +43,11 @@ test('lists the tools with their read-only and destructive hints', async () => {
     assert.deepEqual(tools.map((t) => t.name), ['cpi_tenants', 'cpi_packages', 'cpi_artifacts', 'cpi_pull',
       'iflow_describe', 'iflow_render', 'iflow_validate', 'iflow_diff', 'templates_list',
       'iflow_edit', 'xslt_run', 'mapping_describe', 'script_run',
-      'iflow_create', 'cpi_push', 'cpi_version_proposal', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',
+      'iflow_create', 'iflow_delete', 'cpi_push', 'cpi_version_proposal', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',
       'cpi_send_message', 'cpi_messages', 'cpi_message', 'cpi_trace', 'cpi_login']);
     assert.deepEqual(tools.filter((t) => !t.annotations?.readOnlyHint).map((t) => t.name), ['cpi_pull', 'iflow_edit', 'script_run',
-      'iflow_create', 'cpi_push', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_send_message', 'cpi_trace', 'cpi_login']);
-    assert.deepEqual(tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name), ['cpi_push', 'cpi_deploy', 'cpi_undeploy']);
+      'iflow_create', 'iflow_delete', 'cpi_push', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_send_message', 'cpi_trace', 'cpi_login']);
+    assert.deepEqual(tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name), ['iflow_delete', 'cpi_push', 'cpi_deploy', 'cpi_undeploy']);
   } finally {
     await client.close();
   }
@@ -119,6 +119,10 @@ test('local tools on an iFlow in the workspace', async () => {
     const noBase = await call(client, 'iflow_diff', { iflow: 'sample-after' });
     assert.equal(noBase.isError, true);
     assert.match(noBase.text, /no pulled state/);
+    // a step whose adapter comes later is written; what a deploy would refuse is reported
+    const e = await call(client, 'iflow_edit', { iflow: 'sample-before', dryRun: true, operations: [{ op: 'insert_step', after: 'CallActivity_10', type: 'Content Enricher' }] });
+    assert.equal(e.isError, false, e.text);
+    assert.match(e.data.beforeDeploy.join(), /needs a receiver adapter/);
     const missing = await call(client, 'iflow_describe', { iflow: 'NoSuchFlow' });
     assert.match(missing.text, /not found .* pull it first/);
   } finally {

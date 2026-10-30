@@ -3,7 +3,7 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  applyEdits, describe, diffIflows, findElement, groovyVersionOf, loadServiceKey, mappingText, parseIflw, readMapping,
+  applyEdits, DEPLOY_CHECKS, describe, diffIflows, findElement, groovyVersionOf, loadServiceKey, mappingText, parseIflw, readMapping,
   resourceRefs, runScript, runXslt, selectTenant, serializeIflw, validate, CpiClient, type EditOp,
 } from '@cpi-saper-dev-mcp/core';
 import { catalogOf, context, localIflow, type ToolContext } from '../context.js';
@@ -100,7 +100,9 @@ export function registerEditCheckTools(server: McpServer) {
         const log = applyEdits(doc, operations as EditOp[], catalogOf(ctx.config));
         const issues = validate(doc, located).filter((i) => !known.has(`${i.code} ${i.msg}`));
         const filesToCreate = issues.filter((i) => i.code === 'MISSING_RESOURCE').map((i) => i.msg.replace(/^.* -> /, ''));
-        const blocking = issues.filter((i) => i.severity === 'error' && i.code !== 'MISSING_RESOURCE');
+        const blocking = issues.filter((i) => i.severity === 'error' && i.code !== 'MISSING_RESOURCE' && !DEPLOY_CHECKS.has(i.code));
+        // still open after this batch (not only new ones): what a deploy would refuse
+        const beforeDeploy = validate(doc, located).filter((i) => DEPLOY_CHECKS.has(i.code)).map((i) => `${i.severity === 'error' ? '' : '(probably) '}${i.msg}`);
         if (blocking.length) {
           throw new Error(`not written: the edits would introduce errors:\n${blocking.map((i) => `  ${i.code} ${i.msg}`).join('\n')}`);
         }
@@ -112,7 +114,8 @@ export function registerEditCheckTools(server: McpServer) {
           operations: log,
           changes,
           filesToCreate,
-          warnings: issues.filter((i) => i.severity === 'warning').map((i) => `${i.code} ${i.msg}`),
+          ...(beforeDeploy.length ? { beforeDeploy } : {}),
+          warnings: issues.filter((i) => i.severity === 'warning' && !DEPLOY_CHECKS.has(i.code)).map((i) => `${i.code} ${i.msg}`),
         });
       } catch (e) {
         return toolError(e);

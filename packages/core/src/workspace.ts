@@ -131,6 +131,15 @@ export class Workspace {
     return state;
   }
 
+  /** Drop the pulled state of an iFlow (after it was deleted on the tenant); true if there was one */
+  forgetPulledState(tenant: string, iflowId: string): boolean {
+    const { zip, meta } = this.statePaths(tenant, iflowId);
+    const had = existsSync(meta);
+    rmSync(zip, { force: true });
+    rmSync(meta, { force: true });
+    return had;
+  }
+
   /** Record the tenant's current content as the pulled state without touching local files (after a push or save) */
   updatePulledState(tenant: string, info: { iflowId: string; packageId: string; version?: string }, zip: Uint8Array, dir: string): PulledState {
     return this.saveState(tenant, info, zip, dir);

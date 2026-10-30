@@ -73,7 +73,8 @@ export function registerTestTools(server: McpServer) {
       title: 'One message log',
       description:
         'One message processing log: status, error text with the failing step by name, and every processing step ' +
-        'with its status (step ids translated to step names and display numbers). Use the id from cpi_send_message or cpi_messages.',
+        'with its status (step ids translated to step names and display numbers). At log level INFO the tenant records ' +
+        'steps only for failed messages. Use the id from cpi_send_message or cpi_messages.',
       inputSchema: { id: z.string().describe('Message log id (MessageGuid)'), tenant: tenantArg },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
