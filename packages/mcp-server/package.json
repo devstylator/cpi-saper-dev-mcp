@@ -1,15 +1,53 @@
 {
   "name": "cpi-saper-dev-mcp",
   "version": "0.1.0",
-  "description": "MCP server for developing SAP Cloud Integration content with an AI agent",
+  "description": "MCP server that lets an AI agent develop SAP Cloud Integration (CPI) content on development tenants: edit iFlows locally, check, push, deploy and test",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "sap",
+    "cloud-integration",
+    "cpi",
+    "iflow",
+    "btp",
+    "ai-agent"
+  ],
   "license": "Apache-2.0",
+  "author": "Damian Kolasa (devstylator)",
+  "homepage": "https://github.com/devstylator/cpi-saper-dev-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devstylator/cpi-saper-dev-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/devstylator/cpi-saper-dev-mcp/issues"
+  },
   "type": "module",
-  "bin": { "cpi-saper-dev-mcp": "dist/index.js" },
-  "main": "dist/index.js",
-  "files": ["dist"],
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "cpi-saper-dev-mcp": "bundle/index.js"
+  },
+  "files": [
+    "bundle",
+    "catalog",
+    "rules",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "prepack": "node ../../scripts/bundle.mjs"
+  },
   "dependencies": {
-    "@cpi-saper-dev-mcp/core": "0.1.0",
     "@modelcontextprotocol/sdk": "1.32.1",
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "@xmldom/xmldom": "0.9.12",
+    "fflate": "0.8.3",
+    "saxon-js": "2.7.0"
+  },
+  "devDependencies": {
+    "@cpi-saper-dev-mcp/core": "0.1.0"
   }
 }

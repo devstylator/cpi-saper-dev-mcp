@@ -4,3 +4,11 @@ node_modules/
 *.tenant.zip
 dist/
 *.tsbuildinfo
+# Published package contents, made by scripts/bundle.mjs
+packages/mcp-server/bundle/
+packages/mcp-server/catalog/
+packages/mcp-server/rules/
+packages/mcp-server/README.md
+packages/mcp-server/LICENSE
+packages/mcp-server/NOTICE
+*.tgz

@@ -155,21 +155,15 @@ changes); clients that cannot ask are refused rather than skipping the question.
 log, and credential values are never shown to the agent. With `"login": "user"`, the tenant records your own user
 for every change instead of the service key's technical client.
 
-## Try the development version
+## Install
 
-The tools marked **Available** above work: reading packages and iFlows, pulling them, understanding, editing and
-checking them locally, running XSLT and Groovy scripts, and pushing, deploying and testing on a development tenant.
-
-```sh
-git clone https://github.com/devstylator/cpi-saper-dev-mcp.git
-cd cpi-saper-dev-mcp
-npm install
-npm test            # builds and runs the tests
-```
+Requires Node.js 22 or later. The server is published on npm as
+[`cpi-saper-dev-mcp`](https://www.npmjs.com/package/cpi-saper-dev-mcp) (from version 0.9.0-beta): your AI client
+starts it with `npx`, which downloads it on first use. To pin a version, write `cpi-saper-dev-mcp@0.9.0-beta.0`
+instead of `cpi-saper-dev-mcp`.
 
 Create `.cpi/config.json` in your project folder ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)), then connect the
-server to your AI client as shown below. In all examples, replace `/path/to/cpi-saper-dev-mcp` with the folder you
-cloned into.
+server to your AI client as shown below.
 
 **How the server finds your configuration:** it asks the client which project folders are open (MCP *roots*) and
 uses the first one that contains `.cpi/config.json`. Clients that do not report roots get the server's working
@@ -181,7 +175,7 @@ in the environment variable `CPI_MCP_CONFIG`.
 From your project folder:
 
 ```sh
-claude mcp add cpi-saper-dev-mcp -- node /path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js
+claude mcp add cpi-saper-dev-mcp -- npx -y cpi-saper-dev-mcp
 ```
 
 ### GitHub Copilot in VS Code
@@ -193,8 +187,8 @@ Add the server to your project in `.vscode/mcp.json` (create the file if it does
   "servers": {
     "cpi-saper-dev-mcp": {
       "type": "stdio",
-      "command": "node",
-      "args": ["/path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "cpi-saper-dev-mcp"],
       "cwd": "${workspaceFolder}"
     }
   }
@@ -212,8 +206,8 @@ setting `chat.mcp.workspaceRootConfig.enabled` is on:
 {
   "mcpServers": {
     "cpi-saper-dev-mcp": {
-      "command": "node",
-      "args": ["/path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "cpi-saper-dev-mcp"]
     }
   }
 }
@@ -228,6 +222,20 @@ For all projects at once, add the server to Copilot's user configuration `~/.cop
 `~/.config/cpi-saper-dev-mcp/config.json` (with absolute paths to your service keys); a project's own
 `.cpi/config.json` still takes precedence when the client reports that project as a root.
 
+### From source
+
+To run the latest code from this repository instead:
+
+```sh
+git clone https://github.com/devstylator/cpi-saper-dev-mcp.git
+cd cpi-saper-dev-mcp
+npm install
+npm test            # builds and runs the tests
+```
+
+and use `node /path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js` as the command (in place of
+`npx -y cpi-saper-dev-mcp`). `npm run pack:check` builds the npm package and tries it the way users install it.
+
 ### Readable git diff
 
 `git diff` of an `.iflw` file shows BPMN XML and diagram coordinates. With the server as git's diff driver, it shows
@@ -236,8 +244,11 @@ the model instead, one fact per line (steps with their settings, adapters, flows
 
 ```sh
 printf '*.iflw diff=cpi\n*.mmap diff=cpi\n' >> .gitattributes
-git config diff.cpi.textconv "node /path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js textconv"
+git config diff.cpi.textconv "npx -y cpi-saper-dev-mcp textconv"
 ```
+
+`npx` looks the package up on every start, which makes diffs of many files slow: for regular use install it once
+(`npm install -g cpi-saper-dev-mcp`) and use `cpi-saper-dev-mcp textconv` as the textconv command.
 
 `git diff --no-textconv` still shows the XML. It applies wherever git shows diffs (`git diff`, `git log -p`, `git show`); merges are unchanged.
 

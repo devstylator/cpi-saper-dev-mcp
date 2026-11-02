@@ -21,3 +21,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # the package as users install it: pack, install into an empty folder, start, check catalog and rules
+      - run: npm run pack:check
