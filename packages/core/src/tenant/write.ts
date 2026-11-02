@@ -117,9 +117,14 @@ export interface DeployResult {
 }
 
 /** Deploy the active design-time version and wait until the runtime reports the new deployment (or timeout) */
-export async function deployIflow(client: CpiClient, id: string, { timeoutSeconds = 180, pollMs = 3000 } = {}): Promise<DeployResult> {
+export async function deployIflow(client: CpiClient, id: string, opts: { timeoutSeconds?: number; pollMs?: number } = {}): Promise<DeployResult> {
   const started = Date.now();
   await client.raw('POST', `/DeployIntegrationDesigntimeArtifact?Id='${q(id)}'&Version='active'`);
+  return awaitDeployment(client, id, started, opts);
+}
+
+/** Wait until the runtime reports a deployment of the artifact newer than `started` (iFlows and script collections) */
+export async function awaitDeployment(client: CpiClient, id: string, started: number, { timeoutSeconds = 180, pollMs = 3000 } = {}): Promise<DeployResult> {
   for (;;) {
     const rt = await client.odata<Record<string, unknown>>('GET', `/IntegrationRuntimeArtifacts('${q(id)}')`)
       .catch((e: unknown) => (e instanceof HttpError && e.status === 404 ? null : Promise.reject(e)));

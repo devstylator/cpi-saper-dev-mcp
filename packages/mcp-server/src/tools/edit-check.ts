@@ -7,6 +7,7 @@ import {
   resourceRefs, runScript, runXslt, selectTenant, serializeIflw, validate, CpiClient, type EditOp,
 } from '@cpi-saper-dev-mcp/core';
 import { catalogOf, context, localIflow, type ToolContext } from '../context.js';
+import { collectionIssues, syncCollectionRequirements } from '../collections.js';
 import { toolError, toolResult } from '../result.js';
 
 const iflowArg = z.string().describe('Local iFlow: its Id (searched as <workspace>/<package>/<id>/), its folder, or its .iflw file');
@@ -30,7 +31,8 @@ const operation = z.discriminatedUnion('op', [
     type: z.string().describe('Catalog entry (templates_list): label like "Content Modifier", component name like "Enricher", or key'),
     version: z.string().optional().describe('Component version; default: the version this iFlow already uses, else the latest'),
     name: z.string().optional().describe('Step name; default: the catalog label'),
-    settings: kv.optional().describe('Settings to change from the catalog defaults; script steps need "script" (file under script/, v2/<name>.groovy for 2.x)'),
+    settings: kv.optional().describe('Settings to change from the catalog defaults; script steps need "script" (file under script/, v2/<name>.groovy for 2.x; with scriptCollection the file name in the collection)'),
+    scriptCollection: z.string().optional().describe('Groovy/JavaScript step: Id of a script collection of the same package the script comes from (settings.script = its file name, e.g. "Utils.groovy"); the manifest requirement is written'),
     mapping: z.string().optional().describe('XSLT Mapping / Message Mapping: the file under src/main/resources, e.g. "mapping/orders.xsl" (a bare name means mapping/); sets mappinguri, mappingpath and mappingname as the designer does'),
     expression: z.string().optional().describe('Filter: the XPath of the nodes to keep, e.g. "/Orders/Order[region=\'EU\']" (stored as wrapContent; xpathType is only the value type: Nodelist, Node, Boolean, Integer, String)'),
     headers: z.array(row).optional().describe('Content Modifier: message headers to set'),
@@ -147,6 +149,8 @@ export function registerEditCheckTools(server: McpServer) {
           throw new Error(`not written: the edits would introduce errors:\n${blocking.map((i) => `  ${i.code} ${i.msg}`).join('\n')}`);
         }
         if (!dryRun) writeFileSync(located.iflwPath, serializeIflw(doc));
+        const manifest = !dryRun && syncCollectionRequirements(located, doc);
+        const collections = collectionIssues(located, doc).map((i) => `${i.code} ${i.msg}`);
         const changes = diffIflows(describe(before, { maxLen: 0 }), describe(doc, { maxLen: 0 }), { docA: before, docB: doc });
         return toolResult({
           file: relative(ctx.workspace.root, located.iflwPath),
@@ -155,7 +159,8 @@ export function registerEditCheckTools(server: McpServer) {
           changes,
           filesToCreate,
           ...(beforeDeploy.length ? { beforeDeploy } : {}),
-          warnings: issues.filter((i) => i.severity === 'warning' && !DEPLOY_CHECKS.has(i.code)).map((i) => `${i.code} ${i.msg}`),
+          ...(manifest ? { manifest: 'META-INF/MANIFEST.MF: Require-Capability updated for the script collections used' } : {}),
+          warnings: [...issues.filter((i) => i.severity === 'warning' && !DEPLOY_CHECKS.has(i.code)).map((i) => `${i.code} ${i.msg}`), ...collections],
         });
       } catch (e) {
         return toolError(e);

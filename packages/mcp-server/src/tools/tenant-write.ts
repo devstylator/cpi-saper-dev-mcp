@@ -3,11 +3,12 @@ import { dirname, join, relative } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  checkModel, createIflow, deleteIflow, deployErrorList, DEPLOY_CHECKS, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
+  checkModel, createIflow, deleteIflow, getScriptCollection, deployErrorList, DEPLOY_CHECKS, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
   IFLOW_ID, resolvePackage, runGuidelines, runtimeError, undeployIflow, uploadIflow, validate, withVersion, zipChanges, zipFolder, zipVersion,
   type CpiClient, type GuidelineFinding, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
 import { context, localIflow, stepNamesFor, tenantApi, type ToolContext } from '../context.js';
+import { collectionProblems } from '../collections.js';
 import { toolError, toolResult } from '../result.js';
 import { assertMayChange, audit, confirmAction, Declined } from '../safety.js';
 import { askVersion, changelogFor, proposal, recordVersion, rulesOf } from '../versioning.js';
@@ -316,12 +317,18 @@ export function registerTenantWriteTools(server: McpServer) {
         const api = tenantApi(ctx.config, tenantName);
         const info = await getIflow(api.client, iflow);
         await assertMayChange(api.client, api.tenant, info.packageId);
-        const gate = await guidelineGate(ctx, api.client, api.tenant, iflow);
+        // script collections the iFlow uses must exist in its package, have the scripts and be deployed
+        const collections = await collectionProblems(api.client, iflowFromZip(await downloadIflow(api.client, iflow)), info.packageId);
+        if (collections.length && api.tenant.deploy !== 'manual') throw new Error(`not deployed: ${collections.join('; ')}`);
+        // a refusing guideline gate also names the collection problems, so both are fixed in one go
+        const gate = await guidelineGate(ctx, api.client, api.tenant, iflow).catch((e: Error) =>
+          Promise.reject(collections.length ? new Error(`${e.message}\nAlso before deploying: ${collections.join('; ')}`) : e));
         const { accept, ...guidelines } = gate.checked ? gate : { ...gate, accept: undefined };
         if (api.tenant.deploy === 'manual') {
           accept?.();
           return toolResult({
             iflow, deployed: false, mode: 'manual', version: info.version ?? null, guidelines,
+            ...(collections.length ? { beforeDeploy: collections } : {}),
             next: `Tenant "${api.tenant.name}" is configured for manual deploys: ask the user to deploy ${iflow} version ${info.version ?? '(current)'} ` +
               'in the designer and to tell you when it is done; then check it with cpi_runtime_status.',
           });
@@ -353,16 +360,17 @@ export function registerTenantWriteTools(server: McpServer) {
   server.registerTool(
     'cpi_undeploy',
     {
-      title: 'Undeploy an iFlow',
-      description: 'Remove the iFlow from the runtime (its design-time content stays). Asks for confirmation when configured.',
-      inputSchema: { iflow: iflowIdArg, tenant: tenantArg },
+      title: 'Undeploy an iFlow or script collection',
+      description: 'Remove an iFlow or script collection from the runtime (its design-time content stays). Undeploying a script collection breaks the deployed iFlows that use it. Asks for confirmation when configured.',
+      inputSchema: { iflow: z.string().describe('iFlow or script collection Id'), tenant: tenantArg },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
     async ({ iflow, tenant: tenantName }) => {
       try {
         const ctx = await context(server);
         const api = tenantApi(ctx.config, tenantName);
-        const info = await getIflow(api.client, iflow);
+        // an iFlow, else a script collection (the runtime treats both alike)
+        const info = await getIflow(api.client, iflow).catch((e: Error) => (/not found/.test(e.message) ? getScriptCollection(api.client, iflow).catch(() => Promise.reject(e)) : Promise.reject(e)));
         if (!info.runtime) return toolResult({ iflow, undeployed: false, reason: 'not deployed' });
         await assertMayChange(api.client, api.tenant, info.packageId);
         await confirmAction(server, ctx.config, 'undeploy', `Undeploy ${iflow} (deployed version ${info.runtime.version ?? '?'}, ${info.runtime.status}) from tenant "${api.tenant.name}"?`);

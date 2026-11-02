@@ -9,6 +9,7 @@ import { registerUnderstandTools } from './tools/understand.js';
 import { registerEditCheckTools } from './tools/edit-check.js';
 import { registerTenantWriteTools } from './tools/tenant-write.js';
 import { registerTestTools } from './tools/test.js';
+import { registerScriptCollectionTools } from './tools/script-collections.js';
 import { registerLoginTools } from './tools/login.js';
 import { context } from './context.js';
 import { rulesOf } from './versioning.js';
@@ -42,6 +43,7 @@ registerTenantReadTools(server);
 registerUnderstandTools(server);
 registerEditCheckTools(server);
 registerTenantWriteTools(server);
+registerScriptCollectionTools(server);
 registerTestTools(server);
 registerLoginTools(server);
 

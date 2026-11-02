@@ -23,6 +23,8 @@ export type EditOp =
     mapping?: string;
     /** Filter: the XPath expression (stored in the setting wrapContent) */
     expression?: string;
+    /** Groovy/JavaScript step: Id of the script collection the script comes from (settings.script = its file name) */
+    scriptCollection?: string;
     headers?: TableRowInput[];
     properties?: TableRowInput[];
   }
@@ -140,6 +142,11 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
           }
           Object.assign(properties, op.settings);
           const cname = parseVariant(key).cname ?? '';
+          if (op.scriptCollection) {
+            if (!SCRIPT_STEPS.has(cname)) throw new Error('"scriptCollection" applies to Groovy Script and JavaScript steps only');
+            if (!properties.script || properties.script.includes('/')) throw new Error(`a script from collection ${op.scriptCollection} needs settings.script: its file name in the collection, e.g. "Utils.groovy"`);
+            properties.scriptBundleId = op.scriptCollection;
+          }
           if (SCRIPT_STEPS.has(cname) && !properties.script) {
             throw new Error(`${entry.label} needs settings.script: the file name under script/ (${version.startsWith('2.') ? 'v2/<name>.groovy for script step 2.x' : '<name>.groovy'})`);
           }

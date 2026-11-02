@@ -13,6 +13,7 @@ export * from './xslt.js';
 export * from './mapping.js';
 export * from './tenant/runner.js';
 export * from './tenant/write.js';
+export * from './tenant/script-collection.js';
 export * from './tenant/monitor.js';
 export * from './tenant/user-login.js';
 export * from './versioning.js';

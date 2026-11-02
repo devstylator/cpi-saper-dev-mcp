@@ -243,13 +243,40 @@ function numberSteps(processes: Process[]) {
   for (let i = 0; i < later.length; i++) walk(later[i] as Container); // walk() may append nested sub-processes
 }
 
+/** Script steps that take their script from a script collection (step settings scriptBundleId + script) */
+export function scriptCollectionRefs(doc: Document): Array<{ step: string; collection: string; script: string }> {
+  return [...byTag(doc, 'callActivity')].flatMap((el) => {
+    const p = readProps(el);
+    return p.scriptBundleId?.trim() ? [{ step: el.getAttribute('id') ?? '', collection: p.scriptBundleId.trim(), script: p.script ?? '' }] : [];
+  });
+}
+
+/**
+ * The iFlow manifest with one Require-Capability entry per script collection its steps use, in the form the designer
+ * writes (scriptcollection.<Id>;resolution:=optional;bundleType:String="ScriptCollection";source:String="reference");
+ * other capabilities stay. Lines are written unwrapped: the tenant wraps them itself.
+ */
+export function withCollectionRequirements(manifest: string, collections: string[]): string {
+  const flat = manifest.replace(/\r?\n /g, '');
+  const line = flat.match(/^Require-Capability:\s*(.*)$/m);
+  // split on commas outside quotes
+  const entries = (line?.[1] ?? '').match(/(?:[^,"]|"[^"]*")+/g)?.map((x) => x.trim()).filter(Boolean) ?? [];
+  const others = entries.filter((e) => !e.startsWith('scriptcollection.'));
+  const wanted = [...new Set(collections)].sort().map((id) => `scriptcollection.${id};resolution:=optional;bundleType:String="ScriptCollection";source:String="reference"`);
+  const all = [...others, ...wanted];
+  const header = all.length ? `Require-Capability: ${all.join(',')}` : '';
+  if (line) return header ? flat.replace(line[0], header) : flat.replace(/^Require-Capability:.*\n?/m, '');
+  return header ? `${flat.replace(/\s*$/, '')}\n${header}\n\n` : flat;
+}
+
 /** Files under src/main/resources that steps point to (scripts, mappings, XSLT, ...) */
 export function resourceRefs(doc: Document): ResourceRef[] {
   const refs: ResourceRef[] = [];
   for (const el of [...byTag(doc, 'callActivity'), ...byTag(doc, 'serviceTask')]) {
     const p = readProps(el);
     const step = el.getAttribute('id') ?? '';
-    if (p.script) refs.push({ step, type: 'script', path: `script/${p.script}` });
+    // a script from a script collection (scriptBundleId) lives in the collection, not in the iFlow
+    if (p.script && !p.scriptBundleId?.trim()) refs.push({ step, type: 'script', path: `script/${p.script}` });
     // dir://mmap/src/main/resources/... (message mapping) or dir://mapping/xslt/src/main/resources/... (XSLT)
     const m = (p.mappinguri ?? '').match(/^dir:\/\/.*?\/src\/main\/resources\/(.+)$/);
     if (m) refs.push({ step, type: p.activityType === 'Mapping' ? 'mapping' : 'resource', path: m[1]! });

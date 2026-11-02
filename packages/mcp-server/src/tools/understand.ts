@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { describe, diffIflows, findEntries, iflowFromZip, toMermaid, validate } from '@cpi-saper-dev-mcp/core';
 import { catalogOf, context, localIflow } from '../context.js';
 import { toolError, toolResult } from '../result.js';
+import { collectionIssues } from '../collections.js';
 
 const iflowArg = z.string().describe(
   'Local iFlow: its Id (searched as <workspace>/<package>/<id>/), its folder, or its .iflw file; relative paths are resolved against the workspace',
@@ -73,7 +74,7 @@ export function registerUnderstandTools(server: McpServer) {
       try {
         const ctx = await context(server);
         const { located, doc } = localIflow(ctx, iflow);
-        const issues = validate(doc, located);
+        const issues = [...validate(doc, located), ...collectionIssues(located, doc)];
         return toolResult({
           file: relative(ctx.workspace.root, located.iflwPath),
           errors: issues.filter((i) => i.severity === 'error').length,

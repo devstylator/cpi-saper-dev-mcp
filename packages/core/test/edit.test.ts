@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  applyEdits, byTag, children, CpiClient, describe, mappingSettings, NS, textconv, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
+  applyEdits, byTag, children, CpiClient, describe, mappingSettings, NS, scriptCollectionRefs, textconv, withCollectionRequirements, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
   mappingText, parseIflw, readMapping, readProps, removeStep, runScript, runXslt, serializeIflw, validate,
 } from '../dist/index.js';
 
@@ -459,4 +459,27 @@ test('sequential multicast without join, a router route with its own End, and re
   refused([{ op: 'add_multicast', after: 'StartEvent_2', branches: ['A', 'A'] }], /must be different/);
   refused([{ op: 'insert_step', after: 'StartEvent_2', route: 'x', type: 'Content Modifier' }], /either "after".*or "route"/);
   refused([{ op: 'set_route', route: 'SequenceFlow_3', name: 'x' }], /not a route of a router/);
+});
+
+test('script collection reference: insert_step scriptCollection, manifest requirement as the designer writes it', () => {
+  const doc = fresh();
+  const log = applyEdits(doc, [{ op: 'insert_step', after: 'CallActivity_10', type: 'Groovy Script', version: '1.1.2', scriptCollection: 'Z01_SC01_Probe', settings: { script: 'ProbeUtil.groovy' } }], catalog);
+  const id = log[0]!.match(/inserted (\S+)/)![1]!;
+  const p = readProps(findElement(doc, id));
+  assert.deepEqual([p.scriptBundleId, p.script], ['Z01_SC01_Probe', 'ProbeUtil.groovy']);
+  assert.deepEqual(scriptCollectionRefs(doc), [{ step: id, collection: 'Z01_SC01_Probe', script: 'ProbeUtil.groovy' }]);
+  assert.deepEqual(validate(doc, { resourceFiles: new Set() }).filter((i) => i.code === 'MISSING_RESOURCE' && i.msg.includes(id)), [], 'the script lives in the collection');
+  assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'Groovy Script', scriptCollection: 'X' }], catalog), /needs settings\.script: its file name/);
+  assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'Content Modifier', scriptCollection: 'X', settings: {} }], catalog), /Groovy Script and JavaScript steps only/);
+
+  // the designer's line (measured), kept when it is already right; other capabilities stay; removed when unused
+  const designer = 'Manifest-Version: 1.0\nBundle-Version: 1.4.2\nRequire-Capability: scriptcollection.Z01_SC01_Probe;resolution:=optional\n ;bundleType:String="ScriptCollection";source:String="reference"\n\n';
+  const expected = 'Require-Capability: scriptcollection.Z01_SC01_Probe;resolution:=optional;bundleType:String="ScriptCollection";source:String="reference"';
+  assert.ok(withCollectionRequirements(designer, ['Z01_SC01_Probe']).includes(expected));
+  const added = withCollectionRequirements('Manifest-Version: 1.0\nBundle-Version: 1.0.0\n\n', ['B', 'A', 'B']);
+  assert.match(added, /^Require-Capability: scriptcollection\.A;.*,scriptcollection\.B;resolution:=optional;bundleType:String="ScriptCollection";source:String="reference"$/m);
+  const mixed = withCollectionRequirements('Require-Capability: osgi.ee;filter:="(osgi.ee=JavaSE)",scriptcollection.Old;resolution:=optional\n', ['New']);
+  assert.match(mixed, /^Require-Capability: osgi\.ee;filter:="\(osgi\.ee=JavaSE\)",scriptcollection\.New;/m);
+  assert.doesNotMatch(mixed, /scriptcollection\.Old/);
+  assert.doesNotMatch(withCollectionRequirements(designer, []), /Require-Capability/);
 });

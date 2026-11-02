@@ -1,7 +1,7 @@
 import { relative } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { getIflow, listIflows, listPackages, downloadIflow, packageAllowed, resolvePackage } from '@cpi-saper-dev-mcp/core';
+import { getIflow, listIflows, listScriptCollections, listPackages, downloadIflow, packageAllowed, resolvePackage } from '@cpi-saper-dev-mcp/core';
 import { context, tenantApi } from '../context.js';
 import { toolError, toolResult } from '../result.js';
 
@@ -36,10 +36,10 @@ export function registerTenantReadTools(server: McpServer) {
   server.registerTool(
     'cpi_artifacts',
     {
-      title: 'List iFlows of a package',
+      title: 'List iFlows and script collections of a package',
       description:
-        'List the integration flows of a package with their design-time version ("Active" = changed since the last ' +
-        'saved version) and runtime status (null = not deployed). The package can be given by Id or display name.',
+        'List the integration flows and script collections of a package with their design-time version ("Active" = ' +
+        'changed since the last saved version) and runtime status (null = not deployed). The package can be given by Id or display name.',
       inputSchema: { package: z.string().describe('Package Id or display name'), tenant: tenantArg },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -48,7 +48,8 @@ export function registerTenantReadTools(server: McpServer) {
         const ctx = await context(server);
         const api = tenantApi(ctx.config, tenant);
         const p = await resolvePackage(api.client, pkg);
-        return toolResult({ tenant: api.tenant.name, package: { id: p.id, name: p.name }, iflows: await listIflows(api.client, p.id) });
+        const [iflows, scriptCollections] = await Promise.all([listIflows(api.client, p.id), listScriptCollections(api.client, p.id)]);
+        return toolResult({ tenant: api.tenant.name, package: { id: p.id, name: p.name }, iflows, scriptCollections });
       } catch (e) {
         return toolError(e);
       }

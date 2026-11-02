@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFile
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { zipSync } from 'fflate';
-import { iflowFromZip, localChanges, locateIflow, unzipEntries, Workspace, describe } from '../dist/index.js';
+import { collectionScripts, iflowFromZip, localChanges, locateIflow, unzipEntries, withCollectionVersion, Workspace, describe } from '../dist/index.js';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures');
 
@@ -94,4 +94,16 @@ test('zip safety and reading the iFlow back from the pulled zip', () => {
   assert.throws(() => workspace().iflowDir('..', 'x'), /cannot be used as a folder name/);
   const doc = iflowFromZip(zipOf(join(FIXTURES, 'sample-before')));
   assert.equal(describe(doc).processes[0]!.name, 'Integration Process');
+});
+
+test('script collection: the version goes into Bundle-Version and Provide-Capability; scripts listed', () => {
+  // the manifest as the tenant writes it (measured), with its wrapped capability line
+  const manifest = 'Manifest-Version: 1.0\nBundle-SymbolicName: Z01_SC01_Probe\nBundle-Version: 1.0.1\nSAP-BundleType: ScriptCollection\n' +
+    'Provide-Capability: scriptcollection.Z01_SC01_Probe;version:Version="1.0\n .1"\nOrigin-Bundle-Name: Z01 SC01 Probe\n';
+  const zip = zipSync({ 'META-INF/MANIFEST.MF': new TextEncoder().encode(manifest), 'src/main/resources/script/ProbeUtil.groovy': new Uint8Array([1]), 'metainfo.prop': new Uint8Array([1]) });
+  const next = new TextDecoder().decode(unzipEntries(withCollectionVersion(zip, '1.1.0'))['META-INF/MANIFEST.MF']);
+  assert.match(next, /^Bundle-Version: 1\.1\.0$/m);
+  assert.match(next, /^Provide-Capability: scriptcollection\.Z01_SC01_Probe;version:Version="1\.1\.0"$/m);
+  assert.match(next, /^Origin-Bundle-Name: Z01 SC01 Probe$/m);
+  assert.deepEqual(collectionScripts(zip), ['ProbeUtil.groovy']);
 });
