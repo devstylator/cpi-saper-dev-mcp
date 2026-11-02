@@ -144,6 +144,8 @@ export function planNumberRange(name: string, r: NumberRangeInput, old?: NumberR
     ...(r.current !== undefined ? { current: r.current } : {}), ...(r.fieldLength !== undefined ? { fieldLength: r.fieldLength } : {}), ...(r.rotate !== undefined ? { rotate: r.rotate } : {}),
   };
   if (!next.max) throw new Error('a new number range needs max');
+  // the tenant refuses an empty field length (HTTP 500 "For input string", tester report): default to max's digits
+  if (!next.fieldLength) next.fieldLength = String(next.max.length);
   checkNumberRange(next);
   return next;
 }

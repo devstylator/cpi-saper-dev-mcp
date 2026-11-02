@@ -64,6 +64,7 @@ test('setParams: an iFlow without parameter files gets both, as the designer wri
 test('number ranges: planned and checked before anything is sent', () => {
   const r = planNumberRange('N', { max: '9999', fieldLength: '4' });
   assert.deepEqual([r.min, r.max, r.current, r.rotate], ['0', '9999', '0', false]);
+  assert.equal(planNumberRange('N', { max: '500' }).fieldLength, '3', 'field length defaults to the digits of max');
   const changed = planNumberRange('N', { current: '42', rotate: true }, r);
   assert.deepEqual([changed.max, changed.current, changed.rotate, changed.fieldLength], ['9999', '42', true, '4'], 'what is not given stays');
   assert.throws(() => planNumberRange('N', {}), /needs max/);

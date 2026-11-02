@@ -1,6 +1,6 @@
 // Structural checks an agent gets as feedback before anything reaches the tenant.
 import type { Document, Element, Node } from '@xmldom/xmldom';
-import { byTag, children, NS, parseVariant, readProps, resourceRefs, serializeIflw, type Props } from './model.js';
+import { byTag, children, decodeTable, NS, parseVariant, readProps, resourceRefs, serializeIflw, type Props } from './model.js';
 
 export interface Issue { severity: 'error' | 'warning'; code: string; msg: string }
 
@@ -119,6 +119,26 @@ export function validate(doc: Document, { resourceFiles, declaredParameters }: V
     }
     const need = NEEDS_ADAPTER[cname];
     if (need && !adapterOn.has(el.getAttribute('id'))) add(need.severity, 'NO_ADAPTER', `${label} needs ${need.what} (iflow_edit add_adapter)`);
+    // measured by a tester: a Groovy step 2.x finds its script only under script/v2/ ("Script file '…' not found")
+    const version = parseVariant(p.cmdVariantUri).version ?? '';
+    if (cname === 'GroovyScript' && version.startsWith('2.') && p.script && !p.scriptBundleId?.trim() && !p.script.startsWith('v2/')) {
+      add('error', 'INVALID_SETTING', `${label}: a Groovy Script ${version} step takes its script from script/v2/; set script to "v2/${p.script}" and move the file there`);
+    }
+    // a header or property name starting with a digit or holding spaces is refused by SAP's model check (tester report)
+    for (const table of ['headerTable', 'propertyTable'] as const) {
+      const rows = p[table] ? decodeTable(p[table]!) : [];
+      for (const r of Array.isArray(rows) ? rows : []) {
+        const name = Array.isArray(r) ? '' : String((r as Record<string, string>).Name ?? '');
+        if (name && /^\d|\s/.test(name)) add('warning', 'INVALID_SETTING', `${label}: ${table === 'headerTable' ? 'header' : 'property'} name "${name}" starts with a digit or has spaces; Cloud Integration refuses such names`);
+      }
+    }
+  }
+  // measured by a tester: Camel Simple conditions (NonXML) compare with =, the tenant refuses == at deploy
+  for (const f of byTag(doc, 'sequenceFlow')) {
+    const cond = children(f, 'conditionExpression')[0]?.textContent ?? '';
+    if (readProps(f).expressionType === 'NonXML' && /==/.test(cond)) {
+      add('error', 'INVALID_SETTING', `route ${f.getAttribute('id')} (${f.getAttribute('name') ?? ''}): condition "${cond.trim()}" uses ==; Camel Simple compares with = (also !=, >, >=, <, <=, contains, in, regex)`);
+    }
   }
   // measured: "entryId,fail" let no header through; the list is separated by |
   const allowed = byTag(doc, 'collaboration')[0] ? readProps(byTag(doc, 'collaboration')[0]!).allowedHeaderList : undefined;

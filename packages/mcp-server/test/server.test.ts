@@ -111,7 +111,12 @@ function projectOnFixtures() {
 
 async function call(client: Client, name: string, args: Record<string, unknown>) {
   const r = await client.callTool({ name, arguments: args });
-  return { isError: Boolean(r.isError), text: (r.content as Array<{ text: string }>)[0]!.text, data: r.structuredContent as Record<string, any> };
+  const text = (r.content as Array<{ text: string }>)[0]!.text;
+  let data: Record<string, any> | undefined;
+  try { data = JSON.parse(text); } catch { /* a text result (diagram, diff, mapping) */ }
+  // one copy of the result only (clients pass every copy to the model)
+  assert.equal(r.structuredContent, undefined);
+  return { isError: Boolean(r.isError), text, data: data as Record<string, any> };
 }
 
 test('local tools on an iFlow in the workspace', async () => {
@@ -125,7 +130,7 @@ test('local tools on an iFlow in the workspace', async () => {
     const m = await call(client, 'iflow_render', { iflow: 'sample-after' });
     assert.match(m.text, /^```mermaid\nflowchart LR/);
     const diff = await call(client, 'iflow_diff', { iflow: 'sample-after', against: 'sample-before' });
-    assert.ok(diff.data.changes.includes('+ flow #3 "JSON to XML Converter 1" -> #4 "Aggregate IP data"'));
+    assert.ok(diff.text.split('\n').includes('+ flow #3 "JSON to XML Converter 1" -> #4 "Aggregate IP data"'));
     const noBase = await call(client, 'iflow_diff', { iflow: 'sample-after' });
     assert.equal(noBase.isError, true);
     assert.match(noBase.text, /no pulled state/);

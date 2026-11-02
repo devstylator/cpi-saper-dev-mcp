@@ -5,8 +5,9 @@ import { z } from 'zod';
 import {
   getIflow, getScriptCollection, listIflows, listScriptCollections, listPackages, downloadIflow, downloadScriptCollection, listEndpoints,
   listSecurityMaterial, localChanges, packageAllowed, resolvePackage, zipChanges, zipVersion, type PulledState,
+  byTag, getConfigurations, iflowFromZip, readProps,
 } from '@cpi-saper-dev-mcp/core';
-import { context, tenantApi } from '../context.js';
+import { context, tenantApi, tenantRuntime } from '../context.js';
 import { toolError, toolResult } from '../result.js';
 
 const tenantArg = z.string().optional().describe('Tenant name from the configuration; default: defaultTenant');
@@ -159,7 +160,10 @@ export function registerTenantReadTools(server: McpServer) {
     'cpi_endpoints',
     {
       title: 'Endpoints of deployed iFlows',
-      description: 'The URLs of the HTTP endpoints of deployed iFlows (call them with cpi_send_message using the iFlow and the path).',
+      description:
+        'The URLs of the HTTP endpoints of deployed iFlows (call them with cpi_send_message using the iFlow and the ' +
+        'path). The tenant lists a new deployment a little later; until then, for one iFlow, the URL is built from its ' +
+        'HTTPS sender\'s path (source: "sender adapter").',
       inputSchema: { iflow: z.string().optional().describe('Only this iFlow'), tenant: tenantArg },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -169,7 +173,22 @@ export function registerTenantReadTools(server: McpServer) {
         const api = tenantApi(ctx.config, tenant);
         const all = await listEndpoints(api.client);
         const endpoints = iflow ? all.filter((e) => e.iflow === iflow) : all;
-        return toolResult({ tenant: api.tenant.name, endpoints, ...(iflow && !endpoints.length ? { note: `${iflow} has no deployed HTTP endpoint` } : {}) });
+        if (!iflow || endpoints.length) return toolResult({ tenant: api.tenant.name, endpoints });
+        // not listed yet (the tenant registers a new deployment's endpoints a little later, tester report): from the sender
+        const info = await getIflow(api.client, iflow);
+        if (info.runtime?.status !== 'STARTED') return toolResult({ tenant: api.tenant.name, endpoints, note: `${iflow} is not running${info.runtime ? ` (${info.runtime.status})` : ' (not deployed)'}` });
+        const doc = iflowFromZip(await downloadIflow(api.client, iflow));
+        const values = new Map((await getConfigurations(api.client, iflow)).map((v) => [v.key, v.value]));
+        const paths = byTag(doc, 'messageFlow').map((m) => readProps(m)).filter((p) => p.direction === 'Sender' && p.ComponentType === 'HTTPS' && p.urlPath)
+          .map((p) => p.urlPath!.replace(/\{\{([^{}]+)\}\}/g, (all2, n: string) => values.get(n) ?? all2));
+        let host: string | undefined;
+        try { host = tenantRuntime(ctx.config, tenant).client.key.url.replace(/\/$/, ''); } catch { host = all[0]?.urls[0]?.url.replace(/\/http\/.*$/, ''); }
+        if (!paths.length) return toolResult({ tenant: api.tenant.name, endpoints, note: `${iflow} is running but has no HTTPS sender` });
+        return toolResult({
+          tenant: api.tenant.name,
+          endpoints: [{ iflow, version: info.runtime.version, urls: paths.map((p) => ({ url: `${host ?? ''}/http${p.startsWith('/') ? p : `/${p}`}` })), source: 'sender adapter' }],
+          note: 'not in the tenant\'s endpoint list yet (it follows a little after a deploy); built from the design-time sender path, which can differ from the deployed version if it changed since',
+        });
       } catch (e) {
         return toolError(e);
       }

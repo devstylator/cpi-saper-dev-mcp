@@ -147,6 +147,9 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
             if (!properties.script || properties.script.includes('/')) throw new Error(`a script from collection ${op.scriptCollection} needs settings.script: its file name in the collection, e.g. "Utils.groovy"`);
             properties.scriptBundleId = op.scriptCollection;
           }
+          if (cname === 'GroovyScript' && version.startsWith('2.') && properties.script && !op.scriptCollection && !properties.script.startsWith('v2/')) {
+            throw new Error(`a Groovy Script ${version} step takes its script from script/v2/: use settings.script "v2/${properties.script}" (and put the file there)`);
+          }
           if (SCRIPT_STEPS.has(cname) && !properties.script) {
             throw new Error(`${entry.label} needs settings.script: the file name under script/ (${version.startsWith('2.') ? 'v2/<name>.groovy for script step 2.x' : '<name>.groovy'})`);
           }

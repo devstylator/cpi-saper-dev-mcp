@@ -7,7 +7,15 @@ type Row = Record<string, unknown>;
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? undefined : Number(v));
 const ms = (v: unknown) => { const n = num(v); return n ? new Date(n).toISOString() : undefined; };
 
-export interface BrokerInfo { capacityBytes?: number; maxCapacityBytes?: number; queues?: number; maxQueues?: number; warnings: string[] }
+export interface BrokerInfo { capacity?: string; capacityBytes?: number; maxCapacityBytes?: number; queues?: number; maxQueues?: number; warnings: string[] }
+
+/** 6291456000 -> "5.9 GB": readable, and not taken for a phone number by clients that mask long digit runs (tester report) */
+export const bytesText = (n: number) => {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let v = n; let i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return `${i ? v.toFixed(1) : v} ${units[i]}`;
+};
 export interface QueueInfo { name: string; messages: number; sizeBytes?: number; active: boolean; exclusive: boolean; iflows: Array<{ name: string; iflow?: string; role: string }> }
 export interface QueueMessage {
   id: string; failed: boolean; messageLogId?: string; createdAt?: string; retryCount?: number; nextRetry?: string;
@@ -19,6 +27,7 @@ export async function getBroker(client: CpiClient): Promise<BrokerInfo> {
   const flags: Array<[string, string]> = [['CapacityWarning', 'capacity warning'], ['CapacityError', 'capacity error'], ['IsQueuesHigh', 'many queues'],
     ['IsMessageSpoolHigh', 'message spool high'], ['IsConsumersHigh', 'many consumers'], ['IsProducersHigh', 'many producers'], ['IsTransactedSessionsHigh', 'many transacted sessions']];
   return {
+    ...(num(b.Capacity) !== undefined && num(b.MaxCapacity) !== undefined ? { capacity: `${bytesText(num(b.Capacity)!)} of ${bytesText(num(b.MaxCapacity)!)} used` } : {}),
     ...(num(b.Capacity) !== undefined ? { capacityBytes: num(b.Capacity)! } : {}), ...(num(b.MaxCapacity) !== undefined ? { maxCapacityBytes: num(b.MaxCapacity)! } : {}),
     ...(num(b.QueueNumber) !== undefined ? { queues: num(b.QueueNumber)! } : {}), ...(num(b.MaxQueueNumber) !== undefined ? { maxQueues: num(b.MaxQueueNumber)! } : {}),
     warnings: flags.filter(([k]) => Number(b[k] ?? 0) > 0).map(([, t]) => t),

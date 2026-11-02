@@ -48,7 +48,7 @@ export function registerUnderstandTools(server: McpServer) {
         const ctx = await context(server);
         const { doc } = localIflow(ctx, iflow);
         const mermaid = toMermaid(describe(doc));
-        return { content: [{ type: 'text', text: `\`\`\`mermaid\n${mermaid}\n\`\`\`` }], structuredContent: { mermaid } };
+        return { content: [{ type: 'text', text: `\`\`\`mermaid\n${mermaid}\n\`\`\`` }] };
       } catch (e) {
         return toolError(e);
       }
@@ -121,8 +121,7 @@ export function registerUnderstandTools(server: McpServer) {
         }
         const changes = diffIflows(describe(oldDoc, { maxLen: 0 }), describe(now.doc, { maxLen: 0 }), { docA: oldDoc, docB: now.doc });
         return {
-          content: [{ type: 'text', text: `${base} -> ${relative(ctx.workspace.root, now.located.iflwPath)}\n${changes.length ? changes.join('\n') : 'no model changes'}` }],
-          structuredContent: { old: base, new: relative(ctx.workspace.root, now.located.iflwPath), changes },
+          content: [{ type: 'text', text: `${base} -> ${relative(ctx.workspace.root, now.located.iflwPath)}\n${changes.length ? changes.join('\n') : 'no model changes'}` }]
         };
       } catch (e) {
         return toolError(e);

@@ -230,7 +230,7 @@ export function registerEditCheckTools(server: McpServer) {
       try {
         const ctx = await context(server);
         const view = readMapping(readFileSync(fileArg(ctx, args, 'mapping'), 'utf8'));
-        return { content: [{ type: 'text', text: mappingText(view) }], structuredContent: { ...view } };
+        return { content: [{ type: 'text', text: mappingText(view) }] };
       } catch (e) {
         return toolError(e);
       }
@@ -246,9 +246,11 @@ export function registerEditCheckTools(server: McpServer) {
         '(configured as "scriptRunner"). Script step 2.x (Groovy 4) is used when the script imports ' +
         'com.sap.it.script.v2.api, else 1.x (Groovy 2.4); override with groovyVersion. Returns the resulting body, ' +
         'printed output, what the script set or removed in headers and properties, and the error with its line. ' +
-        'Header/property names and values cannot contain ";" or "=". Only one file: shared script code must be inlined.',
+        'Header/property names and values cannot contain ";" or "=". Only one file: shared script code must be inlined. ' +
+        'Groovy 4 (script step 2.x) scripts import com.sap.it.script.v2.api and live under script/v2/; XmlParser and ' +
+        'XmlSlurper are in groovy.xml.*.',
       inputSchema: {
-        file: z.string().optional().describe('Groovy file (relative to the workspace or absolute)'),
+        file: z.string().optional().describe('Groovy file: absolute, or relative to the workspace folder (where cpi_pull puts iFlows, e.g. "<package>/<iflow>/src/main/resources/script/x.groovy"), not to the project folder'),
         iflow: iflowArg.optional(),
         step: z.string().optional().describe('Script step of "iflow" (id or name), instead of "file"'),
         body: z.string().optional().describe('Message body the script receives'),

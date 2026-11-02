@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { zipSync } from 'fflate';
 import {
-  CpiClient, createNumberRange, deleteQueueMessage, deployErrorList, getConfigurations, getDataStoreEntry, getPersisted, getVariableValue,
+  bytesText, CpiClient, createNumberRange, deleteQueueMessage, deployErrorList, getConfigurations, getDataStoreEntry, getPersisted, getVariableValue,
   listDataStores, listQueueMessages, listQueues, moveQueueMessages, planNumberRange, retryQueueMessages, setConfiguration,
 } from '../dist/index.js';
 
@@ -121,6 +121,16 @@ test('number ranges and configured values: the request bodies the tenant accepts
   assert.deepEqual(await getConfigurations(client, 'Flow'), [
     { key: 'endpointPath', value: '/a', type: 'xsd:string', description: 'Path' }, { key: 'SAP_ProfileId', value: 'iflmap', type: 'xsd:string' },
   ]);
+  // only max given: no empty value may reach the tenant (it answered HTTP 500 "For input string")
+  await createNumberRange(client, planNumberRange('M', { max: '500' }));
+  const minimal = JSON.parse(sent(calls, 'POST').filter((c) => c.path === '/NumberRanges')[1]!.body!);
+  assert.deepEqual([minimal.MinValue, minimal.CurrentValue, minimal.FieldLength], ['0', '0', '3']);
   await setConfiguration(client, 'Flow', 'endpointPath', '/b', 'xsd:string');
   assert.deepEqual(JSON.parse(sent(calls, 'PUT')[0]!.body!), { ParameterValue: '/b', DataType: 'xsd:string' });
+});
+
+test('JMS broker: capacity also as readable text', () => {
+  assert.equal(bytesText(6291456000), '5.9 GB');
+  assert.equal(bytesText(1303), '1.3 KB');
+  assert.equal(bytesText(0), '0 B');
 });

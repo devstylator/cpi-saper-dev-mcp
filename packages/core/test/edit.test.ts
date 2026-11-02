@@ -491,3 +491,25 @@ test('validate: allowed headers separated by commas', () => {
   applyEdits(doc, [{ op: 'set', element: 'integrationFlow', settings: { allowedHeaderList: 'entryId|fail' } }], catalog);
   assert.deepEqual(validate(doc).filter((i) => i.code === 'ALLOWED_HEADERS'), []);
 });
+
+test('validate: Groovy 2.x scripts under script/v2/, == in Camel conditions, header names (tester report)', () => {
+  // insert_step refuses a 2.x step whose script is not under v2/, and accepts the right path
+  assert.throws(() => applyEdits(parseIflw(EMPTY), [{ op: 'insert_step', after: 'StartEvent_2', type: 'Groovy Script', version: '2.0.0', settings: { script: 'helper.groovy' } }], catalog),
+    /script\/v2\/: use settings\.script "v2\/helper\.groovy"/);
+  const doc = parseIflw(EMPTY);
+  const log = applyEdits(doc, [{ op: 'insert_step', after: 'StartEvent_2', type: 'Groovy Script', version: '2.0.0', settings: { script: 'v2/helper.groovy' } }], catalog);
+  assert.deepEqual(validate(doc).filter((i) => i.code === 'INVALID_SETTING'), []);
+  // a 2.x step edited to the wrong path is reported
+  applyEdits(doc, [{ op: 'set', element: log[0]!.match(/inserted (\S+)/)![1]!, settings: { script: 'helper.groovy' } }], catalog);
+  assert.match(validate(doc).map((i) => i.msg).join(), /takes its script from script\/v2\/; set script to "v2\/helper\.groovy"/);
+
+  const r = parseIflw(EMPTY);
+  applyEdits(r, [
+    { op: 'add_router', after: 'StartEvent_2', expressionType: 'NonXML', routes: [{ name: 'EU', condition: "${header.region} == 'EU'" }, { name: 'Other' }] },
+    { op: 'insert_step', route: 'Other', type: 'Content Modifier', name: 'Mark', headers: [{ name: '2', value: 'x' }, { name: 'X-Region', value: 'EU' }] },
+  ], catalog);
+  const msgs = validate(r).map((i) => `${i.severity} ${i.msg}`);
+  assert.ok(msgs.some((m) => /^error route .*uses ==; Camel Simple compares with =/.test(m)), msgs.join('\n'));
+  assert.ok(msgs.some((m) => /^warning .*header name "2" starts with a digit/.test(m)), msgs.join('\n'));
+  assert.ok(!msgs.some((m) => /X-Region/.test(m)), 'normal names pass');
+});
