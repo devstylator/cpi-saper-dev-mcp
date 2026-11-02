@@ -3,7 +3,7 @@ import { dirname, join, relative } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  checkModel, createIflow, deleteIflow, DEPLOY_CHECKS, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
+  checkModel, createIflow, deleteIflow, deployErrorList, DEPLOY_CHECKS, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
   IFLOW_ID, resolvePackage, runGuidelines, runtimeError, undeployIflow, uploadIflow, validate, withVersion, zipChanges, zipFolder, zipVersion,
   type CpiClient, type GuidelineFinding, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
@@ -338,7 +338,11 @@ export function registerTenantWriteTools(server: McpServer) {
         const lost = r.status !== 'STARTED' && info.runtime?.status === 'STARTED'
           ? { previouslyRunning: `${info.runtime.version ?? '?'} was running before and is stopped now; fix and deploy again, or deploy the previous version` }
           : {};
-        const data = { iflow, deployed: r.status === 'STARTED', ...r, ...(r.error ? { error: translate(r.error, name) } : {}), ...lost, guidelines };
+        const data = {
+          iflow, deployed: r.status === 'STARTED', ...r,
+          ...(r.error ? { deployErrors: deployErrorList(r.error).map((l) => translate(l, name)), error: translate(r.error, name) } : {}),
+          ...lost, guidelines,
+        };
         return { ...toolResult(data), ...(r.status === 'STARTED' ? {} : { isError: true }) };
       } catch (e) {
         return toolError(e);

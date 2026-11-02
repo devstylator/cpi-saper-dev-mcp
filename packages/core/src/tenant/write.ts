@@ -144,6 +144,25 @@ export async function runtimeError(client: CpiClient, id: string): Promise<strin
   }
 }
 
+/**
+ * A deploy error as one line per problem. The tenant's error information is JSON with the messages in "parameter"
+ * arrays (also nested), each of which can hold several newline-separated problems; other text is split into lines.
+ */
+export function deployErrorList(text: string): string[] {
+  const found: string[] = [];
+  const collect = (v: unknown): void => {
+    if (Array.isArray(v)) v.forEach(collect);
+    else if (v && typeof v === 'object') {
+      for (const [k, x] of Object.entries(v)) {
+        if (k === 'parameter') (Array.isArray(x) ? x : [x]).forEach((s) => typeof s === 'string' ? found.push(s) : collect(s));
+        else collect(x);
+      }
+    }
+  };
+  try { collect(JSON.parse(text)); } catch { found.push(text); }
+  return [...new Set((found.length ? found : [text]).flatMap((s) => s.split(/\r?\n/)).map((s) => s.trim()).filter(Boolean))];
+}
+
 /** Delete an iFlow's design-time artifact with its whole version history (cannot be undone) */
 export async function deleteIflow(client: CpiClient, id: string): Promise<void> {
   await client.raw('DELETE', artifact(id));

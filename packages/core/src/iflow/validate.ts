@@ -41,6 +41,9 @@ const NEEDS_ADAPTER: Record<string, { what: string; severity: Issue['severity'] 
 /** Issues the tenant reports only at deploy: they do not block edits or uploads, which the tenant accepts */
 export const DEPLOY_CHECKS = new Set(['MISSING_SETTING', 'NO_ADAPTER', 'INVALID_SETTING']);
 
+/** HTTP receiver authentication values as the designer writes them; a value that differs only in case is refused (observed: "none") */
+const HTTP_RECEIVER_AUTH = ['None', 'Basic', 'Client Certificate', 'Principal Propagation', 'OAuth2 Client Credentials', 'OAuth2 SAML Bearer Assertion', 'OAuth2 Authorization Code'];
+
 /** Sender authorization values the tenant accepts (observed: None and Basic are refused at deploy) */
 const SENDER_AUTH = new Set(['RoleBased', 'ClientCertificate']);
 
@@ -117,10 +120,23 @@ export function validate(doc: Document, { resourceFiles, declaredParameters }: V
     const need = NEEDS_ADAPTER[cname];
     if (need && !adapterOn.has(el.getAttribute('id'))) add(need.severity, 'NO_ADAPTER', `${label} needs ${need.what} (iflow_edit add_adapter)`);
   }
+  for (const part of byTag(doc, 'participant')) {
+    const type = part.getAttribute('ifl:type') || readProps(part)['ifl:type'];
+    const name = part.getAttribute('name') ?? '';
+    if ((type === 'EndpointRecevier' || type === 'EndpointSender') && /\s/.test(name)) {
+      // observed for receivers ("Whitespace not allowed in Receiver name"); assumed for senders
+      add(type === 'EndpointRecevier' ? 'error' : 'warning', 'INVALID_SETTING',
+        `${part.getAttribute('id')}: ${type === 'EndpointRecevier' ? 'Receiver' : 'Sender'} name "${name}" contains whitespace, which Cloud Integration refuses; rename it (iflow_edit rename)`);
+    }
+  }
   for (const mf of byTag(doc, 'messageFlow')) {
     const p = readProps(mf);
-    if (p.direction !== 'Sender' || p.senderAuthType === undefined) continue;
     const label = `${mf.getAttribute('id')} (${mf.getAttribute('name') ?? ''})`;
+    if (p.direction === 'Receiver' && p.ComponentType === 'HTTP' && p.authenticationMethod) {
+      const known = HTTP_RECEIVER_AUTH.find((v) => v.toLowerCase() === p.authenticationMethod!.toLowerCase());
+      if (known && known !== p.authenticationMethod) add('error', 'INVALID_SETTING', `${label}: authenticationMethod "${p.authenticationMethod}" must be written "${known}"`);
+    }
+    if (p.direction !== 'Sender' || p.senderAuthType === undefined) continue;
     if (!SENDER_AUTH.has(p.senderAuthType)) add('error', 'INVALID_SETTING', `${label}: senderAuthType "${p.senderAuthType}" is refused by Cloud Integration; use RoleBased (with userRole) or ClientCertificate`);
     else if (p.senderAuthType === 'ClientCertificate' && !p.clientCertificates?.trim()) add('error', 'MISSING_SETTING', `${label}: senderAuthType ClientCertificate needs clientCertificates (at least one certificate row)`);
   }

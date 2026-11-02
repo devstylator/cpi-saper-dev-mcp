@@ -61,7 +61,7 @@ adds no generic file tools.
 
 | Tool | What it does | Status |
 |---|---|---|
-| `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters; settings the tenant refuses only at deploy (empty split or Filter expression, key alias or mapping file, a Content Enricher or Request Reply without adapter, sender authorization values) | **Available**, v1 |
+| `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters; settings the tenant refuses only at deploy (empty split or Filter expression, key alias or mapping file, a Content Enricher or Request Reply without adapter, sender authorization values, Receiver names with spaces) | **Available**, v1 |
 | `xslt_run` | Run an XSLT (1.0–3.0) locally with headers and properties as parameters, like a CPI XSLT Mapping step; errors with line numbers | **Available** |
 | `script_run` | Run one Groovy script on the tenant without deploying (script runner iFlow, development tenants only); Groovy 2.4 or 4 chosen from the script's imports; returns body, headers, properties, console output and what changed | **Available** |
 | `cpi_guidelines` | Run SAP's design guideline check on the tenant (deploys through the API skip it) | **Available**, v1 |
@@ -81,7 +81,7 @@ development.**
 | `cpi_version_proposal` | The versioning rules (default or your own file), the local changes since the last version and a hint (major/minor/patch), so the agent can propose number and comment | **Available**, v1 |
 | `cpi_save_version` | Record the tenant's current content as a new version with number and comment, for example after work in the designer | **Available**, v1 |
 | `iflow_create` | Create an empty iFlow in an allowed package (as the designer does: Sender and Receiver box, Start → End, version 1.0.0) and pull it; build it with `iflow_edit`, then `cpi_push` gives it its first version | **Available**, v1 |
-| `cpi_deploy` | Deploy the current version and wait; SAP's guideline check as an optional gate; errors are reported with step names. A failed deploy also stops the version that was running (Cloud Integration's behaviour), which the confirmation and result point out | **Available**, v1 |
+| `cpi_deploy` | Deploy the current version and wait; SAP's guideline check as an optional gate; errors are reported with step names, one line per problem. A failed deploy also stops the version that was running (Cloud Integration's behaviour), which the confirmation and result point out | **Available**, v1 |
 | `cpi_undeploy` | Remove a deployed iFlow from the runtime | **Available** |
 | `iflow_delete` | Delete an iFlow with its whole version history (for cleaning up test iFlows); refuses deployed iFlows and always asks for confirmation by default | **Available** |
 | `cpi_config_set` | Set externalized parameter values | Planned |

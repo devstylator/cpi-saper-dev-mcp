@@ -275,3 +275,18 @@ test('Filter: "expression" fills wrapContent; an XPath given as xpathType is ref
   applyEdits(doc, [{ op: 'set', element: id, expression: '' }], catalog);
   assert.match(validate(doc).map((i) => `${i.severity} ${i.msg}`).join(), /error .*wrapContent is empty/);
 });
+
+test('validate: whitespace in a Receiver name and authenticationMethod in the wrong case are refused at deploy', () => {
+  const doc = parseIflw(EMPTY);
+  applyEdits(doc, [
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Request Reply', name: 'Call' },
+    { op: 'add_adapter', step: 'Call', type: 'HTTP', participant: 'Receiver', settings: { authenticationMethod: 'none' } },
+    { op: 'rename', element: 'Participant_2', name: 'Mock Server' },
+  ], catalog);
+  const msgs = validate(doc).filter((i) => i.severity === 'error').map((i) => i.msg);
+  assert.equal(msgs.length, 2, msgs.join('\n'));
+  assert.match(msgs.join('\n'), /Receiver name "Mock Server" contains whitespace/);
+  assert.match(msgs.join('\n'), /authenticationMethod "none" must be written "None"/);
+  applyEdits(doc, [{ op: 'rename', element: 'Mock Server', name: 'MockServer' }, { op: 'set', element: 'HTTP', settings: { authenticationMethod: 'None' } }], catalog);
+  assert.deepEqual(validate(doc).filter((i) => i.severity === 'error'), []);
+});

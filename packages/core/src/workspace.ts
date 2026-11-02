@@ -32,11 +32,16 @@ const posix = (p: string) => p.split(sep).join('/');
  */
 export function locateIflow(target: string, workspace: string): LocatedIflow {
   const p = isAbsolute(target) ? target : resolve(workspace, target);
+  let file: string | undefined;
+  let dir: string | undefined;
   if (existsSync(p) && statSync(p).isFile()) {
     if (!p.endsWith('.iflw')) throw new Error(`${target}: not an .iflw file`);
-    return { iflwPath: p };
-  }
-  let dir = existsSync(p) ? p : undefined;
+    // a file inside an iFlow folder: checks that need the folder (resources, parameters) still work
+    const at = p.lastIndexOf(`${sep}${FLOWS}${sep}`);
+    if (at < 0) return { iflwPath: p };
+    file = p;
+    dir = p.slice(0, at);
+  } else dir = existsSync(p) ? p : undefined;
   if (!dir && !/[\\/]/.test(target) && existsSync(workspace)) {
     const hits = readdirSync(workspace).map((pkg) => join(workspace, pkg, target)).filter((d) => existsSync(join(d, FLOWS)));
     if (hits.length > 1) throw new Error(`iFlow "${target}" exists in several packages: ${hits.map((h) => relative(workspace, h)).join(', ')}`);
@@ -45,12 +50,12 @@ export function locateIflow(target: string, workspace: string): LocatedIflow {
   if (!dir) throw new Error(`iFlow "${target}" not found (as a path or as <package>/${target} in ${workspace}); pull it first`);
   const flows = join(dir, FLOWS);
   const iflws = existsSync(flows) ? walk(flows).filter((f) => f.endsWith('.iflw')) : [];
-  if (iflws.length !== 1) throw new Error(`${dir}: expected exactly one .iflw under ${FLOWS}, found ${iflws.length}`);
+  if (!file && iflws.length !== 1) throw new Error(`${dir}: expected exactly one .iflw under ${FLOWS}, found ${iflws.length}`);
   const res = join(dir, RESOURCES);
   const propdef = join(res, 'parameters.propdef');
   return {
     dir,
-    iflwPath: iflws[0]!,
+    iflwPath: file ?? iflws[0]!,
     resourceFiles: new Set(walk(res).map((f) => posix(relative(res, f)))),
     ...(existsSync(propdef)
       ? { declaredParameters: new Set([...readFileSync(propdef, 'utf8').matchAll(/<name>([^<]*)<\/name>/g)].map((m) => m[1]!)) }

@@ -63,7 +63,8 @@ export function registerUnderstandTools(server: McpServer) {
         'missing diagram shapes, unreachable steps, script/mapping files that do not exist, {{parameters}} not ' +
         'declared in parameters.propdef, and some settings the tenant only refuses at deploy: empty required settings ' +
         '(split expression, key alias, mapping or script file), steps that need an adapter (Content Enricher, Request ' +
-        'Reply, Send, Poll Enrich), sender authorization values the tenant refuses. Not every deploy check is covered. ' +
+        'Reply, Send, Poll Enrich), sender authorization values the tenant refuses, Receiver names with whitespace, ' +
+        'HTTP receiver authenticationMethod in the wrong case. Not every deploy check is covered. ' +
         'Errors would break the iFlow; warnings deserve a look.',
       inputSchema: { iflow: iflowArg },
       annotations: { readOnlyHint: true, openWorldHint: false },
@@ -78,6 +79,7 @@ export function registerUnderstandTools(server: McpServer) {
           errors: issues.filter((i) => i.severity === 'error').length,
           warnings: issues.filter((i) => i.severity === 'warning').length,
           issues,
+          ...(located.dir ? {} : { skipped: 'a loose .iflw (not inside an iFlow folder): missing script or mapping files and undeclared parameters were not checked' }),
         });
       } catch (e) {
         return toolError(e);

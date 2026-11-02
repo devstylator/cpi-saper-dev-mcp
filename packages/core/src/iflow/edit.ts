@@ -82,8 +82,10 @@ export function findElement(doc: Document, ref: string): Element {
   }
   const byId = idIndex(doc).get(ref);
   if (byId) return byId;
-  const named = [...byTag(doc, 'messageFlow'), ...['callActivity', 'serviceTask', 'exclusiveGateway', 'parallelGateway', 'subProcess', 'startEvent', 'endEvent', 'intermediateCatchEvent']
+  let named = [...byTag(doc, 'messageFlow'), ...['callActivity', 'serviceTask', 'exclusiveGateway', 'parallelGateway', 'subProcess', 'startEvent', 'endEvent', 'intermediateCatchEvent']
     .flatMap((t) => byTag(doc, t))].filter((e) => e.getAttribute('name') === ref);
+  // Sender/Receiver boxes only when no step or adapter has the name (boxes are often named like their adapter)
+  if (!named.length) named = byTag(doc, 'participant').filter((e) => e.getAttribute('name') === ref);
   if (named.length === 1) return named[0]!;
   if (named.length > 1) throw new Error(`"${ref}" names ${named.length} elements (${named.map((e) => e.getAttribute('id')).join(', ')}); use the id`);
   throw new Error(`no element with id or name "${ref}"`);

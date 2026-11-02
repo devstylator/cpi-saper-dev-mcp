@@ -68,6 +68,19 @@ test('a renamed tenant: the stale record of the old name neither wins nor surviv
   assert.equal(ws.pulledState('dev', 'SampleFlow'), undefined, 'stale record removed');
 });
 
+test('locateIflow: an .iflw inside an iFlow folder knows its folder; a loose .iflw does not', () => {
+  const ws = workspace();
+  const { dir } = ws.pull('trial', INFO, zipOf(join(FIXTURES, 'sample-before')));
+  const iflw = join(dir, 'src/main/resources/scenarioflows/integrationflow/SampleFlow.iflw');
+  const byFile = locateIflow(iflw, ws.root);
+  assert.equal(byFile.dir, dir);
+  assert.equal(byFile.iflwPath, iflw);
+  assert.deepEqual([...byFile.resourceFiles!].sort(), [...locateIflow(dir, ws.root).resourceFiles!].sort());
+  const loose = join(ws.root, 'Loose.iflw');
+  writeFileSync(loose, readFileSync(iflw));
+  assert.deepEqual(locateIflow(loose, ws.root), { iflwPath: loose });
+});
+
 test('localChanges ignores the timestamp comment in .prop files', () => {
   const ws = workspace();
   const { dir } = ws.pull('trial', INFO, zipOf(join(FIXTURES, 'sample-before')));

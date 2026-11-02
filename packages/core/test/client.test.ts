@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CpiClient, HttpError, sendMessage, listIflows, mplIdOf, odataDate, odataErrorMessage, resolvePackage } from '../dist/index.js';
+import { CpiClient, deployErrorList, HttpError, sendMessage, listIflows, mplIdOf, odataDate, odataErrorMessage, resolvePackage } from '../dist/index.js';
 
 const KEY = { clientid: 'id', clientsecret: 'secret', url: 'https://tenant.example.com', tokenurl: 'https://auth.example.com/oauth/token' };
 
@@ -80,4 +80,17 @@ test('CSRF: an iFlow endpoint that requires a token gets it from the endpoint it
   assert.equal(r.status, 200);
   assert.deepEqual(seen.map((s) => `${s.method} ${s.url.replace(KEY.url, '')} ${s.token ?? '-'} ${s.cookie ?? '-'}`),
     ['POST /http/orders - -', 'GET /http/orders Fetch -', 'POST /http/orders tok JSESSIONID=s1']);
+});
+
+test('deployErrorList: the JSON parameter arrays as one line per problem; other text by lines', () => {
+  const sap = JSON.stringify({
+    message: { messageId: 'CBRDE0001', parameter: ['Validation of the artifact failed'] },
+    parameter: ['Xpath not defined for Content Filter step\nWhitespace not allowed in Receiver name', 'Xpath not defined for Content Filter step'],
+    childInstances: [{ parameter: ["Invalid value 'none' entered in 'Authentication' field"] }],
+  });
+  assert.deepEqual(deployErrorList(sap), [
+    'Validation of the artifact failed', 'Xpath not defined for Content Filter step', 'Whitespace not allowed in Receiver name',
+    "Invalid value 'none' entered in 'Authentication' field",
+  ]);
+  assert.deepEqual(deployErrorList('first\n\n second '), ['first', 'second']);
 });
