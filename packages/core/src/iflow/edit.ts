@@ -193,13 +193,15 @@ function bandFor(doc: Document, a: { x: number; y: number; w: number; h: number 
 }
 
 /** Insert a step after another one (which must have exactly one outgoing flow), and open a gap in the diagram */
-export function insertStepAfter(doc: Document, afterId: string, { name, properties, bpmn = 'callActivity', size = { w: 100, h: 60 } }:
-  { name: string; properties: Props; bpmn?: string; size?: { w: number; h: number } }): { stepId: string; newFlowId: string } {
+export function insertStepAfter(doc: Document, afterId: string, { name, properties, bpmn = 'callActivity', size = { w: 100, h: 60 }, flowId: onFlow }:
+  { name: string; properties: Props; bpmn?: string; size?: { w: number; h: number }; flowId?: string }): { stepId: string; newFlowId: string } {
   const index = idIndex(doc) as Map<string, Element | null>;
   const after = index.get(afterId);
   if (!after) throw new Error(`no element with id ${afterId}`);
-  const outgoing = byTag(doc, 'sequenceFlow').filter((f) => f.getAttribute('sourceRef') === afterId);
-  if (outgoing.length !== 1) throw new Error(`${afterId} must have exactly one outgoing flow to insert after it (has ${outgoing.length})`);
+  const outgoing = byTag(doc, 'sequenceFlow').filter((f) => f.getAttribute('sourceRef') === afterId && (!onFlow || f.getAttribute('id') === onFlow));
+  if (outgoing.length !== 1) {
+    throw new Error(`${afterId} must have exactly one outgoing flow to insert after it (has ${outgoing.length}); for a route of a router or a branch of a multicast, insert on the route ("route")`);
+  }
   const flow = outgoing[0]!;
   const flowId = flow.getAttribute('id')!;
   const targetId = flow.getAttribute('targetRef')!;
@@ -532,6 +534,264 @@ export function removeAdapter(doc: Document, flowId: string) {
   removeEl(flow);
 }
 
+// ---------- routers and multicasts ----------
+
+/** A route (sequence flow) by id or unique name */
+export function findRoute(doc: Document, ref: string): Element {
+  const flows = byTag(doc, 'sequenceFlow');
+  const hit = flows.filter((f) => f.getAttribute('id') === ref);
+  const named = hit.length ? hit : flows.filter((f) => f.getAttribute('name') === ref);
+  if (named.length === 1) return named[0]!;
+  if (named.length > 1) throw new Error(`"${ref}" names ${named.length} routes (${named.map((f) => f.getAttribute('id')).join(', ')}); use the id`);
+  throw new Error(`no route (sequence flow) with id or name "${ref}"`);
+}
+
+const flowEl = (doc: Document, id: string, from: string, to: string, name?: string) =>
+  elementNS(doc, 'bpmn2:sequenceFlow', { id, ...(name ? { name } : {}), sourceRef: from, targetRef: to });
+const withProps = (doc: Document, el: Element, props: Props) => {
+  if (!Object.keys(props).length) return el;
+  const ext = elementNS(doc, 'bpmn2:extensionElements');
+  for (const [k, v] of Object.entries(props)) ext.appendChild(iflProperty(doc, k, v));
+  el.insertBefore(ext, el.firstChild);
+  return el;
+};
+const condition = (doc: Document, flowId: string, text: string) =>
+  elementNS(doc, 'bpmn2:conditionExpression', { id: `FormalExpression_${flowId}_${Date.now()}`, 'xsi:type': 'bpmn2:tFormalExpression' }, text);
+const setRefs = (el: Element, tag: 'incoming' | 'outgoing', ids: string[]) => {
+  for (const r of children(el, tag)) removeEl(r);
+  const doc = el.ownerDocument!;
+  // incoming before outgoing, after the settings, as the designer writes them
+  const anchor = tag === 'incoming' ? children(el, 'outgoing')[0] ?? Array.from(el.childNodes).filter(isEl).find((c) => !['extensionElements', 'incoming'].includes(c.localName ?? ''))
+    : Array.from(el.childNodes).filter(isEl).find((c) => !['extensionElements', 'incoming', 'outgoing'].includes(c.localName ?? ''));
+  const indent = indentBefore(Array.from(el.childNodes).filter(isEl)[0] ?? el);
+  for (const id of ids) {
+    const r = elementNS(doc, `bpmn2:${tag}`, {}, id);
+    if (anchor) { el.insertBefore(doc.createTextNode(indent), anchor); el.insertBefore(r, anchor); } else { el.appendChild(doc.createTextNode(indent)); el.appendChild(r); }
+  }
+  // keep the closing tag on its own line
+  if (!anchor && ids.length) el.appendChild(doc.createTextNode(indentBefore(el)));
+};
+const refsOf = (el: Element, tag: 'incoming' | 'outgoing') => children(el, tag).map((r) => r.textContent?.trim() ?? '');
+
+/** New elements of a branching edit: model elements after `ref`, shapes and edges at a temporary place until layout */
+function addDiagram(doc: Document, shapes: Array<{ id: string; w: number; h: number }>, edges: Array<{ id: string; from: string; to: string }>) {
+  const plane = byTag(doc, 'BPMNPlane', NS.bpmndi)[0]!;
+  let last = byTag(doc, 'BPMNShape', NS.bpmndi).at(-1)!;
+  for (const s of shapes) {
+    const sh = elementNS(doc, 'bpmndi:BPMNShape', { bpmnElement: s.id, id: `BPMNShape_${s.id}` });
+    sh.appendChild(elementNS(doc, 'dc:Bounds', { height: fmt(s.h), width: fmt(s.w), x: '0.0', y: '0.0' }));
+    insertAfterEl(plane, sh, last);
+    last = sh;
+  }
+  for (const e of edges) {
+    const edge = elementNS(doc, 'bpmndi:BPMNEdge', { bpmnElement: e.id, id: `BPMNEdge_${e.id}`, sourceElement: `BPMNShape_${e.from}`, targetElement: `BPMNShape_${e.to}` });
+    for (let i = 0; i < 2; i++) edge.appendChild(elementNS(doc, 'di:waypoint', { x: '0.0', 'xsi:type': 'dc:Point', y: '0.0' }));
+    insertAfterEl(plane, edge, byTag(doc, 'BPMNEdge', NS.bpmndi).at(-1) ?? last);
+  }
+}
+
+/** The single outgoing flow of the element a branch is inserted after */
+function splitPoint(doc: Document, afterId: string) {
+  const index = idIndex(doc) as Map<string, Element | null>;
+  const after = index.get(afterId);
+  if (!after) throw new Error(`no element with id ${afterId}`);
+  const out = byTag(doc, 'sequenceFlow').filter((f) => f.getAttribute('sourceRef') === afterId);
+  if (out.length !== 1) throw new Error(`${afterId} must have exactly one outgoing flow to add a router or multicast after it (has ${out.length})`);
+  const flow = out[0]!;
+  const target = index.get(flow.getAttribute('targetRef')!)!;
+  if (!target) throw new Error(`${flow.getAttribute('id')} leads nowhere`);
+  return { index, after, flow, target, container: flow.parentNode as Element };
+}
+
+/** A message end event, like the one a process ends with */
+function endEventEl(doc: Document, id: string, name: string, props: Props, incoming: string) {
+  const e = withProps(doc, elementNS(doc, 'bpmn2:endEvent', { id, name }), props);
+  e.appendChild(elementNS(doc, 'bpmn2:incoming', {}, incoming));
+  e.appendChild(elementNS(doc, 'bpmn2:messageEventDefinition'));
+  return e;
+}
+
+export interface RouteInput { name: string; condition?: string; end?: boolean }
+
+/**
+ * Add a router after a step: one route per entry, all leading to the step that followed (or each to its own End
+ * event with end: true). Exactly one route has no condition: the default route. Conditions are XPath
+ * (expressionType "XML") or Camel Simple ("NonXML"), the same for all routes of a router.
+ */
+export function addRouter(doc: Document, afterId: string, { name, gatewayProps, routeProps, endProps, routes }:
+  { name: string; gatewayProps: Props; routeProps: Props; endProps: Props; routes: RouteInput[] }): { gatewayId: string; routeIds: string[]; endIds: string[] } {
+  if (routes.length < 2) throw new Error('a router needs at least two routes');
+  const defaults = routes.filter((r) => !r.condition?.trim());
+  if (defaults.length !== 1) throw new Error(`exactly one route must have no condition (the default route); ${defaults.length ? defaults.map((r) => `"${r.name}"`).join(', ') : 'none'} has none`);
+  const names = routes.map((r) => r.name);
+  if (new Set(names).size !== names.length) throw new Error('route names must be different');
+  const { index, after, flow, target, container } = splitPoint(doc, afterId);
+  const targetId = target.getAttribute('id')!;
+  const gatewayId = newId(index, 'ExclusiveGateway');
+  // the default route first: it stays on the main row
+  const ordered = [defaults[0]!, ...routes.filter((r) => r !== defaults[0])];
+  const ids = ordered.map(() => newId(index, 'SequenceFlow'));
+  const ends = ordered.map((r) => (r.end ? newId(index, 'EndEvent') : undefined));
+  const endNames = new Set(byTag(doc, 'endEvent').map((e) => e.getAttribute('name')));
+
+  const gw = elementNS(doc, 'bpmn2:exclusiveGateway', { default: ids[0]!, id: gatewayId, name });
+  withProps(doc, gw, gatewayProps);
+  gw.appendChild(elementNS(doc, 'bpmn2:incoming', {}, flow.getAttribute('id')!));
+  for (const id of ids) gw.appendChild(elementNS(doc, 'bpmn2:outgoing', {}, id));
+  insertAfterEl(container, gw, after);
+  let ref: Element = gw;
+  ordered.forEach((r, i) => {
+    if (!ends[i]) return;
+    let n = 1; let endName = `End ${r.name}`;
+    while (endNames.has(endName)) endName = `End ${r.name} ${++n}`;
+    endNames.add(endName);
+    const e = endEventEl(doc, ends[i]!, endName, endProps, ids[i]!);
+    insertAfterEl(container, e, ref); ref = e;
+  });
+  // A -> router; routes after A's flow
+  const oldFlowId = flow.getAttribute('id')!;
+  flow.setAttribute('targetRef', gatewayId);
+  let fref: Element = flow;
+  ordered.forEach((r, i) => {
+    const f = withProps(doc, flowEl(doc, ids[i]!, gatewayId, ends[i] ?? targetId, r.name), routeProps);
+    if (r.condition?.trim()) f.appendChild(condition(doc, ids[i]!, r.condition.trim()));
+    insertAfterEl(container, f, fref); fref = f;
+  });
+  const toTarget = ids.filter((_, i) => !ends[i]);
+  setRefs(target, 'incoming', [...refsOf(target, 'incoming').filter((x) => x !== oldFlowId), ...toTarget]);
+  addDiagram(doc, [{ id: gatewayId, w: 40, h: 40 }, ...ends.filter((e): e is string => !!e).map((id) => ({ id, w: 32, h: 32 }))],
+    ids.map((id, i) => ({ id, from: gatewayId, to: ends[i] ?? targetId })));
+  return { gatewayId, routeIds: ids, endIds: ends.filter((e): e is string => !!e) };
+}
+
+/**
+ * Add a parallel or sequential multicast after a step: one branch per name; with join (the default) the branches
+ * meet in a Join before the step that followed; without, the first branch leads to that step and every other one
+ * ends in its own End event. A sequential multicast runs the branches in the order given.
+ */
+export function addMulticast(doc: Document, afterId: string, { name, gatewayProps, joinProps, endProps, branches, join, sequential }:
+  { name: string; gatewayProps: Props; joinProps: Props; endProps: Props; branches: string[]; join: boolean; sequential: boolean }):
+  { gatewayId: string; joinId?: string; branchIds: string[]; endIds: string[] } {
+  if (branches.length < 2) throw new Error('a multicast needs at least two branches');
+  if (new Set(branches).size !== branches.length) throw new Error('branch names must be different');
+  const { index, after, flow, target, container } = splitPoint(doc, afterId);
+  const targetId = target.getAttribute('id')!;
+  const gatewayId = newId(index, 'ParallelGateway');
+  const joinId = join ? newId(index, 'ParallelGateway') : undefined;
+  const ids = branches.map(() => newId(index, 'SequenceFlow'));
+  const joinOut = join ? newId(index, 'SequenceFlow') : undefined;
+  const ends = branches.map((_, i) => (!join && i > 0 ? newId(index, 'EndEvent') : undefined));
+  const props = sequential
+    ? { ...gatewayProps, routingSequenceTable: ids.map((id, i) => `<row><cell>${i + 1}</cell><cell>${id}</cell></row>`).join('') }
+    : gatewayProps;
+
+  const gw = withProps(doc, elementNS(doc, 'bpmn2:parallelGateway', { id: gatewayId, name }), props);
+  gw.appendChild(elementNS(doc, 'bpmn2:incoming', {}, flow.getAttribute('id')!));
+  for (const id of ids) gw.appendChild(elementNS(doc, 'bpmn2:outgoing', {}, id));
+  insertAfterEl(container, gw, after);
+  let ref: Element = gw;
+  if (joinId) {
+    const j = withProps(doc, elementNS(doc, 'bpmn2:parallelGateway', { id: joinId, name: 'Join' }), joinProps);
+    for (const id of ids) j.appendChild(elementNS(doc, 'bpmn2:incoming', {}, id));
+    j.appendChild(elementNS(doc, 'bpmn2:outgoing', {}, joinOut!));
+    insertAfterEl(container, j, ref); ref = j;
+  }
+  ends.forEach((e, i) => { if (e) { const el = endEventEl(doc, e, `End ${branches[i]}`, endProps, ids[i]!); insertAfterEl(container, el, ref); ref = el; } });
+  const oldFlowId = flow.getAttribute('id')!;
+  flow.setAttribute('targetRef', gatewayId);
+  let fref: Element = flow;
+  ids.forEach((id, i) => { const f = flowEl(doc, id, gatewayId, joinId ?? ends[i] ?? targetId, branches[i]); insertAfterEl(container, f, fref); fref = f; });
+  if (joinId) { const f = flowEl(doc, joinOut!, joinId, targetId); insertAfterEl(container, f, fref); }
+  setRefs(target, 'incoming', [...refsOf(target, 'incoming').filter((x) => x !== oldFlowId), ...(joinId ? [joinOut!] : [ids[0]!])]);
+  addDiagram(doc, [{ id: gatewayId, w: 40, h: 40 }, ...(joinId ? [{ id: joinId, w: 40, h: 40 }] : []), ...ends.filter((e): e is string => !!e).map((id) => ({ id, w: 32, h: 32 }))],
+    [...ids.map((id, i) => ({ id, from: gatewayId, to: joinId ?? ends[i] ?? targetId })), ...(joinId ? [{ id: joinOut!, from: joinId, to: targetId }] : [])]);
+  return { gatewayId, ...(joinId ? { joinId } : {}), branchIds: ids, endIds: ends.filter((e): e is string => !!e) };
+}
+
+/**
+ * Change a router's route: its name, its condition, or make it the default route. The routes then swap roles: the
+ * route that was the default takes over this route's condition (a router has exactly one route without one).
+ */
+export function setRoute(doc: Document, ref: string, { name, condition: cond, makeDefault }: { name?: string; condition?: string; makeDefault?: boolean }): string {
+  const route = findRoute(doc, ref);
+  const id = route.getAttribute('id')!;
+  const gw = idIndex(doc).get(route.getAttribute('sourceRef')!);
+  if (gw?.localName !== 'exclusiveGateway') throw new Error(`${id} is not a route of a router`);
+  const isDefault = gw.getAttribute('default') === id;
+  const setCond = (f: Element, text: string | undefined) => {
+    const old = children(f, 'conditionExpression')[0];
+    if (old) removeEl(old);
+    if (!text) return;
+    // routes of a router carry their settings, so the condition goes after the last child
+    const last = Array.from(f.childNodes).filter(isEl).at(-1);
+    if (!last) throw new Error(`${f.getAttribute('id')} has no route settings; set its condition in the designer`);
+    insertAfterEl(f, condition(doc, f.getAttribute('id')!, text), last);
+  };
+  const done: string[] = [];
+  if (name !== undefined) { route.setAttribute('name', name); done.push(`renamed to "${name}"`); }
+  if (makeDefault && !isDefault) {
+    const old = idIndex(doc).get(gw.getAttribute('default') ?? '');
+    const moved = cond?.trim() || children(route, 'conditionExpression')[0]?.textContent?.trim();
+    if (old) {
+      if (!moved) throw new Error(`give ${id} a condition or pass "condition": the old default route ${old.getAttribute('id')} takes it`);
+      setCond(old, moved);
+    }
+    setCond(route, undefined);
+    gw.setAttribute('default', id);
+    done.push(`made the default route${old ? `; ${old.getAttribute('id')} takes the condition ${moved}` : ''}`);
+  } else if (cond !== undefined) {
+    if (isDefault) throw new Error(`${id} is the default route and has no condition; make another route the default first (set_route default: true)`);
+    if (!cond.trim()) throw new Error('a route other than the default needs a condition');
+    setCond(route, cond.trim());
+    done.push(`condition ${cond.trim()}`);
+  }
+  if (!done.length) throw new Error('nothing to change: pass name, condition or default');
+  return `${id}: ${done.join(', ')}`;
+}
+
+/**
+ * Remove a router or multicast whose routes are empty again: every route leads straight to the same next element
+ * (or to a Join, or to an End event of its own). The step before is connected to that element; the router or
+ * multicast, its routes, its Join and those End events go.
+ */
+export function removeGateway(doc: Document, ref: string): string {
+  const gw = findElement(doc, ref);
+  const gwId = gw.getAttribute('id')!;
+  const type = readProps(gw).activityType;
+  if (!['exclusiveGateway', 'parallelGateway'].includes(gw.localName ?? '') || type === 'Join') {
+    throw new Error(`${gwId} is not a router or multicast${type === 'Join' ? ' (a Join goes with its multicast)' : ''}`);
+  }
+  const index = idIndex(doc);
+  const flows = byTag(doc, 'sequenceFlow');
+  const inc = flows.filter((f) => f.getAttribute('targetRef') === gwId);
+  if (inc.length !== 1) throw new Error(`${gwId} must have exactly one incoming flow (has ${inc.length})`);
+  const routes = flows.filter((f) => f.getAttribute('sourceRef') === gwId);
+  const targetOf = (f: Element) => index.get(f.getAttribute('targetRef')!)!;
+  const ownEnd = (el: Element) => el.localName === 'endEvent' && flows.filter((f) => f.getAttribute('targetRef') === el.getAttribute('id')).length === 1
+    && !byTag(doc, 'messageFlow').some((m) => [m.getAttribute('sourceRef'), m.getAttribute('targetRef')].includes(el.getAttribute('id')));
+  const joins = new Set(routes.map(targetOf).filter((t) => readProps(t).activityType === 'Join'));
+  let join = joins.size === 1 ? [...joins][0]! : undefined;
+  if (join && flows.some((f) => f.getAttribute('targetRef') === join!.getAttribute('id') && f.getAttribute('sourceRef') !== gwId)) join = undefined;
+  const joinOut = join ? flows.find((f) => f.getAttribute('sourceRef') === join!.getAttribute('id')) : undefined;
+  const dflt = routes.find((f) => f.getAttribute('id') === gw.getAttribute('default')) ?? routes[0]!;
+  const next = joinOut ? targetOf(joinOut) : targetOf(dflt);
+  const blocked = routes.filter((f) => { const t = targetOf(f); return t !== next && t !== join && !ownEnd(t); });
+  if (blocked.length) {
+    throw new Error(`routes of ${gwId} still have steps: ${blocked.map((f) => `${f.getAttribute('name') ?? f.getAttribute('id')} -> ${targetOf(f).getAttribute('name') ?? targetOf(f).getAttribute('id')}`).join(', ')}; remove those first`);
+  }
+  const gone = new Set<string>([gwId, ...routes.map((f) => f.getAttribute('id')!)]);
+  for (const f of routes) { const t = targetOf(f); if (t !== next && t !== join) gone.add(t.getAttribute('id')!); }
+  if (join) { gone.add(join.getAttribute('id')!); gone.add(joinOut!.getAttribute('id')!); }
+  const inFlow = inc[0]!;
+  inFlow.setAttribute('targetRef', next.getAttribute('id')!);
+  setRefs(next, 'incoming', [...refsOf(next, 'incoming').filter((x) => !gone.has(x)), inFlow.getAttribute('id')!]);
+  for (const di of [...byTag(doc, 'BPMNShape', NS.bpmndi), ...byTag(doc, 'BPMNEdge', NS.bpmndi)]) if (gone.has(di.getAttribute('bpmnElement')!)) removeEl(di);
+  for (const id of gone) { const el = index.get(id); if (el?.parentNode) removeEl(el); }
+  const edge = edgeOf(doc, inFlow.getAttribute('id')!);
+  if (edge) edge.setAttribute('targetElement', `BPMNShape_${next.getAttribute('id')}`);
+  return `removed ${gwId}${join ? ` and its Join ${join.getAttribute('id')}` : ''} with ${routes.length} routes; ${inFlow.getAttribute('sourceRef')} leads to ${next.getAttribute('id')} again`;
+}
+
 // ---------- exception subprocess ----------
 
 /** The process an operation means: by id or name, else the one with a message start event (the main process) */
@@ -681,9 +941,9 @@ export function removeExceptionSubprocess(doc: Document, process?: string): stri
 
 // ---------- layout ----------
 
-/** The straight route through a process or subprocess, start to end; refuses branches and stray elements */
-function straightChain(container: Element, skip: (n: Element) => boolean): { chain: Element[]; chainFlows: Element[] } {
-  const nodes = children(container).filter((n) => !['extensionElements', 'sequenceFlow', 'documentation'].includes(n.localName ?? '') && !skip(n));
+/** The straight route through a subprocess, start to end; refuses branches and stray elements */
+function straightChain(container: Element): { chain: Element[]; chainFlows: Element[] } {
+  const nodes = flowNodes(container);
   const where = container.getAttribute('name') ?? container.getAttribute('id');
   const starts = nodes.filter((n) => n.localName === 'startEvent');
   if (starts.length !== 1) throw new Error(`layout needs exactly one start event in "${where}" (has ${starts.length})`);
@@ -694,21 +954,237 @@ function straightChain(container: Element, skip: (n: Element) => boolean): { cha
     const id = chain.at(-1)!.getAttribute('id');
     const out = flows.filter((f) => f.getAttribute('sourceRef') === id);
     if (!out.length) break;
-    if (out.length > 1) throw new Error(`layout handles straight flows only; ${id} has ${out.length} outgoing routes: use the designer`);
+    if (out.length > 1) throw new Error(`layout handles straight exception subprocesses only; ${id} has ${out.length} outgoing routes: use the designer`);
     chainFlows.push(out[0]!);
     const next = nodes.find((n) => n.getAttribute('id') === out[0]!.getAttribute('targetRef'));
-    if (!next || chain.includes(next)) throw new Error(`layout handles straight flows only (loop or broken route at ${id})`);
+    if (!next || chain.includes(next)) throw new Error(`layout: loop or broken route at ${id}`);
     chain.push(next);
   }
   if (chain.length !== nodes.length) {
     const rest = nodes.filter((n) => !chain.includes(n)).map((n) => n.getAttribute('id'));
-    throw new Error(`layout handles straight flows only; not on the route in "${where}": ${rest.join(', ')} (branches): use the designer`);
+    throw new Error(`layout: not on the route in "${where}": ${rest.join(', ')}: use the designer`);
   }
   return { chain, chainFlows };
 }
 
+/** The flow nodes of a process or subprocess (steps, events, gateways), without exception subprocesses */
+const flowNodes = (container: Element) =>
+  children(container).filter((n) => !['extensionElements', 'sequenceFlow', 'documentation'].includes(n.localName ?? '') && !isExceptionSub(n));
+
+type Placed = { x: number; y: number; w: number; h: number; el: Element };
+
+/** Straighten or bend an edge between two placed shapes: same row straight, otherwise at right angles */
+function routeEdge(doc: Document, flowId: string, a: Placed, b: Placed, centred: boolean, over?: number) {
+  const edge = edgeOf(doc, flowId);
+  if (!edge) return;
+  const wps = children(edge, 'waypoint', NS.di);
+  const [acx, acy, bcx, bcy] = [a.x + a.w / 2, a.y + a.h / 2, b.x + b.w / 2, b.y + b.h / 2];
+  let pts: Array<[number, number]>;
+  // over the top of the elements between (a route that skips them on the same row), as the designer draws it
+  if (over !== undefined) pts = [[acx, a.y], [acx, over], [bcx, over], [bcx, b.y]];
+  else if (Math.abs(acy - bcy) < 1) pts = centred ? [[acx, acy], [bcx, bcy]] : [[a.x + a.w, acy], [b.x, bcy]];
+  // into a branch row: down (or up) from the source, then right into the target
+  else if (b.x > a.x + a.w && isBranching(doc, flowId)) {
+    pts = [[acx, bcy > acy ? a.y + a.h : a.y], [acx, bcy], [b.x, bcy]];
+  } else pts = [[a.x + a.w, acy], [bcx, acy], [bcx, bcy > acy ? b.y : b.y + b.h]]; // back from a branch: right, then up or down
+  // reuse the first and last waypoint elements, replace the ones between
+  for (const wp of wps.slice(1, -1)) removeEl(wp);
+  const [first, last] = [wps[0]!, wps.at(-1)!];
+  first.setAttribute('x', fmt(pts[0]![0])); first.setAttribute('y', fmt(pts[0]![1]));
+  last.setAttribute('x', fmt(pts.at(-1)![0])); last.setAttribute('y', fmt(pts.at(-1)![1]));
+  for (const [x, y] of pts.slice(1, -1)) {
+    const wp = elementNS(doc, 'di:waypoint', { x: fmt(x), 'xsi:type': 'dc:Point', y: fmt(y) });
+    edge.insertBefore(doc.createTextNode(indentBefore(last)), last);
+    edge.insertBefore(wp, last);
+  }
+}
+/** True when the flow leaves a node with several outgoing flows (a route or branch, not the way back) */
+const isBranching = (doc: Document, flowId: string) => {
+  const f = idIndex(doc).get(flowId);
+  const src = f?.getAttribute('sourceRef');
+  return !!src && byTag(doc, 'sequenceFlow').filter((x) => x.getAttribute('sourceRef') === src).length > 1;
+};
+
+/**
+ * Lay out one integration process, left to right: every element in the column of its longest path from the start
+ * (so joins come after all their branches); the first route of a router or multicast stays on its row, every
+ * further route gets a new row below; the standard gap of 50 between columns, 40 between rows. An exception
+ * subprocess (straight inside) goes in a row below; the pool is fitted; the start event's sender sits left of the
+ * pool and every other Sender/Receiver box below or above its step.
+ */
+export function layoutStraight(doc: Document): string {
+  const processes = byTag(doc, 'process');
+  if (processes.length !== 1) throw new Error(`layout handles one integration process; this iFlow has ${processes.length} (local processes): use the designer`);
+  const proc = processes[0]!;
+  const subs = children(proc, 'subProcess');
+  const other = subs.find((x) => !isExceptionSub(x));
+  if (other) throw new Error(`layout handles exception subprocesses only; ${other.getAttribute('id')} is another kind of subprocess: use the designer`);
+  const nodes = flowNodes(proc);
+  const byId = new Map(nodes.map((n) => [n.getAttribute('id')!, n]));
+  const starts = nodes.filter((n) => n.localName === 'startEvent');
+  if (starts.length !== 1) throw new Error(`layout needs exactly one start event (has ${starts.length})`);
+  const flows = children(proc, 'sequenceFlow');
+  const out = (id: string) => {
+    // in the order the node lists them (the designer's order: the first route stays on the row)
+    const order = children(byId.get(id)!, 'outgoing').map((o) => o.textContent?.trim());
+    return flows.filter((f) => f.getAttribute('sourceRef') === id)
+      .sort((a, b) => (order.indexOf(a.getAttribute('id')!) + 1 || 99) - (order.indexOf(b.getAttribute('id')!) + 1 || 99));
+  };
+
+  // columns: longest path from the start (Kahn's order; a loop is refused)
+  const indeg = new Map(nodes.map((n) => [n.getAttribute('id')!, 0]));
+  for (const f of flows) if (byId.has(f.getAttribute('targetRef')!)) indeg.set(f.getAttribute('targetRef')!, indeg.get(f.getAttribute('targetRef')!)! + 1);
+  const col = new Map<string, number>();
+  const queue = [starts[0]!.getAttribute('id')!];
+  col.set(queue[0]!, 0);
+  const seen = new Set<string>();
+  while (queue.length) {
+    const id = queue.shift()!;
+    seen.add(id);
+    for (const f of out(id)) {
+      const t = f.getAttribute('targetRef')!;
+      if (!byId.has(t)) continue;
+      col.set(t, Math.max(col.get(t) ?? 0, col.get(id)! + 1));
+      indeg.set(t, indeg.get(t)! - 1);
+      if (indeg.get(t) === 0) queue.push(t);
+    }
+  }
+  const stray = nodes.filter((n) => !seen.has(n.getAttribute('id')!)).map((n) => n.getAttribute('id'));
+  if (stray.length) throw new Error(`layout: ${stray.join(', ')} not reachable from the start, or in a loop: use the designer`);
+  // rows: depth first; the first route keeps the row, every further one opens the next free row
+  const row = new Map<string, number>();
+  let rows = 0;
+  const visit = (id: string, r: number) => {
+    if (row.has(id)) return;
+    row.set(id, r);
+    out(id).forEach((f, i) => {
+      const t = f.getAttribute('targetRef')!;
+      if (byId.has(t) && !row.has(t)) visit(t, i === 0 ? r : ++rows);
+    });
+  };
+  visit(starts[0]!.getAttribute('id')!, 0);
+  // compact: a branch row moves up to the first row below its origin that is free in its columns (one column of
+  // margin for the bends), so branches far apart share a row
+  const span = (r: number) => {
+    const cs = nodes.filter((n) => row.get(n.getAttribute('id')!) === r).map((n) => col.get(n.getAttribute('id')!)!);
+    return cs.length ? [Math.min(...cs) - 1, Math.max(...cs) + 1] as const : undefined;
+  };
+  for (let r = 2; r <= rows; r++) {
+    const mine = span(r);
+    if (!mine) continue;
+    const origin = Math.max(0, ...flows.filter((f) => row.get(f.getAttribute('targetRef')!) === r && row.get(f.getAttribute('sourceRef')!) !== r)
+      .map((f) => row.get(f.getAttribute('sourceRef')!) ?? 0));
+    for (let q = origin + 1; q < r; q++) {
+      const other = span(q);
+      if (other && other[0] <= mine[1] && mine[0] <= other[1]) continue;
+      for (const [id, x] of row) if (x === r) row.set(id, q);
+      break;
+    }
+  }
+  const used = [...new Set(row.values())].sort((x, y) => x - y);
+  for (const [id, x] of row) row.set(id, used.indexOf(x));
+  rows = used.length - 1;
+
+  const collab = byTag(doc, 'collaboration')[0]!;
+  const poolId = children(collab, 'participant').find((p) => p.getAttribute('processRef') === proc.getAttribute('id'))?.getAttribute('id');
+  const poolShape = poolId ? shapeOf(doc, poolId) : undefined;
+  if (!poolShape) throw new Error('the integration process has no diagram shape');
+  const shapeBounds = new Map(nodes.map((n) => {
+    const sh = shapeOf(doc, n.getAttribute('id')!);
+    if (!sh) throw new Error(`${n.getAttribute('id')} has no diagram shape`);
+    return [n.getAttribute('id')!, bounds(sh)];
+  }));
+
+  // edge ends on borders or centres, as the file already does
+  const GAP = 50, ROW_GAP = 40;
+  const first = shapeBounds.get(starts[0]!.getAttribute('id')!)!;
+  const firstEdge = edgeOf(doc, out(starts[0]!.getAttribute('id')!)[0]?.getAttribute('id') ?? '');
+  const firstWp = firstEdge && children(firstEdge, 'waypoint', NS.di)[0];
+  const centred = !!firstWp && Math.abs(Number(firstWp.getAttribute('x')) - (first.x + first.w / 2)) < 1;
+
+  const cols = Math.max(...col.values()) + 1;
+  const colW = Array.from({ length: cols }, (_, c) => Math.max(...nodes.filter((n) => col.get(n.getAttribute('id')!) === c).map((n) => shapeBounds.get(n.getAttribute('id')!)!.w)));
+  const colX: number[] = [];
+  colW.reduce((x, w, c) => { colX[c] = x; return x + w + GAP; }, first.x);
+  const rowH = Array.from({ length: rows + 1 }, (_, r) => Math.max(...nodes.filter((n) => row.get(n.getAttribute('id')!) === r).map((n) => shapeBounds.get(n.getAttribute('id')!)!.h)));
+  const rowCy: number[] = [];
+  rowH.reduce((top, h, r) => { rowCy[r] = r === 0 ? first.y + first.h / 2 : top + h / 2; return (r === 0 ? first.y + first.h / 2 + h / 2 : top + h) + ROW_GAP; }, 0);
+  const placed = new Map<string, Placed>();
+  for (const n of nodes) {
+    const id = n.getAttribute('id')!;
+    const b = shapeBounds.get(id)!;
+    const c = col.get(id)!;
+    const x = cols === nodes.length || rows === 0 ? colX[c]! : colX[c]! + (colW[c]! - b.w) / 2;
+    const y = rowCy[row.get(id)!]! - b.h / 2;
+    b.el.setAttribute('x', fmt(x)); b.el.setAttribute('y', fmt(y));
+    placed.set(id, { x, y, w: b.w, h: b.h, el: b.el });
+  }
+  for (const f of flows) {
+    const [sId, tId] = [f.getAttribute('sourceRef')!, f.getAttribute('targetRef')!];
+    const [a, b] = [placed.get(sId), placed.get(tId)];
+    if (!a || !b) continue;
+    // a route along its row that would run through the elements between: over their top
+    const between = row.get(sId) === row.get(tId) ? nodes.filter((n) => {
+      const id = n.getAttribute('id')!;
+      return row.get(id) === row.get(sId) && col.get(id)! > col.get(sId)! && col.get(id)! < col.get(tId)!;
+    }) : [];
+    const over = between.length ? Math.min(...between.map((n) => placed.get(n.getAttribute('id')!)!.y)) - 15 : undefined;
+    routeEdge(doc, f.getAttribute('id')!, a, b, centred, over);
+  }
+  let right = Math.max(...[...placed.values()].map((b) => b.x + b.w));
+  let bottom = Math.max(...[...placed.values()].map((b) => b.y + b.h));
+  const pool = bounds(poolShape);
+  const placedAll: Array<readonly [Element, Placed]> = nodes.map((n) => [n, placed.get(n.getAttribute('id')!)!] as const);
+
+  const sub = subs[0];
+  const inner = sub ? straightChain(sub) : undefined;
+  if (sub && inner) {
+    // the subprocess box below the rows: events 33 in from its border, 46 down, as the designer draws them
+    const subShape = shapeOf(doc, sub.getAttribute('id')!);
+    if (!subShape) throw new Error(`${sub.getAttribute('id')} has no diagram shape`);
+    const box = bounds(subShape);
+    const top = bottom + 40;
+    const rowPlaced = placeRow(doc, inner.chain, inner.chainFlows, first.x + 33, top + 62, true);
+    const w = Math.max(SUB.w, rowPlaced.at(-1)!.x + rowPlaced.at(-1)!.w + 52 - first.x);
+    box.el.setAttribute('x', fmt(first.x)); box.el.setAttribute('y', fmt(top));
+    box.el.setAttribute('width', fmt(w)); box.el.setAttribute('height', fmt(SUB.h));
+    // a lone end event sits at the right end, as in a new subprocess
+    if (inner.chain.length === 2) {
+      const e = rowPlaced[1]!;
+      e.el.setAttribute('x', fmt(first.x + w - 84));
+      const edge = edgeOf(doc, inner.chainFlows[0]!.getAttribute('id')!);
+      if (edge) children(edge, 'waypoint', NS.di).at(-1)!.setAttribute('x', fmt(first.x + w - 84 + e.w / 2));
+      rowPlaced[1] = { ...e, x: first.x + w - 84 };
+    }
+    right = Math.max(right, first.x + w);
+    bottom = top + SUB.h;
+    inner.chain.forEach((n, i) => placedAll.push([n, rowPlaced[i]!]));
+  }
+  pool.el.setAttribute('width', fmt(right + GAP - pool.x));
+  // the pool keeps its height unless the content needs more (20 below a subprocess, 40 below branch rows)
+  const need = bottom + (sub ? 20 : rows ? ROW_GAP : 0) - pool.y;
+  if (sub || need > pool.h) pool.el.setAttribute('height', fmt(Math.max(sub ? 0 : pool.h, need)));
+
+  // Sender/Receiver boxes connected to the flow
+  let boxes = 0;
+  for (const mf of children(collab, 'messageFlow')) {
+    const [from, to] = [mf.getAttribute('sourceRef')!, mf.getAttribute('targetRef')!];
+    const hit = placedAll.find(([n]) => [from, to].includes(n.getAttribute('id')!));
+    if (!hit) continue;
+    const box = shapeOf(doc, hit[0].getAttribute('id') === from ? to : from);
+    if (!box) continue;
+    placeBox(doc, box, { ...hit[1] }, hit[0].localName === 'startEvent' && hit[0].parentNode === proc);
+    boxes++;
+  }
+  routeAdapters(doc);
+  keepOnCanvas(doc);
+  const where = rows ? `in ${cols} columns and ${rows + 1} rows` : 'in one row';
+  return `laid out ${nodes.length} elements ${where}${inner ? ` and ${inner.chain.length} in the exception subprocess below` : ''} ` +
+    `(pool width ${right + GAP - pool.x}), ${boxes} Sender/Receiver box(es) placed`;
+}
+
 /** Place a chain in one row from x, centred on cy, with the standard gap; straighten its edges */
-function placeRow(doc: Document, chain: Element[], chainFlows: Element[], x: number, cy: number, centred: boolean) {
+function placeRow(doc: Document, chain: Element[], chainFlows: Element[], x: number, cy: number, centred: boolean): Placed[] {
   const GAP = 50;
   const placed = chain.map((n) => {
     const sh = shapeOf(doc, n.getAttribute('id')!);
@@ -719,94 +1195,8 @@ function placeRow(doc: Document, chain: Element[], chainFlows: Element[], x: num
     x += b.w + GAP;
     return r;
   });
-  chainFlows.forEach((f, i) => {
-    const edge = edgeOf(doc, f.getAttribute('id')!);
-    if (!edge) return;
-    const wps = children(edge, 'waypoint', NS.di);
-    for (const wp of wps.slice(1, -1)) removeEl(wp);
-    const [a, b] = [placed[i]!, placed[i + 1]!];
-    const ends = centred ? [[a.x + a.w / 2, cy], [b.x + b.w / 2, cy]] : [[a.x + a.w, cy], [b.x, cy]];
-    for (const [wp, [px, py]] of [[wps[0]!, ends[0]!], [wps.at(-1)!, ends[1]!]] as const) { wp.setAttribute('x', fmt(px!)); wp.setAttribute('y', fmt(py!)); }
-  });
+  chainFlows.forEach((f, i) => routeEdge(doc, f.getAttribute('id')!, placed[i]!, placed[i + 1]!, centred));
   return placed;
-}
-
-/**
- * Lay out a straight iFlow (one integration process: Start -> steps -> End, no branches) the tidy way: one row with
- * the standard gap; an exception subprocess (itself straight) in a row below, sized to its content; the pool fitted
- * around both; the start event's sender left of the pool and every other Sender/Receiver box below its step.
- * Branched flows are refused: the designer lays those out better.
- */
-export function layoutStraight(doc: Document): string {
-  const processes = byTag(doc, 'process');
-  if (processes.length !== 1) throw new Error(`layout handles one integration process; this iFlow has ${processes.length} (local processes): use the designer`);
-  const proc = processes[0]!;
-  const subs = children(proc, 'subProcess');
-  const other = subs.find((x) => !isExceptionSub(x));
-  if (other) throw new Error(`layout handles exception subprocesses only; ${other.getAttribute('id')} is another kind of subprocess: use the designer`);
-  const main = straightChain(proc, isExceptionSub);
-  const sub = subs[0];
-  const inner = sub ? straightChain(sub, () => false) : undefined;
-  const collab = byTag(doc, 'collaboration')[0]!;
-  const poolId = children(collab, 'participant').find((p) => p.getAttribute('processRef') === proc.getAttribute('id'))?.getAttribute('id');
-  const poolShape = poolId ? shapeOf(doc, poolId) : undefined;
-  if (!poolShape) throw new Error('the integration process has no diagram shape');
-
-  // edge ends on borders or centres, as the file already does
-  const GAP = 50;
-  const firstShape = shapeOf(doc, main.chain[0]!.getAttribute('id')!);
-  if (!firstShape) throw new Error('the start event has no diagram shape');
-  const first = bounds(firstShape);
-  const firstEdge = edgeOf(doc, main.chainFlows[0]?.getAttribute('id') ?? '');
-  const firstWp = firstEdge && children(firstEdge, 'waypoint', NS.di)[0];
-  const centred = !!firstWp && Math.abs(Number(firstWp.getAttribute('x')) - (first.x + first.w / 2)) < 1;
-
-  const placed = placeRow(doc, main.chain, main.chainFlows, first.x, first.y + first.h / 2, centred);
-  const rowEnd = placed.at(-1)!.x + placed.at(-1)!.w;
-  const pool = bounds(poolShape);
-  let right = rowEnd;
-  let bottom = pool.y + pool.h;
-  const placedAll = main.chain.map((n, i) => [n, placed[i]!] as const);
-  if (sub && inner) {
-    // the subprocess box below the main row: events 33 in from its border, 46 down, as the designer draws them
-    const subShape = shapeOf(doc, sub.getAttribute('id')!);
-    if (!subShape) throw new Error(`${sub.getAttribute('id')} has no diagram shape`);
-    const box = bounds(subShape);
-    const top = Math.max(...placed.map((b) => b.y + b.h)) + 40;
-    const row = placeRow(doc, inner.chain, inner.chainFlows, first.x + 33, top + 62, true);
-    const w = Math.max(SUB.w, row.at(-1)!.x + row.at(-1)!.w + 52 - first.x);
-    box.el.setAttribute('x', fmt(first.x)); box.el.setAttribute('y', fmt(top));
-    box.el.setAttribute('width', fmt(w)); box.el.setAttribute('height', fmt(SUB.h));
-    // a lone end event sits at the right end, as in a new subprocess
-    if (inner.chain.length === 2) {
-      const e = row[1]!;
-      e.el.setAttribute('x', fmt(first.x + w - 84));
-      const edge = edgeOf(doc, inner.chainFlows[0]!.getAttribute('id')!);
-      if (edge) children(edge, 'waypoint', NS.di).at(-1)!.setAttribute('x', fmt(first.x + w - 84 + e.w / 2));
-      row[1] = { ...e, x: first.x + w - 84 };
-    }
-    right = Math.max(right, first.x + w);
-    bottom = top + SUB.h + 20;
-    inner.chain.forEach((n, i) => placedAll.push([n, row[i]!]));
-  }
-  pool.el.setAttribute('width', fmt(right + GAP - pool.x));
-  if (sub) pool.el.setAttribute('height', fmt(bottom - pool.y));
-
-  // Sender/Receiver boxes connected to the flow
-  let boxes = 0;
-  for (const mf of children(collab, 'messageFlow')) {
-    const [from, to] = [mf.getAttribute('sourceRef')!, mf.getAttribute('targetRef')!];
-    const hit = placedAll.find(([n]) => [from, to].includes(n.getAttribute('id')!));
-    if (!hit) continue;
-    const box = shapeOf(doc, hit[0].getAttribute('id') === from ? to : from);
-    if (!box) continue;
-    placeBox(doc, box, { ...hit[1], el: box }, hit[0].localName === 'startEvent' && hit[0].parentNode === proc);
-    boxes++;
-  }
-  routeAdapters(doc);
-  keepOnCanvas(doc);
-  return `laid out ${main.chain.length} elements in one row${inner ? ` and ${inner.chain.length} in the exception subprocess below` : ''} ` +
-    `(pool width ${right + GAP - pool.x}), ${boxes} Sender/Receiver box(es) placed`;
 }
 
 export function rename(el: Element, name: string) {

@@ -2,7 +2,7 @@
 import type { Document } from '@xmldom/xmldom';
 import { findEntries, pickVersion, type Catalog } from '../catalog.js';
 import {
-  adapterDirectionFor, addAdapter, addExceptionSubprocess, editTable, findElement, insertStepAfter, layoutStraight, removeAdapter, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
+  adapterDirectionFor, addAdapter, addExceptionSubprocess, addMulticast, addRouter, editTable, findRoute, removeGateway, setRoute, type RouteInput, findElement, insertStepAfter, layoutStraight, removeAdapter, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
 } from './edit.js';
 import { parseVariant, readProps, type Props } from './model.js';
 
@@ -10,7 +10,9 @@ export type EditOp =
   | {
     op: 'insert_step';
     /** id or unique name of the step to insert after */
-    after: string;
+    after?: string;
+    /** or: a route of a router or branch of a multicast (id or name), to insert at its start */
+    route?: string;
     /** catalog entry: key, component name ("Enricher") or label ("Content Modifier") */
     type: string;
     version?: string;
@@ -49,12 +51,31 @@ export type EditOp =
     end?: 'error' | 'message';
   }
   | { op: 'remove_exception_subprocess'; process?: string }
+  | {
+    op: 'add_router';
+    after: string;
+    name?: string;
+    routes: RouteInput[];
+    /** XML: conditions are XPath; NonXML: Camel Simple (${header.x} = 'a') */
+    expressionType?: 'XML' | 'NonXML';
+  }
+  | { op: 'add_multicast'; after: string; name?: string; kind?: 'parallel' | 'sequential'; branches: string[]; join?: boolean }
+  | { op: 'set_route'; route: string; name?: string; condition?: string; default?: boolean }
+  | { op: 'remove_gateway'; gateway: string }
   | { op: 'layout' }
   | { op: 'set'; element: string; settings?: Props; mapping?: string; expression?: string; allowNewKeys?: boolean }
   | { op: 'rename'; element: string; name: string }
   | { op: 'headers' | 'properties'; step: string; set?: TableRowInput[]; remove?: string[] };
 
 const TABLE_KEYS = new Set(['headerTable', 'propertyTable']);
+
+/** Default settings of a catalog entry, in the version this iFlow already uses (else the latest) */
+function catalogProps(catalog: Catalog, cname: string, doc: Document): Props {
+  const key = Object.keys(catalog.entries).find((k) => parseVariant(k).cname === cname && catalog.entries[k]!.kind !== 'adapter');
+  if (!key) throw new Error(`the catalog has no ${cname}`);
+  const entry = catalog.entries[key]!;
+  return { ...entry.versions[pickVersion(entry, key, doc).version]!.properties };
+}
 const SCRIPT_STEPS = new Set(['GroovyScript', 'JavaScript']);
 /** mapping steps and the scheme of their mappinguri */
 const MAPPING_STEPS: Record<string, string> = { XSLTMapping: 'mapping/xslt', MessageMapping: 'mmap' };
@@ -110,7 +131,9 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
           if (!['callActivity', 'serviceTask'].includes(entry.bpmn)) throw new Error(`${entry.label} (${entry.bpmn}) cannot be inserted as a step yet`);
           const { version, reason } = pickVersion(entry, key, doc, op.version);
           const properties: Props = { ...entry.versions[version]!.properties };
-          const after = findElement(doc, op.after).getAttribute('id')!;
+          if (!op.after === !op.route) throw new Error('give either "after" (a step) or "route" (a route of a router or branch of a multicast)');
+          const onRoute = op.route ? findRoute(doc, op.route) : undefined;
+          const after = onRoute ? onRoute.getAttribute('sourceRef')! : findElement(doc, op.after!).getAttribute('id')!;
           for (const k of Object.keys(op.settings ?? {})) {
             if (TABLE_KEYS.has(k)) throw new Error(`use "headers"/"properties" instead of the raw ${k} setting`);
             if (!(k in properties)) throw new Error(`${entry.label} ${version} has no setting "${k}"; settings: ${Object.keys(properties).sort().join(', ')}`);
@@ -130,11 +153,14 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
           }
           const { stepId } = insertStepAfter(doc, after, {
             name: op.name ?? entry.label, properties, bpmn: entry.bpmn, ...(entry.versions[version]!.size ? { size: entry.versions[version]!.size! } : {}),
+            ...(onRoute ? { flowId: onRoute.getAttribute('id')! } : {}),
           });
           const el = findElement(doc, stepId);
           if (op.headers?.length) editTable(el, 'headerTable', { set: op.headers });
           if (op.properties?.length) editTable(el, 'propertyTable', { set: op.properties });
-          log.push(`inserted ${stepId} "${op.name ?? entry.label}" (${entry.label} ${version}, ${reason}) after ${after}`);
+          log.push(`inserted ${stepId} "${op.name ?? entry.label}" (${entry.label} ${version}, ${reason}) ${onRoute ? `at the start of route ${onRoute.getAttribute('id')}` : `after ${after}`}`);
+          // a step on a route goes into that route's row: lay the process out again where possible
+          if (onRoute) { try { log.push(layoutStraight(doc)); } catch (e) { log.push(`not laid out (${(e as Error).message}); the new step sits next to ${after}`); } }
           break;
         }
         case 'remove_step': {
@@ -184,6 +210,42 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
         }
         case 'remove_exception_subprocess': {
           log.push(`removed exception subprocess ${removeExceptionSubprocess(doc, op.process)} with its content`);
+          break;
+        }
+        case 'add_router': {
+          const after = findElement(doc, op.after).getAttribute('id')!;
+          const r = addRouter(doc, after, {
+            name: op.name ?? 'Router 1', routes: op.routes,
+            gatewayProps: catalogProps(catalog, 'ExclusiveGateway', doc),
+            routeProps: { ...catalogProps(catalog, 'GatewayRoute', doc), expressionType: op.expressionType ?? 'XML' },
+            endProps: catalogProps(catalog, 'MessageEndEvent', doc),
+          });
+          log.push(`added router ${r.gatewayId} after ${after} with routes ${r.routeIds.join(', ')} (default ${r.routeIds[0]})${r.endIds.length ? `, End events ${r.endIds.join(', ')}` : ''}; ` +
+            'insert steps on a route with insert_step "route"');
+          log.push(layoutStraight(doc));
+          break;
+        }
+        case 'add_multicast': {
+          const after = findElement(doc, op.after).getAttribute('id')!;
+          const sequential = op.kind === 'sequential';
+          const r = addMulticast(doc, after, {
+            name: op.name ?? (sequential ? 'Sequential Multicast 1' : 'Parallel Multicast 1'), branches: op.branches, join: op.join ?? true, sequential,
+            gatewayProps: catalogProps(catalog, sequential ? 'SequentialMulticast' : 'Multicast', doc),
+            joinProps: catalogProps(catalog, 'Join', doc),
+            endProps: catalogProps(catalog, 'MessageEndEvent', doc),
+          });
+          log.push(`added ${sequential ? 'sequential' : 'parallel'} multicast ${r.gatewayId} after ${after} with branches ${r.branchIds.join(', ')}` +
+            `${r.joinId ? `, joined in ${r.joinId}` : ''}${r.endIds.length ? `, End events ${r.endIds.join(', ')}` : ''}; insert steps on a branch with insert_step "route"`);
+          log.push(layoutStraight(doc));
+          break;
+        }
+        case 'set_route': {
+          log.push(setRoute(doc, op.route, { ...(op.name !== undefined ? { name: op.name } : {}), ...(op.condition !== undefined ? { condition: op.condition } : {}), ...(op.default ? { makeDefault: true } : {}) }));
+          break;
+        }
+        case 'remove_gateway': {
+          log.push(removeGateway(doc, op.gateway));
+          log.push(layoutStraight(doc));
           break;
         }
         case 'layout': {

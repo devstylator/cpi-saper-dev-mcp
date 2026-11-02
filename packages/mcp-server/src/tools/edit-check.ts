@@ -25,7 +25,8 @@ const row = z.object({
 const operation = z.discriminatedUnion('op', [
   z.object({
     op: z.literal('insert_step'),
-    after: ref.describe('Step after which to insert (must have exactly one outgoing flow)'),
+    after: ref.optional().describe('Step after which to insert (must have exactly one outgoing flow)'),
+    route: z.string().optional().describe('Instead of after: a route of a router or branch of a multicast (id or name); the step goes at its start'),
     type: z.string().describe('Catalog entry (templates_list): label like "Content Modifier", component name like "Enricher", or key'),
     version: z.string().optional().describe('Component version; default: the version this iFlow already uses, else the latest'),
     name: z.string().optional().describe('Step name; default: the catalog label'),
@@ -54,6 +55,33 @@ const operation = z.discriminatedUnion('op', [
       .describe('error: Error Start -> Error End, the message fails and the sender gets the error; message: Error Start -> End, the subprocess sends the reply (set it with steps)'),
   }).describe('Add an exception subprocess (one per process), drawn below the main flow; insert steps into it with insert_step after its Error Start'),
   z.object({ op: z.literal('remove_exception_subprocess'), process: z.string().optional() }).describe('Remove the exception subprocess with all steps in it (they must not have adapters)'),
+  z.object({
+    op: z.literal('add_router'),
+    after: ref.describe('Step after which the router goes (one outgoing flow)'),
+    name: z.string().optional(),
+    routes: z.array(z.object({
+      name: z.string(),
+      condition: z.string().optional().describe('XPath (expressionType XML), e.g. //region = \'EU\', or Camel Simple (NonXML), e.g. ${header.region} = \'EU\'; exactly one route has none: the default route'),
+      end: z.boolean().optional().describe('The route ends in its own End event instead of leading to the step that followed'),
+    })).min(2),
+    expressionType: z.enum(['XML', 'NonXML']).default('XML'),
+  }).describe('Add a router; all routes lead to the step that followed unless end is set; the process is laid out again'),
+  z.object({
+    op: z.literal('add_multicast'),
+    after: ref.describe('Step after which the multicast goes (one outgoing flow)'),
+    name: z.string().optional(),
+    kind: z.enum(['parallel', 'sequential']).default('parallel').describe('sequential runs the branches in the order given'),
+    branches: z.array(z.string()).min(2).describe('Branch names'),
+    join: z.boolean().default(true).describe('Branches meet in a Join before the step that followed (put a Gather after it to combine the messages); without, every branch but the first ends in its own End event'),
+  }).describe('Add a parallel or sequential multicast; the process is laid out again'),
+  z.object({
+    op: z.literal('set_route'),
+    route: z.string().describe('Route id or name'),
+    name: z.string().optional(),
+    condition: z.string().optional(),
+    default: z.boolean().optional().describe('Make it the default route; the old default route takes its condition'),
+  }),
+  z.object({ op: z.literal('remove_gateway'), gateway: ref.describe('Router or multicast whose routes have no steps left (with its Join)') }),
   z.object({ op: z.literal('remove_adapter'), adapter: z.string().describe('Adapter (message flow) id or unique name; its Sender/Receiver box stays') }),
   z.object({
     op: z.literal('set'),
@@ -89,8 +117,9 @@ export function registerEditCheckTools(server: McpServer) {
       description:
         'Apply semantic edits to a local iFlow in one batch: insert a step from the catalog (with settings, headers, ' +
         'properties), remove a step (its neighbours are reconnected), add or remove an adapter (with its Sender/Receiver ' +
-        'box), add or remove an exception subprocess (insert steps into it after its Error Start), tidy the layout of a ' +
-        'straight flow (with its exception subprocess), change settings of a step, adapter or the iFlow, ' +
+        'box), add or remove an exception subprocess (insert steps into it after its Error Start), add a router or a ' +
+        'parallel/sequential multicast (with Join) and put steps on its routes (insert_step "route"), change or remove ' +
+        'routes and gateways, lay out the process (branches in rows), change settings of a step, adapter or the iFlow, ' +
         'rename, and add/change/remove Content Modifier headers and properties. All operations succeed or nothing is ' +
         'written; edits that would introduce structural errors are refused. New elements are formatted like SAP\'s ' +
         'designer writes them and the diagram is laid out. Returns what changed (as iflow_diff) and the new step ids. ' +

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  applyEdits, byTag, children, CpiClient, describe, mappingSettings, NS, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
+  applyEdits, byTag, children, CpiClient, describe, mappingSettings, NS, textconv, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
   mappingText, parseIflw, readMapping, readProps, removeStep, runScript, runXslt, serializeIflw, validate,
 } from '../dist/index.js';
 
@@ -12,6 +12,21 @@ const located = locateIflow('sample-before', FIXTURES);
 const XML = readFileSync(located.iflwPath, 'utf8');
 const fresh = () => parseIflw(XML);
 const catalog = loadCatalog();
+
+/** Pairs of shapes that overlap, except a pool or subprocess with what it contains */
+function overlapping(doc: ReturnType<typeof parseIflw>): string[] {
+  const shapes = byTag(doc, 'BPMNShape', NS.bpmndi).map((s) => {
+    const b = children(s, 'Bounds', NS.dc)[0]!;
+    const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((k) => Number(b.getAttribute(k)));
+    return { id: s.getAttribute('bpmnElement')!, x: x!, y: y!, w: w!, h: h! };
+  });
+  const contains = (a: typeof shapes[0], b: typeof shapes[0]) => a.x <= b.x && a.y <= b.y && b.x + b.w <= a.x + a.w && b.y + b.h <= a.y + a.h;
+  const out: string[] = [];
+  shapes.forEach((a, i) => shapes.slice(i + 1).forEach((b) => {
+    if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h && !contains(a, b) && !contains(b, a)) out.push(`${a.id}/${b.id}`);
+  }));
+  return out;
+}
 
 test('insert then remove restores a straight sequence byte for byte', () => {
   const plain = serializeIflw(fresh());
@@ -209,7 +224,16 @@ test('layout: a straight flow in one even row, pool fitted, sender left, receive
   assert.deepEqual(box('Participant_1').slice(1), [40, 90], 'sender left of the pool, level with Start');
   assert.deepEqual(box('Participant_2').slice(1), [678, 340], 'receiver below its step');
   assert.deepEqual(validate(doc), []);
-  assert.throws(() => applyEdits(fresh(), [{ op: 'layout' }], catalog), /straight flows only/);
+  // a designer-made flow with a router: laid out in rows, nothing overlaps, the model is unchanged
+  const routed = fresh();
+  const model = describe(routed, { maxLen: 0 });
+  assert.match(applyEdits(routed, [{ op: 'layout' }], catalog)[0]!, /laid out 8 elements in one row/);
+  // the router's second route skips "Claude marker" on the same row: it goes over the top
+  const skip = byTag(routed, 'BPMNEdge', NS.bpmndi).find((e) => e.getAttribute('bpmnElement') === 'SequenceFlow_19')!;
+  assert.deepEqual(children(skip, 'waypoint', NS.di).map((w) => Number(w.getAttribute('y'))), [120, 95, 95, 124]);
+  assert.deepEqual(describe(routed, { maxLen: 0 }), model);
+  assert.deepEqual(overlapping(routed), []);
+  assert.deepEqual(validate(routed), []);
 });
 
 test('XSLT Mapping: "mapping" sets uri, path and name as the designer does; a mapping step without a file is refused', () => {
@@ -350,4 +374,89 @@ test('exception subprocess that replies: Error Start -> End (message end)', () =
   assert.equal(children(end, 'messageEventDefinition').length, 1);
   assert.equal(readProps(end).cmdVariantUri, 'ctype::FlowstepVariant/cname::MessageEndEvent/version::1.1.0');
   assert.deepEqual(validate(doc), []);
+});
+
+test('router and multicast: build, steps on routes and branches, layout in rows, edit routes, remove again', () => {
+  const doc = parseIflw(EMPTY);
+  applyEdits(doc, [
+    { op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS', settings: { urlPath: '/branches' } },
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Content Modifier', name: 'Prepare' },
+    { op: 'add_router', after: 'Prepare', routes: [{ name: 'EU', condition: "${header.region} = 'EU'" }, { name: 'Other' }], expressionType: 'NonXML' },
+    { op: 'insert_step', route: 'EU', type: 'Content Modifier', name: 'Mark EU' },
+    { op: 'insert_step', route: 'Other', type: 'Content Modifier', name: 'Mark other' },
+    { op: 'add_multicast', after: 'Prepare', branches: ['A', 'B'] },
+    { op: 'insert_step', route: 'A', type: 'Content Modifier', name: 'Do A' },
+    { op: 'insert_step', route: 'B', type: 'Content Modifier', name: 'Do B' },
+  ], catalog);
+  const log = applyEdits(doc, [{ op: 'insert_step', after: 'Join', type: 'Gather', name: 'Gather' }, { op: 'layout' }], catalog);
+  assert.match(log.at(-1)!, /laid out 11 elements in 9 columns and 2 rows/, 'branches far apart share the second row');
+  assert.deepEqual(validate(doc), []);
+  assert.deepEqual(overlapping(doc), []);
+
+  // the router as the designer writes it: default attribute, route settings, a condition on the other route
+  const router = findElement(doc, 'Router 1');
+  const eu = byTag(doc, 'sequenceFlow').find((f) => f.getAttribute('name') === 'EU')!;
+  const other = byTag(doc, 'sequenceFlow').find((f) => f.getAttribute('name') === 'Other')!;
+  assert.equal(router.getAttribute('default'), other.getAttribute('id'));
+  assert.equal(readProps(eu).expressionType, 'NonXML');
+  assert.equal(readProps(eu).cmdVariantUri, 'ctype::FlowstepVariant/cname::GatewayRoute/version::1.0.0');
+  assert.equal(children(eu, 'conditionExpression')[0]!.textContent, "${header.region} = 'EU'");
+  assert.equal(children(other, 'conditionExpression').length, 0);
+  assert.equal(children(findElement(doc, 'Join'), 'incoming').length, 2);
+
+  // routes: rename, new condition, swap the default (the old default takes the condition)
+  applyEdits(doc, [
+    { op: 'set_route', route: 'EU', name: 'Europe', condition: "${header.region} in 'EU,EEA'" },
+    { op: 'set_route', route: 'Europe', default: true },
+  ], catalog);
+  assert.equal(router.getAttribute('default'), eu.getAttribute('id'));
+  assert.equal(children(eu, 'conditionExpression').length, 0);
+  assert.equal(children(other, 'conditionExpression')[0]!.textContent, "${header.region} in 'EU,EEA'", 'the old default takes the condition');
+  applyEdits(doc, [{ op: 'set_route', route: 'Other', condition: "${header.region} = 'US'" }], catalog);
+  assert.equal(children(other, 'conditionExpression')[0]!.textContent, "${header.region} = 'US'");
+  assert.throws(() => applyEdits(doc, [{ op: 'set_route', route: 'Europe', condition: '1 = 1' }], catalog), /default route and has no condition/);
+  assert.deepEqual(validate(doc), []);
+
+  // removing: refused while routes have steps; then everything back to Prepare -> Gather -> End
+  assert.throws(() => applyEdits(doc, [{ op: 'remove_gateway', gateway: 'Router 1' }], catalog), /still have steps: .*Mark/);
+  applyEdits(doc, [
+    { op: 'remove_step', step: 'Mark EU' }, { op: 'remove_step', step: 'Mark other' }, { op: 'remove_gateway', gateway: 'Router 1' },
+    { op: 'remove_step', step: 'Do A' }, { op: 'remove_step', step: 'Do B' }, { op: 'remove_gateway', gateway: 'Parallel Multicast 1' },
+  ], catalog);
+  const text = textconv(describe(doc, { maxLen: 0 }));
+  assert.match(text, /flow "Prepare" -> "Gather"/);
+  assert.match(text, /flow "Gather" -> "End"/);
+  assert.equal(byTag(doc, 'exclusiveGateway').length + byTag(doc, 'parallelGateway').length, 0);
+  assert.deepEqual(validate(doc), []);
+  assert.deepEqual(overlapping(doc), []);
+});
+
+test('sequential multicast without join, a router route with its own End, and refusals', () => {
+  const doc = parseIflw(EMPTY);
+  applyEdits(doc, [
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Content Modifier', name: 'Prepare' },
+    { op: 'add_multicast', after: 'Prepare', kind: 'sequential', branches: ['First', 'Second', 'Third'], join: false },
+  ], catalog);
+  const mc = findElement(doc, 'Sequential Multicast 1');
+  const ids = byTag(doc, 'sequenceFlow').filter((f) => f.getAttribute('sourceRef') === mc.getAttribute('id')).map((f) => f.getAttribute('id'));
+  assert.equal(readProps(mc).routingSequenceTable, ids.map((id, i) => `<row><cell>${i + 1}</cell><cell>${id}</cell></row>`).join(''));
+  assert.equal(byTag(doc, 'endEvent').length, 3, 'the first branch leads on, the others end in their own End event');
+  assert.deepEqual(validate(doc), []);
+  assert.deepEqual(overlapping(doc), []);
+
+  const r = parseIflw(EMPTY);
+  applyEdits(r, [{ op: 'add_router', after: 'StartEvent_2', routes: [{ name: 'Reject', condition: "//status = 'X'", end: true }, { name: 'Go on' }] }], catalog);
+  assert.equal(findElement(r, 'End Reject').localName, 'endEvent');
+  assert.deepEqual(validate(r), []);
+  // the route ends on its own: removing the router takes that End event along
+  applyEdits(r, [{ op: 'remove_gateway', gateway: 'Router 1' }], catalog);
+  assert.equal(byTag(r, 'endEvent').length, 1);
+  assert.deepEqual(validate(r), []);
+
+  const refused = (ops: object[], re: RegExp) => assert.throws(() => applyEdits(parseIflw(EMPTY), ops as never, catalog), re);
+  refused([{ op: 'add_router', after: 'StartEvent_2', routes: [{ name: 'A' }, { name: 'B' }] }], /exactly one route must have no condition/);
+  refused([{ op: 'add_router', after: 'StartEvent_2', routes: [{ name: 'A' }] }], /at least two routes/);
+  refused([{ op: 'add_multicast', after: 'StartEvent_2', branches: ['A', 'A'] }], /must be different/);
+  refused([{ op: 'insert_step', after: 'StartEvent_2', route: 'x', type: 'Content Modifier' }], /either "after".*or "route"/);
+  refused([{ op: 'set_route', route: 'SequenceFlow_3', name: 'x' }], /not a route of a router/);
 });
