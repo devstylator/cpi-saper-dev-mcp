@@ -206,3 +206,23 @@ export async function checkModel(client: CpiClient, id: string, version = 'activ
   const res = await client.raw('POST', `/ValidateIntegrationDesigntimeArtifact?Id='${q(id)}'&Version='${q(version)}'`);
   return { status: res.status, text: (await res.text()).slice(0, 3000) };
 }
+
+// ---------- configured values of externalized parameters ----------
+
+export interface ConfiguredValue { key: string; value: string; type: string; description?: string }
+
+/** The values an iFlow is configured with on the tenant (SAP's own keys such as SAP_ProfileId included) */
+export async function getConfigurations(client: CpiClient, id: string): Promise<ConfiguredValue[]> {
+  const rows = await client.odata<Array<Record<string, unknown>>>('GET', `${artifact(id)}/Configurations`);
+  return rows.map((r) => ({ key: String(r.ParameterKey), value: String(r.ParameterValue ?? ''), type: String(r.DataType ?? 'xsd:string'), ...(r.Description ? { description: String(r.Description) } : {}) }));
+}
+
+/**
+ * Configure one value. The tenant writes it into the design-time parameters.prop without a new version (measured);
+ * the runtime uses it after the next deploy.
+ */
+export async function setConfiguration(client: CpiClient, id: string, key: string, value: string, type: string): Promise<void> {
+  await client.raw('PUT', `${artifact(id)}/$links/Configurations('${q(key)}')`, {
+    body: JSON.stringify({ ParameterValue: value, DataType: type }), headers: { 'Content-Type': 'application/json' },
+  });
+}

@@ -57,9 +57,8 @@ export function locateIflow(target: string, workspace: string): LocatedIflow {
     dir,
     iflwPath: file ?? iflws[0]!,
     resourceFiles: new Set(walk(res).map((f) => posix(relative(res, f)))),
-    ...(existsSync(propdef)
-      ? { declaredParameters: new Set([...readFileSync(propdef, 'utf8').matchAll(/<name>([^<]*)<\/name>/g)].map((m) => m[1]!)) }
-      : {}),
+    // no parameters.propdef (a new iFlow): nothing is declared, so every {{name}} is reported
+    declaredParameters: new Set(existsSync(propdef) ? [...readFileSync(propdef, 'utf8').matchAll(/<name>([^<]*)<\/name>/g)].map((m) => m[1]!) : []),
   };
 }
 

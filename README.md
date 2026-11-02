@@ -38,7 +38,7 @@ adds no generic file tools.
 | `cpi_runtime_status` | Deployment state and deploy errors, with step IDs translated to step names | **Available**, v1 |
 | `cpi_endpoints` | HTTP endpoint URLs of deployed iFlows | Planned |
 | `cpi_security_material` | Names, types and expiry dates of credentials and keys (never their values) | Planned |
-| `cpi_config_get` | Configured values of externalized parameters | Planned |
+| `cpi_config_get` | Configured values of externalized parameters, compared with the local `parameters.prop` | **Available** |
 
 ### Understand
 
@@ -55,7 +55,7 @@ adds no generic file tools.
 | Tool | What it does | Status |
 |---|---|---|
 | `iflow_edit` | Semantic edits in one all-or-nothing batch: insert a step from the catalog (with settings, headers, properties; for XSLT and message mappings the mapping file, for a Filter its XPath, for a script step a script from a script collection), remove a step, add or remove an adapter (sender to a start event or Poll Enrich, receiver from Request Reply, Send, Content Enricher or an end event; the Sender/Receiver box is reused or created, receivers drawn below their step), add or remove an exception subprocess (steps go inside like anywhere else), add routers (conditions, default route) and parallel or sequential multicasts with a Join, put steps on their routes, edit or remove them, lay out the process (branches in rows, exception subprocess below), change settings of steps, adapters or the iFlow (unknown keys refused), rename, edit Content Modifier headers and properties. Keeps SAP's formatting, lays out the diagram, refuses edits that would break the iFlow, supports a dry run | **Available**, v1 |
-| `params_set` | Keep externalized parameters (`parameters.prop`/`.propdef`) consistent | Planned |
+| `params_set` | Declare, change or remove externalized parameters: `parameters.propdef` and `parameters.prop` kept consistent in the designer's format; shows where each `{{name}}` is used | **Available** |
 
 ### Check
 
@@ -84,7 +84,7 @@ development.**
 | `cpi_deploy` | Deploy the current version and wait; SAP's guideline check as an optional gate; errors are reported with step names, one line per problem. A failed deploy also stops the version that was running (Cloud Integration's behaviour), which the confirmation and result point out | **Available**, v1 |
 | `cpi_undeploy` | Remove a deployed iFlow or script collection from the runtime | **Available** |
 | `iflow_delete` | Delete an iFlow with its whole version history (for cleaning up test iFlows); refuses deployed iFlows and always asks for confirmation by default | **Available** |
-| `cpi_config_set` | Set externalized parameter values | Planned |
+| `cpi_config_set` | Configure parameter values on the tenant like "Configure" in the designer (no new version; the running iFlow uses them after the next deploy); the local `parameters.prop` follows | **Available** |
 
 ### Script collections (development tenants only)
 

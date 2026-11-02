@@ -71,6 +71,15 @@ mappings are supported for reading only). The mapping runtime is SAP-proprietary
 | `iflow_edit` does not create script or mapping files; it lists the missing ones | The agent writes the file with its own file tools | — | By design |
 | Reading and writing an iFlow normalises empty values written as `<value></value>` to `<value/>`, the designer's form | A first edit of a file produced by other tools can show these lines in a text diff | Use the model-level diff | Measured |
 
+## Externalized parameters — added 2026-11-02
+
+| Difference | Impact | Workaround | Basis |
+|---|---|---|---|
+| Configuring a value on the tenant (`cpi_config_set`, or "Configure" in the designer) writes the iFlow's design-time `parameters.prop` without a new version | A pulled copy would look outdated and the next push would be refused | `cpi_config_set` updates the local `parameters.prop` and the pulled state; values configured in the designer need a pull | Measured |
+| A `cpi_push` uploads the local `parameters.prop`, so it replaces values configured on the tenant since the pull | — | Pull before editing, or configure again after the push | By design |
+| The current designer also writes `<param_references>` in `parameters.propdef` (which setting uses a parameter); `params_set` does not write them, but keeps the existing ones (and removes those of a removed parameter) | The designer may not show where a new parameter is used; the tenant configures and runs it | — | Measured (tenant lists and runs a parameter declared without references) |
+| A parameter can be used by a message mapping instead of a setting; such parameters have no `{{name}}` in the iFlow | `params_set` lists them as not used in the iFlow, without warning | — | By design |
+
 ## Script collections — added 2026-11-02
 
 | Difference | Impact | Workaround | Basis |
