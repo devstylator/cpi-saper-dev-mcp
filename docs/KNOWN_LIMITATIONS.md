@@ -89,6 +89,15 @@ mappings are supported for reading only). The mapping runtime is SAP-proprietary
 | `cpi_endpoints` lists what the tenant reports as service endpoints (`ServiceEndpoints`): HTTP endpoints of deployed iFlows | Endpoints of other adapters (for example SFTP polling) are probably not listed | — | Measured for HTTPS senders; other adapters assumed |
 | `cpi_security_material` copies listed fields only (names, types, validity, deploy status) | User names, client ids and certificate content are not shown either | Look them up in the tenant's monitor | By design |
 
+## Runtime data — added 2026-11-02
+
+| Difference | Impact | Workaround | Basis |
+|---|---|---|---|
+| A data store or variable appears on the tenant once an iFlow wrote to it; global ones have no iFlow (`IntegrationFlow` empty) | `cpi_datastores` and `cpi_variables` show only what was written | — | Measured |
+| A data store entry's content comes as a zip with `body` and `headers.prop`; a variable's as a zip with `headers.prop`, the value under the variable's name next to the message ids of the run that wrote it | The tools return body, headers and value | — | Measured |
+| Variables cannot be written through the API (create and update answered 403) | A variable can be read and deleted, not set | Explore later: a generated helper iFlow with Write Variables for global ones | Measured (403; missing role not ruled out) |
+| The Write Variables step keeps its variables as table rows without cell names: name, data type, value type, value, `local`/`global` | `iflow_edit` can write them as raw `variable` setting | — | Measured (SAP sample, deployed and run) |
+
 ## Script collections — added 2026-11-02
 
 | Difference | Impact | Workaround | Basis |
@@ -139,4 +148,4 @@ mappings are supported for reading only). The mapping runtime is SAP-proprietary
 | Step-level trace uses an undocumented internal endpoint; TRACE expires after 10 minutes | May break with SAP updates | Behind an "experimental" flag | Measured |
 | At message log level INFO, Cloud Integration keeps the processing steps of failed messages only; completed messages have a run with no steps (added 2026-10-30) | `cpi_message` shows `steps: []` for successful messages, with a note | Set the log level to Debug or Trace (`cpi_trace` sets Trace for 10 minutes) | Measured (12 iFlows: INFO completed 0 steps, failed 3–6; TRACE completed 4–14) |
 | An iFlow calling another iFlow's HTTPS endpoint on the same tenant gets 401: the endpoint needs the role `ESBMessaging.send`, and a deployed iFlow has no credentials of its own (added 2026-11-02) | iFlow-to-iFlow calls over HTTP fail until credentials are set up | Use ProcessDirect between iFlows on one tenant, or a credential deployed on the tenant (security material) referenced by the adapter. Never copy service key values into an iFlow: they would be stored in its content | Measured (tester report) |
-| On the BTP trial, API deploys often fail with "Service Manager instance not bound. Object Store credentials could not be fetched." (resource limits) | Automated deploys are unreliable on trial | Deploy in the designer, then continue | Measured |
+| On the BTP trial, API deploys often fail with "Service Manager instance not bound. Object Store credentials could not be fetched." (resource limits) | Automated deploys are unreliable on trial | Deploy in the designer, then continue | Measured (on 2026-11-02 an API deploy on the same trial took 8 s without errors: it varies) |

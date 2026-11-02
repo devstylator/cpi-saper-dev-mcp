@@ -11,6 +11,7 @@ import { registerTenantWriteTools } from './tools/tenant-write.js';
 import { registerTestTools } from './tools/test.js';
 import { registerScriptCollectionTools } from './tools/script-collections.js';
 import { registerParamTools } from './tools/params.js';
+import { registerRuntimeDataTools } from './tools/runtime-data.js';
 import { registerLoginTools } from './tools/login.js';
 import { context } from './context.js';
 import { rulesOf } from './versioning.js';
@@ -46,6 +47,7 @@ registerEditCheckTools(server);
 registerTenantWriteTools(server);
 registerScriptCollectionTools(server);
 registerParamTools(server);
+registerRuntimeDataTools(server);
 registerTestTools(server);
 registerLoginTools(server);
 

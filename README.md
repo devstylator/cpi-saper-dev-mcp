@@ -1,5 +1,11 @@
 # cpi-saper-dev-mcp
 
+> [!WARNING]
+> **For development tenants only. Do not connect this server to a production tenant**, not even with `role:
+> readonly`. It is built for developing and testing on development systems: it uploads, deploys and deletes content,
+> sends test messages, runs scripts, and reads and changes runtime data (data stores, variables, number ranges,
+> queues). Its safety rules protect a development tenant from mistakes, not a production system from risk.
+
 An MCP server that lets an AI agent **develop** SAP Cloud Integration (CPI) content: edit iFlows, Groovy scripts
 and XSLT as local files under git, check them locally, then push, deploy and test them on a development tenant.
 
@@ -101,6 +107,20 @@ as the designer does. `iflow_validate` checks the script against a collection pu
 | `script_collection_deploy` | Deploy it (before the iFlows that use it); with `deploy: manual` you deploy it in the designer | **Available** |
 | `script_collection_delete` | Delete it with its version history; refuses a deployed collection; always asks by default | **Available** |
 
+### Runtime data
+
+What iFlows keep on the tenant between messages. Reading works on every configured tenant; deleting only on
+development tenants, for data of iFlows in allowed packages (global data: any development tenant), with your
+confirmation (`runtime_data`).
+
+| Tool | What it does | Status |
+|---|---|---|
+| `cpi_datastores` | Data stores (Write steps): all stores with their iFlow or global, entries and overdue entries; with a store, its entries | **Available** |
+| `cpi_datastore_entry` | One entry's stored message: body and headers (credential-like values hidden) | **Available** |
+| `cpi_datastore_delete` | Delete entries or a whole store, for example to reset test data | **Available** |
+| `cpi_variables` | Variables (Write Variables): all with their iFlow or global; with a name, its value | **Available** |
+| `cpi_variable_delete` | Delete a variable, for example to restart a delta load | **Available** |
+
 ### Test
 
 | Tool | What it does | Status |
@@ -109,6 +129,16 @@ as the designer does. `iflow_validate` checks the script against a collection pu
 | `cpi_messages` | Search message processing logs | **Available**, v1 |
 | `cpi_message` | One message log: status, error, and the processing steps by name (at log level INFO, SAP keeps steps for failed messages only) | **Available**, v1 |
 | `cpi_trace` | Body, headers and properties as they entered each step of one message. Uses an undocumented SAP endpoint to switch on tracing, so it sits behind an "experimental" setting | **Available** |
+
+### Not offered, by design
+
+- **Creating or deleting packages.** Packages are set up by people (with their names, vendors and access); the agent
+  works inside existing packages that the configuration allows.
+- **Managing locks.** Message and design-time locks are held by the runtime and the designer for running work; the
+  agent does not release them. Tools only report a lock where it blocks something (for example a push to an iFlow
+  open in the designer).
+- **Editing message mappings.** Message mappings can be read (`mapping_describe`) but not changed: edit them in the
+  designer's mapping editor.
 
 **Safety:** changes are only allowed on tenants configured as development tenants, in allowed packages that are not
 read-only content. A push stops when the iFlow is open in the designer or changed on the tenant since the pull. Create,

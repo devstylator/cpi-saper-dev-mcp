@@ -22,7 +22,7 @@ The first one found is used:
 
 | Parameter | What it does | Default |
 |---|---|---|
-| `role` | `development`: the agent may push, save versions, deploy and run scripts. `readonly`: reading only; every changing tool refuses. Use `readonly` for test and production tenants | `readonly` |
+| `role` | `development`: the agent may push, save versions, deploy and run scripts. `readonly`: reading only; every changing tool refuses (for example a second development or test tenant to compare with). **Never configure a production tenant**: the server is for development tenants only | `readonly` |
 | `apiKey` | Path to the service key JSON (*Process Integration Runtime*, plan `api`): packages, pull and push, deploy, message logs | required |
 | `runtimeKey` | Path to the service key JSON (plan `integration-flow`): calling deployed iFlows (`cpi_send_message`, the script runner) | optional; without it those tools are unavailable |
 | `deploy` | `api`: the agent deploys and waits for the result. `manual`: the agent pushes and saves a version, then asks you to deploy in the designer and continues when you confirm (useful on BTP trial tenants, where API deploys often fail for lack of resources) | `api` |
@@ -39,7 +39,7 @@ The first one found is used:
 |---|---|---|
 | `defaultTenant` | Tenant used when a tool call names none | the only tenant, if there is one |
 | `workspace` | Folder for pulled iFlows: `<workspace>/<package>/<iflow>/`, with SAP's file layout inside | the project folder |
-| `confirm` | Actions that need your explicit approval before they run: `create`, `delete`, `push`, `save_version`, `update_resource`, `deploy`, `undeploy`, `config_set`. The server asks you directly through the MCP client (elicitation), showing what will change. Clients without elicitation support are refused for these actions; remove an action from the list to allow it without a question | `["create", "delete", "push", "deploy", "undeploy"]` |
+| `confirm` | Actions that need your explicit approval before they run: `create`, `delete`, `push`, `save_version`, `update_resource`, `deploy`, `undeploy`, `config_set`, `runtime_data` (deleting data store entries, variables and other runtime data). The server asks you directly through the MCP client (elicitation), showing what will change. Clients without elicitation support are refused for these actions; remove an action from the list to allow it without a question | `["create", "delete", "push", "deploy", "undeploy", "runtime_data"]` |
 | `experimental.trace` | Enables `cpi_trace`, which switches on tracing through an undocumented SAP endpoint | `false` |
 | `auditLog` | File recording every change to a tenant: time, tenant, tool, artifact, result | `audit.log` next to the configuration file |
 | `catalog` | Path to your own step catalog instead of the bundled one | bundled |
@@ -66,9 +66,9 @@ The first one found is used:
       "scriptRunner": "/v2/test/script",
       "guidelines": "block"
     },
-    "customer-qa": {
+    "team-dev": {
       "role": "readonly",
-      "apiKey": "~/keys/customer-qa-api.json"
+      "apiKey": "~/keys/team-dev-api.json"
     }
   },
   "experimental": { "trace": true }

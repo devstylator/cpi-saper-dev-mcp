@@ -18,3 +18,4 @@ export * from './tenant/monitor.js';
 export * from './tenant/user-login.js';
 export * from './versioning.js';
 export * from './params.js';
+export * from './tenant/runtime-data.js';
