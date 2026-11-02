@@ -1,5 +1,7 @@
 # cpi-saper-dev-mcp
 
+[![CI](https://github.com/devstylator/cpi-saper-dev-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/devstylator/cpi-saper-dev-mcp/actions/workflows/ci.yml)
+
 > [!WARNING]
 > **For development tenants only. Do not connect this server to a production tenant**, not even with `role:
 > readonly`. It is built for developing and testing on development systems: it uploads, deploys and deletes content,
@@ -24,9 +26,8 @@ and XSLT as local files under git, check them locally, then push, deploy and tes
 
 ## Tools
 
-The MCP server is not released yet. **Available** tools work in the development version (see below);
-**Prototyped** means the behaviour has been built and tested against a real tenant in the prototype and is being
-moved into the server; **Planned** means designed but not built yet. **v1** marks the first release.
+The MCP server is not released yet. **Available** tools work in the development version (see below) and were tried
+against a real tenant; **Planned** means designed but not built yet.
 
 The agent's own environment (for example Claude Code or VS Code) reads and writes the local files, so the server
 adds no generic file tools.
@@ -36,12 +37,12 @@ adds no generic file tools.
 | Tool | What it does | Status |
 |---|---|---|
 | `cpi_login` | Log in with your own SAP account, so the tenant records **you** (not a technical client) as the one who changed or deployed content ([how to set it up](docs/CONFIGURATION.md#recording-changes-under-your-name)) | **Available** |
-| `cpi_tenants` | Configured tenants and what the agent may do on each (read only, or development with writes) | **Available**, v1 |
-| `cpi_packages` | List packages; a package can be named by its ID or its display name | **Available**, v1 |
-| `cpi_artifacts` | List the iFlows and script collections of a package with version and runtime status | **Available**, v1 |
-| `cpi_pull` | Download an iFlow into the local workspace (`<workspace>/<package>/<iflow>/`, SAP's file layout); never overwrites local changes unless asked | **Available**, v1 |
-| `cpi_status` | For every pulled iFlow and script collection (or one, or a package's): in sync, modified locally, changed on the tenant, or conflict, with pulled, tenant and deployed versions; with a package also what is not pulled | **Available**, v1 |
-| `cpi_runtime_status` | Deployment state and deploy errors, with step IDs translated to step names | **Available**, v1 |
+| `cpi_tenants` | Configured tenants and what the agent may do on each (read only, or development with writes) | **Available** |
+| `cpi_packages` | List packages; a package can be named by its ID or its display name | **Available** |
+| `cpi_artifacts` | List the iFlows and script collections of a package with version and runtime status | **Available** |
+| `cpi_pull` | Download an iFlow into the local workspace (`<workspace>/<package>/<iflow>/`, SAP's file layout); never overwrites local changes unless asked | **Available** |
+| `cpi_status` | For every pulled iFlow and script collection (or one, or a package's): in sync, modified locally, changed on the tenant, or conflict, with pulled, tenant and deployed versions; with a package also what is not pulled | **Available** |
+| `cpi_runtime_status` | Deployment state and deploy errors, with step IDs translated to step names | **Available** |
 | `cpi_endpoints` | HTTP endpoint URLs of deployed iFlows | **Available** |
 | `cpi_security_material` | Names, types, expiry (days left) and deploy status of keystore entries, user credentials, OAuth2 clients and secure parameters; passwords, secrets, user names, secure values and certificates are never returned | **Available** |
 | `cpi_config_get` | Configured values of externalized parameters, compared with the local `parameters.prop` | **Available** |
@@ -50,28 +51,28 @@ adds no generic file tools.
 
 | Tool | What it does | Status |
 |---|---|---|
-| `iflow_describe` | Compact model of an iFlow (steps, adapters, settings, routes, decoded header tables) instead of BPMN XML; steps numbered `#1`, `#2` … in flow order | **Available**, v1 |
-| `iflow_render` | Mermaid diagram of an iFlow; PNG later | **Available** (Mermaid), v1 |
-| `iflow_diff` | Model-level changes between two versions: steps added or removed, settings old → new, table rows, rewired flows; ignores layout and IDs the designer regenerates. Also available as a [`git diff` driver](#readable-git-diff) | **Available**, v1 |
+| `iflow_describe` | Compact model of an iFlow (steps, adapters, settings, routes, decoded header tables) instead of BPMN XML; steps numbered `#1`, `#2` … in flow order | **Available** |
+| `iflow_render` | Mermaid diagram of an iFlow; PNG later | **Available** (Mermaid) |
+| `iflow_diff` | Model-level changes between two versions: steps added or removed, settings old → new, table rows, rewired flows; ignores layout and IDs the designer regenerates. Also available as a [`git diff` driver](#readable-git-diff) | **Available** |
 | `mapping_describe` | Message mapping as one line per target field, `target <- expression` (read-only) | **Available** |
-| `templates_list` | The bundled step and adapter catalog ([catalog](packages/core/catalog/)): 106 variants with default settings | **Available**, v1 |
+| `templates_list` | The bundled step and adapter catalog ([catalog](packages/core/catalog/)): 106 variants with default settings | **Available** |
 
 ### Edit locally
 
 | Tool | What it does | Status |
 |---|---|---|
-| `iflow_edit` | Semantic edits in one all-or-nothing batch: insert a step from the catalog (with settings, headers, properties; for XSLT and message mappings the mapping file, for a Filter its XPath, for a script step a script from a script collection), remove a step, add or remove an adapter (sender to a start event or Poll Enrich, receiver from Request Reply, Send, Content Enricher or an end event; the Sender/Receiver box is reused or created, receivers drawn below their step), add or remove an exception subprocess (steps go inside like anywhere else), add routers (conditions, default route) and parallel or sequential multicasts with a Join, put steps on their routes, edit or remove them, lay out the process (branches in rows, exception subprocess below), change settings of steps, adapters or the iFlow (unknown keys refused), rename, edit Content Modifier headers and properties. Keeps SAP's formatting, lays out the diagram, refuses edits that would break the iFlow, supports a dry run | **Available**, v1 |
+| `iflow_edit` | Semantic edits in one all-or-nothing batch: insert a step from the catalog (with settings, headers, properties; for XSLT and message mappings the mapping file, for a Filter its XPath, for a script step a script from a script collection), remove a step, add or remove an adapter (sender to a start event or Poll Enrich, receiver from Request Reply, Send, Content Enricher or an end event; the Sender/Receiver box is reused or created, receivers drawn below their step), add or remove an exception subprocess (steps go inside like anywhere else), add routers (conditions, default route) and parallel or sequential multicasts with a Join, put steps on their routes, edit or remove them, lay out the process (branches in rows, exception subprocess below), change settings of steps, adapters or the iFlow (unknown keys refused), rename, edit Content Modifier headers and properties. Keeps SAP's formatting, lays out the diagram, refuses edits that would break the iFlow, supports a dry run | **Available** |
 | `params_set` | Declare, change or remove externalized parameters: `parameters.propdef` and `parameters.prop` kept consistent in the designer's format; shows where each `{{name}}` is used | **Available** |
 
 ### Check
 
 | Tool | What it does | Status |
 |---|---|---|
-| `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters; settings the tenant refuses only at deploy (empty split or Filter expression, key alias or mapping file, a Content Enricher or Request Reply without adapter, sender authorization values, Receiver names with spaces) | **Available**, v1 |
+| `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters; settings the tenant refuses only at deploy (empty split or Filter expression, key alias or mapping file, a Content Enricher or Request Reply without adapter, sender authorization values, Receiver names with spaces) | **Available** |
 | `xslt_run` | Run an XSLT (1.0–3.0) locally with headers and properties as parameters, like a CPI XSLT Mapping step; errors with line numbers | **Available** |
 | `script_run` | Run one Groovy script (also from a script collection) on the tenant without deploying (script runner iFlow, development tenants only); Groovy 2.4 or 4 chosen from the script's imports; returns body, headers, properties, console output and what changed | **Available** |
-| `cpi_guidelines` | Run SAP's design guideline check on the tenant (deploys through the API skip it) | **Available**, v1 |
-| `cpi_check` | Run the tenant's model check ("Check for problems") | **Available**, v1 |
+| `cpi_guidelines` | Run SAP's design guideline check on the tenant (deploys through the API skip it) | **Available** |
+| `cpi_check` | Run the tenant's model check ("Check for problems") | **Available** |
 | `lint` | Local rules for common mistakes, including those SAP's guideline check flags | Planned |
 
 ### Tenant: change (development tenants only)
@@ -83,11 +84,11 @@ development.**
 
 | Tool | What it does | Status |
 |---|---|---|
-| `cpi_push` | Upload a local iFlow as a **new version**: the agent proposes number and one-line comment by the versioning rules, you confirm both in a dialog, and Cloud Integration's version history shows exactly that entry. Refuses when the tenant changed since the pull or the iFlow is open in the designer | **Available**, v1 |
-| `cpi_version_proposal` | The versioning rules (default or your own file), the local changes since the last version and a hint (major/minor/patch), so the agent can propose number and comment | **Available**, v1 |
-| `cpi_save_version` | Record the tenant's current content as a new version with number and comment, for example after work in the designer | **Available**, v1 |
-| `iflow_create` | Create an empty iFlow in an allowed package (as the designer does: Sender and Receiver box, Start → End, version 1.0.0) and pull it; build it with `iflow_edit`, then `cpi_push` gives it its first version | **Available**, v1 |
-| `cpi_deploy` | Deploy the current version and wait; SAP's guideline check as an optional gate; errors are reported with step names, one line per problem. A failed deploy also stops the version that was running (Cloud Integration's behaviour), which the confirmation and result point out | **Available**, v1 |
+| `cpi_push` | Upload a local iFlow as a **new version**: the agent proposes number and one-line comment by the versioning rules, you confirm both in a dialog, and Cloud Integration's version history shows exactly that entry. Refuses when the tenant changed since the pull or the iFlow is open in the designer | **Available** |
+| `cpi_version_proposal` | The versioning rules (default or your own file), the local changes since the last version and a hint (major/minor/patch), so the agent can propose number and comment | **Available** |
+| `cpi_save_version` | Record the tenant's current content as a new version with number and comment, for example after work in the designer | **Available** |
+| `iflow_create` | Create an empty iFlow in an allowed package (as the designer does: Sender and Receiver box, Start → End, version 1.0.0) and pull it; build it with `iflow_edit`, then `cpi_push` gives it its first version | **Available** |
+| `cpi_deploy` | Deploy the current version and wait; SAP's guideline check as an optional gate; errors are reported with step names, one line per problem. A failed deploy also stops the version that was running (Cloud Integration's behaviour), which the confirmation and result point out | **Available** |
 | `cpi_undeploy` | Remove a deployed iFlow or script collection from the runtime | **Available** |
 | `iflow_delete` | Delete an iFlow with its whole version history (for cleaning up test iFlows); refuses deployed iFlows and always asks for confirmation by default | **Available** |
 | `cpi_config_set` | Configure parameter values on the tenant like "Configure" in the designer (no new version; the running iFlow uses them after the next deploy); the local `parameters.prop` follows | **Available** |
@@ -132,9 +133,9 @@ iFlow using it must be in an allowed package), with your confirmation (`runtime_
 
 | Tool | What it does | Status |
 |---|---|---|
-| `cpi_send_message` | Call a deployed iFlow's HTTP endpoint; fetches a CSRF token when the sender adapter requires one (the HTTPS sender default); returns status, response and the message log ID (also for failed calls) | **Available**, v1 |
-| `cpi_messages` | Search message processing logs | **Available**, v1 |
-| `cpi_message` | One message log: status, error, and the processing steps by name (at log level INFO, SAP keeps steps for failed messages only) | **Available**, v1 |
+| `cpi_send_message` | Call a deployed iFlow's HTTP endpoint; fetches a CSRF token when the sender adapter requires one (the HTTPS sender default); returns status, response and the message log ID (also for failed calls) | **Available** |
+| `cpi_messages` | Search message processing logs | **Available** |
+| `cpi_message` | One message log: status, error, and the processing steps by name (at log level INFO, SAP keeps steps for failed messages only) | **Available** |
 | `cpi_trace` | Body, headers and properties as they entered each step of one message. Uses an undocumented SAP endpoint to switch on tracing, so it sits behind an "experimental" setting | **Available** |
 
 ### Not offered, by design

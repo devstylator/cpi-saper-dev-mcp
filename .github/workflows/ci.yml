@@ -1,0 +1,23 @@
+# Builds and runs the tests on every push to main and every pull request. The tests need no tenant: they use the
+# fixtures in packages/core/test/fixtures and a fake tenant, so no service keys or secrets are involved.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
