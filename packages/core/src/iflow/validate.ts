@@ -120,6 +120,9 @@ export function validate(doc: Document, { resourceFiles, declaredParameters }: V
     const need = NEEDS_ADAPTER[cname];
     if (need && !adapterOn.has(el.getAttribute('id'))) add(need.severity, 'NO_ADAPTER', `${label} needs ${need.what} (iflow_edit add_adapter)`);
   }
+  // measured: "entryId,fail" let no header through; the list is separated by |
+  const allowed = byTag(doc, 'collaboration')[0] ? readProps(byTag(doc, 'collaboration')[0]!).allowedHeaderList : undefined;
+  if (allowed?.includes(',')) add('warning', 'ALLOWED_HEADERS', `allowedHeaderList "${allowed}": headers are separated by | (with commas no header gets through): "${allowed.split(/\s*,\s*/).join('|')}"`);
   for (const part of byTag(doc, 'participant')) {
     const type = part.getAttribute('ifl:type') || readProps(part)['ifl:type'];
     const name = part.getAttribute('name') ?? '';

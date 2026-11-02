@@ -483,3 +483,11 @@ test('script collection reference: insert_step scriptCollection, manifest requir
   assert.doesNotMatch(mixed, /scriptcollection\.Old/);
   assert.doesNotMatch(withCollectionRequirements(designer, []), /Require-Capability/);
 });
+
+test('validate: allowed headers separated by commas', () => {
+  const doc = parseIflw(EMPTY);
+  applyEdits(doc, [{ op: 'set', element: 'integrationFlow', settings: { allowedHeaderList: 'entryId,fail' }, allowNewKeys: true }], catalog);
+  assert.match(validate(doc).map((i) => i.msg).join(), /separated by \| .*"entryId\|fail"/);
+  applyEdits(doc, [{ op: 'set', element: 'integrationFlow', settings: { allowedHeaderList: 'entryId|fail' } }], catalog);
+  assert.deepEqual(validate(doc).filter((i) => i.code === 'ALLOWED_HEADERS'), []);
+});
