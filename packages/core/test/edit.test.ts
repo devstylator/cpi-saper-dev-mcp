@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  applyEdits, CpiClient, describe, mappingSettings, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
+  applyEdits, byTag, children, CpiClient, describe, mappingSettings, NS, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
   mappingText, parseIflw, readMapping, readProps, removeStep, runScript, runXslt, serializeIflw, validate,
 } from '../dist/index.js';
 
@@ -289,4 +289,65 @@ test('validate: whitespace in a Receiver name and authenticationMethod in the wr
   assert.match(msgs.join('\n'), /authenticationMethod "none" must be written "None"/);
   applyEdits(doc, [{ op: 'rename', element: 'Mock Server', name: 'MockServer' }, { op: 'set', element: 'HTTP', settings: { authenticationMethod: 'None' } }], catalog);
   assert.deepEqual(validate(doc).filter((i) => i.severity === 'error'), []);
+});
+
+test('exception subprocess: added below the main row, steps go inside, layout, refusals, removal', () => {
+  const doc = parseIflw(EMPTY);
+  const box = (id: string) => {
+    const s = byTag(doc, 'BPMNShape', NS.bpmndi).find((x) => x.getAttribute('bpmnElement') === id)!;
+    const b = children(s, 'Bounds', NS.dc)[0]!;
+    return ['x', 'y', 'width', 'height'].map((k) => Number(b.getAttribute(k)));
+  };
+  applyEdits(doc, [
+    { op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS', settings: { urlPath: '/x' } },
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Request Reply', name: 'Call' },
+    { op: 'add_adapter', step: 'Call', type: 'HTTP' },
+  ], catalog);
+  const before = describe(doc, { maxLen: 0 });
+  const log = applyEdits(doc, [{ op: 'add_exception_subprocess' }], catalog);
+  const endBefore = box('EndEvent_2');
+  assert.match(log[0]!, /added exception subprocess SubProcess_1 to Process_1: StartEvent_3 "Error Start 1" -> EndEvent_3 "Error End 1"/);
+  // the receiver's line would cross the subprocess, so its box moves above the pool; the diagram moves down 160
+  assert.deepEqual(box('Participant_2'), [378, 20, 100, 140], 'receiver above the pool, its line clear of the subprocess');
+  assert.deepEqual(box('Participant_Process_1'), [250, 220, 540, 330], 'pool grows 20 below the subprocess');
+  assert.deepEqual(box('SubProcess_1'), [292, 390, 400, 140], 'below the main row, left-aligned with it');
+  assert.deepEqual([box('StartEvent_3').slice(0, 2), box('EndEvent_3').slice(0, 2)], [[325, 436], [608, 436]]);
+  assert.deepEqual(validate(doc), []);
+
+  applyEdits(doc, [
+    { op: 'insert_step', after: 'Error Start 1', type: 'Content Modifier', name: 'Error reply' },
+    { op: 'insert_step', after: 'Error reply', type: 'Content Modifier', name: 'Error header' },
+  ], catalog);
+  assert.deepEqual(box('EndEvent_2'), endBefore, 'the main row does not move when the subprocess grows');
+  assert.equal(box('SubProcess_1')[2], 550);
+  assert.deepEqual(validate(doc), []);
+  assert.match(applyEdits(doc, [{ op: 'layout' }], catalog)[0]!, /3 elements in one row and 4 in the exception subprocess below/);
+  assert.deepEqual(box('SubProcess_1'), [292, 390, 499, 140]);
+  assert.deepEqual(box('Participant_2'), [378, 20, 100, 140], 'layout keeps the receiver above');
+  assert.deepEqual(validate(doc), []);
+
+  const subBefore = box('SubProcess_1');
+  const mainLog = applyEdits(doc, [{ op: 'insert_step', after: 'Call', type: 'Content Modifier', name: 'Main step' }], catalog);
+  assert.deepEqual(box('SubProcess_1'), subBefore, 'the subprocess does not move when the main row grows');
+  applyEdits(doc, [{ op: 'remove_step', step: mainLog[0]!.match(/inserted (\S+)/)![1]! }], catalog);
+  assert.throws(() => applyEdits(doc, [{ op: 'add_exception_subprocess' }], catalog), /already has an exception subprocess/);
+  assert.throws(() => applyEdits(doc, [{ op: 'insert_step', after: 'Call', type: 'Exception Subprocess' }], catalog), /add_exception_subprocess/);
+  // a step inside with an adapter blocks the removal
+  const withCall = parseIflw(serializeIflw(doc));
+  applyEdits(withCall, [{ op: 'insert_step', after: 'Error header', type: 'Request Reply', name: 'Notify' }, { op: 'add_adapter', step: 'Notify', type: 'HTTP' }], catalog);
+  assert.throws(() => applyEdits(withCall, [{ op: 'remove_exception_subprocess' }], catalog), /has an adapter.*remove_adapter/);
+
+  applyEdits(doc, [{ op: 'remove_exception_subprocess' }], catalog);
+  assert.deepEqual(describe(doc, { maxLen: 0 }), before, 'the model is as before');
+  assert.deepEqual(validate(doc), []);
+});
+
+test('exception subprocess that replies: Error Start -> End (message end)', () => {
+  const doc = parseIflw(EMPTY);
+  applyEdits(doc, [{ op: 'add_exception_subprocess', end: 'message' }], catalog);
+  const end = findElement(doc, 'End 1');
+  assert.equal(end.localName, 'endEvent');
+  assert.equal(children(end, 'messageEventDefinition').length, 1);
+  assert.equal(readProps(end).cmdVariantUri, 'ctype::FlowstepVariant/cname::MessageEndEvent/version::1.1.0');
+  assert.deepEqual(validate(doc), []);
 });

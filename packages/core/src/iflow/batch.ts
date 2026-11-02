@@ -2,7 +2,7 @@
 import type { Document } from '@xmldom/xmldom';
 import { findEntries, pickVersion, type Catalog } from '../catalog.js';
 import {
-  adapterDirectionFor, addAdapter, editTable, findElement, insertStepAfter, layoutStraight, removeAdapter, removeStep, rename, setProperties, type TableRowInput,
+  adapterDirectionFor, addAdapter, addExceptionSubprocess, editTable, findElement, insertStepAfter, layoutStraight, removeAdapter, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
 } from './edit.js';
 import { parseVariant, readProps, type Props } from './model.js';
 
@@ -40,6 +40,15 @@ export type EditOp =
     settings?: Props;
   }
   | { op: 'remove_adapter'; adapter: string }
+  | {
+    op: 'add_exception_subprocess';
+    /** process id or name; default: the main integration process */
+    process?: string;
+    name?: string;
+    /** error: Error Start -> Error End (the message fails, the sender gets the error); message: Error Start -> End (the subprocess replies) */
+    end?: 'error' | 'message';
+  }
+  | { op: 'remove_exception_subprocess'; process?: string }
   | { op: 'layout' }
   | { op: 'set'; element: string; settings?: Props; mapping?: string; expression?: string; allowNewKeys?: boolean }
   | { op: 'rename'; element: string; name: string }
@@ -97,6 +106,7 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
             throw new Error(matches.length ? `"${op.type}" is ambiguous: ${matches.map(([k]) => k).join(', ')}` : `"${op.type}" is not in the catalog`);
           }
           const [key, entry] = matches[0]!;
+          if (parseVariant(key).cname === 'ErrorEventSubProcessTemplate') throw new Error('an exception subprocess is added with the operation add_exception_subprocess');
           if (!['callActivity', 'serviceTask'].includes(entry.bpmn)) throw new Error(`${entry.label} (${entry.bpmn}) cannot be inserted as a step yet`);
           const { version, reason } = pickVersion(entry, key, doc, op.version);
           const properties: Props = { ...entry.versions[version]!.properties };
@@ -164,6 +174,16 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
           const id = el.getAttribute('id')!;
           removeAdapter(doc, id);
           log.push(`removed adapter ${id} "${el.getAttribute('name') ?? ''}"`);
+          break;
+        }
+        case 'add_exception_subprocess': {
+          const r = addExceptionSubprocess(doc, { ...(op.process ? { process: op.process } : {}), ...(op.name ? { name: op.name } : {}), end: op.end ?? 'error' });
+          log.push(`added exception subprocess ${r.subId} to ${r.processId}: ${r.startId} "Error Start 1" -> ${r.endId} "${op.end === 'message' ? 'End 1' : 'Error End 1'}"; ` +
+            `insert steps after ${r.startId}`);
+          break;
+        }
+        case 'remove_exception_subprocess': {
+          log.push(`removed exception subprocess ${removeExceptionSubprocess(doc, op.process)} with its content`);
           break;
         }
         case 'layout': {

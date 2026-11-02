@@ -46,6 +46,14 @@ const operation = z.discriminatedUnion('op', [
     settings: kv.optional().describe('Settings to change from the catalog defaults (e.g. urlPath for HTTPS, httpAddressWithoutQuery for HTTP)'),
   }),
   z.object({ op: z.literal('layout') }).describe('Tidy the diagram of a straight iFlow (Start -> steps -> End, one process, no branches): one evenly spaced row, the pool fitted, receivers below their steps; branched flows are refused'),
+  z.object({
+    op: z.literal('add_exception_subprocess'),
+    process: z.string().optional().describe('Process id or name; default: the main integration process'),
+    name: z.string().optional().describe('Default "Exception Subprocess 1"'),
+    end: z.enum(['error', 'message']).default('error')
+      .describe('error: Error Start -> Error End, the message fails and the sender gets the error; message: Error Start -> End, the subprocess sends the reply (set it with steps)'),
+  }).describe('Add an exception subprocess (one per process), drawn below the main flow; insert steps into it with insert_step after its Error Start'),
+  z.object({ op: z.literal('remove_exception_subprocess'), process: z.string().optional() }).describe('Remove the exception subprocess with all steps in it (they must not have adapters)'),
   z.object({ op: z.literal('remove_adapter'), adapter: z.string().describe('Adapter (message flow) id or unique name; its Sender/Receiver box stays') }),
   z.object({
     op: z.literal('set'),
@@ -81,7 +89,8 @@ export function registerEditCheckTools(server: McpServer) {
       description:
         'Apply semantic edits to a local iFlow in one batch: insert a step from the catalog (with settings, headers, ' +
         'properties), remove a step (its neighbours are reconnected), add or remove an adapter (with its Sender/Receiver ' +
-        'box), tidy the layout of a straight flow, change settings of a step, adapter or the iFlow, ' +
+        'box), add or remove an exception subprocess (insert steps into it after its Error Start), tidy the layout of a ' +
+        'straight flow (with its exception subprocess), change settings of a step, adapter or the iFlow, ' +
         'rename, and add/change/remove Content Modifier headers and properties. All operations succeed or nothing is ' +
         'written; edits that would introduce structural errors are refused. New elements are formatted like SAP\'s ' +
         'designer writes them and the diagram is laid out. Returns what changed (as iflow_diff) and the new step ids. ' +

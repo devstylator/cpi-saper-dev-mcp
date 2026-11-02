@@ -165,6 +165,33 @@ export function editTable(el: Element, table: 'headerTable' | 'propertyTable', {
 
 // ---------- insert / remove steps ----------
 
+const isExceptionSub = (el: Element): boolean =>
+  el.localName === 'subProcess' && readProps(el).activityType === 'ErrorEventSubProcessTemplate';
+
+/**
+ * The horizontal band that moves when a step is inserted or removed at `a`: inside a subprocess its own box;
+ * in a process the pool, but above an exception subprocess drawn below the main row (and below one drawn above),
+ * so the main flow and the subprocess shift independently.
+ */
+function bandFor(doc: Document, a: { x: number; y: number; w: number; h: number }, container: Node): [number, number] {
+  if (isEl(container) && container.localName === 'subProcess') {
+    const sh = shapeOf(doc, container.getAttribute('id')!);
+    if (sh) { const b = bounds(sh); return [b.y, b.y + b.h]; }
+  }
+  const poolIds = new Set(children(byTag(doc, 'collaboration')[0]!, 'participant').map((p) => p.getAttribute('id')));
+  const pool = byTag(doc, 'BPMNShape', NS.bpmndi).filter((s) => poolIds.has(s.getAttribute('bpmnElement'))).map(bounds)
+    .find((b) => b.x <= a.x && a.x + a.w <= b.x + b.w && b.y <= a.y && a.y + a.h <= b.y + b.h);
+  let [top, bottom] = pool ? [pool.y, pool.y + pool.h] : [-Infinity, Infinity];
+  for (const sub of isEl(container) ? children(container, 'subProcess') : []) {
+    const sh = shapeOf(doc, sub.getAttribute('id')!);
+    if (!sh) continue;
+    const b = bounds(sh);
+    if (b.y >= a.y + a.h) bottom = Math.min(bottom, b.y - 1);
+    else if (b.y + b.h <= a.y) top = Math.max(top, b.y + b.h + 1);
+  }
+  return [top, bottom];
+}
+
 /** Insert a step after another one (which must have exactly one outgoing flow), and open a gap in the diagram */
 export function insertStepAfter(doc: Document, afterId: string, { name, properties, bpmn = 'callActivity', size = { w: 100, h: 60 } }:
   { name: string; properties: Props; bpmn?: string; size?: { w: number; h: number } }): { stepId: string; newFlowId: string } {
@@ -200,11 +227,8 @@ export function insertStepAfter(doc: Document, afterId: string, { name, properti
   const a = bounds(aShape);
   const W = size.w, H = size.h, GAP = 50, DX = W + GAP;
   const gapX = a.x + a.w;
-  // Only the horizontal band of the pool holding A moves; other (local) process pools stay put.
-  const poolIds = new Set(children(byTag(doc, 'collaboration')[0]!, 'participant').map((p) => p.getAttribute('id')));
-  const pool = shapes.filter((s) => poolIds.has(s.getAttribute('bpmnElement'))).map(bounds)
-    .find((b) => b.x <= a.x && a.x + a.w <= b.x + b.w && b.y <= a.y && a.y + a.h <= b.y + b.h);
-  const [top, bottom] = pool ? [pool.y, pool.y + pool.h] : [-Infinity, Infinity];
+  // Only the band holding A moves: other (local) process pools and the other row (main flow or subprocess) stay put.
+  const [top, bottom] = bandFor(doc, a, container);
   // when the successor sits further right on the same row with room for the step and a gap on both sides
   // (as in a new iFlow: Start ... End), the step goes into that room and nothing moves
   const tShape = shapeOf(doc, targetId);
@@ -300,10 +324,7 @@ export function removeStep(doc: Document, stepId: string) {
     removeEl(shape);
     if (fits) {
       const shapes = byTag(doc, 'BPMNShape', NS.bpmndi);
-      const poolIds = new Set(children(byTag(doc, 'collaboration')[0]!, 'participant').map((p) => p.getAttribute('id')));
-      const pool = shapes.filter((x) => poolIds.has(x.getAttribute('bpmnElement'))).map(bounds)
-        .find((b) => b.x <= s.x && s.x + s.w <= b.x + b.w && b.y <= s.y && s.y + s.h <= b.y + b.h);
-      const [top, bottom] = pool ? [pool.y, pool.y + pool.h] : [-Infinity, Infinity];
+      const [top, bottom] = bandFor(doc, s, step.parentNode!);
       const edgeX = s.x + s.w;
       const moved = new Set<string>();
       for (const sh of shapes) {
@@ -354,11 +375,30 @@ function placeBox(doc: Document, shape: Element, step: Bounds, sideways: boolean
     const x = step.x + step.w / 2 - BOX.w / 2;
     const below = { x, y: (pool ? pool.y + pool.h : step.y + step.h) + 60 };
     const above = { x, y: (pool ? pool.y : step.y) - 60 - BOX.h };
-    c = free(below) || !free(above) ? below : above;
+    // the line runs straight down (or up) from the step: it must not cross other shapes inside the pool, such as
+    // an exception subprocess drawn below the main row
+    const pools = new Set(poolBounds(doc).map((p) => `${p.x},${p.y}`));
+    const inside = others.filter((b) => !pools.has(`${b.x},${b.y}`) && !(b.x === step.x && b.y === step.y));
+    const cx = step.x + step.w / 2;
+    const clear = (c: { y: number }) => {
+      const [y1, y2] = c.y > step.y ? [step.y + step.h, c.y] : [c.y + BOX.h, step.y];
+      return !inside.some((b) => b.x <= cx && cx <= b.x + b.w && b.y < y2 && y1 < b.y + b.h);
+    };
+    const good = (c: { x: number; y: number }) => free(c) && clear(c);
+    c = good(below) || (!good(above) && (free(below) || !free(above))) ? below : above;
   }
   while (!free(c)) c = { x: c.x, y: Math.max(...others.filter((b) => overlaps({ ...c, ...BOX }, b)).map((b) => b.y + b.h)) + 30 };
   const b = bounds(shape).el;
   b.setAttribute('x', fmt(c.x)); b.setAttribute('y', fmt(c.y));
+}
+
+/** When a box was placed above the top of the diagram, move the whole diagram down so it starts at y 20 again */
+function keepOnCanvas(doc: Document) {
+  const shapes = byTag(doc, 'BPMNShape', NS.bpmndi).map(bounds);
+  const dy = 20 - Math.min(...shapes.map((b) => b.y));
+  if (!shapes.length || dy <= 0) return;
+  for (const b of shapes) b.el.setAttribute('y', fmt(b.y + dy));
+  for (const wp of byTag(doc, 'waypoint', NS.di)) wp.setAttribute('y', fmt(Number(wp.getAttribute('y')) + dy));
 }
 
 /** Message flow lines run from centre to centre, as the designer draws them */
@@ -461,6 +501,7 @@ export function addAdapter(doc: Document, stepId: string, { name, properties, di
     const shape = shapeOf(doc, box.getAttribute('id')!);
     if (shape) placeBox(doc, shape, bounds(stepShape), false);
   }
+  keepOnCanvas(doc);
   const boxId = box.getAttribute('id')!;
   const boxName = box.getAttribute('name') ?? boxId;
   if (direction === 'Receiver' && connected(box)) throw new Error(`${boxName} already has an adapter; a receiver box takes one adapter`);
@@ -478,6 +519,7 @@ export function addAdapter(doc: Document, stepId: string, { name, properties, di
   const edge = elementNS(doc, 'bpmndi:BPMNEdge', { bpmnElement: flowId, id: `BPMNEdge_${flowId}`, sourceElement: `BPMNShape_${from}`, targetElement: `BPMNShape_${to}` });
   for (const [x, y] of [centre(from), centre(to)]) edge.appendChild(elementNS(doc, 'di:waypoint', { x: fmt(x), 'xsi:type': 'dc:Point', y: fmt(y) }));
   insertAfterEl(plane, edge, byTag(doc, 'BPMNEdge', NS.bpmndi).at(-1) ?? byTag(doc, 'BPMNShape', NS.bpmndi).at(-1)!);
+  keepOnCanvas(doc);
   return { flowId, participantId: boxId, participantName: boxName, createdParticipant: created };
 }
 
@@ -490,21 +532,162 @@ export function removeAdapter(doc: Document, flowId: string) {
   removeEl(flow);
 }
 
-// ---------- layout ----------
+// ---------- exception subprocess ----------
+
+/** The process an operation means: by id or name, else the one with a message start event (the main process) */
+export function findProcess(doc: Document, ref?: string): Element {
+  const processes = byTag(doc, 'process');
+  if (ref) {
+    const p = processes.find((x) => x.getAttribute('id') === ref || x.getAttribute('name') === ref);
+    if (!p) throw new Error(`no process "${ref}"; processes: ${processes.map((x) => `${x.getAttribute('id')} "${x.getAttribute('name')}"`).join(', ')}`);
+    return p;
+  }
+  const main = processes.filter((p) => children(p, 'startEvent').some((e) => children(e, 'messageEventDefinition').length));
+  if (main.length === 1) return main[0]!;
+  if (processes.length === 1) return processes[0]!;
+  throw new Error(`name the process (${processes.map((x) => `${x.getAttribute('id')} "${x.getAttribute('name')}"`).join(', ')})`);
+}
+
+const errorEvent = (doc: Document, tag: 'startEvent' | 'endEvent', attrs: Record<string, string>, flow: string) => {
+  const el = elementNS(doc, `bpmn2:${tag}`, attrs);
+  el.appendChild(elementNS(doc, tag === 'startEvent' ? 'bpmn2:outgoing' : 'bpmn2:incoming', {}, flow));
+  const def = elementNS(doc, 'bpmn2:errorEventDefinition');
+  const ext = elementNS(doc, 'bpmn2:extensionElements');
+  const [cname, type] = tag === 'startEvent' ? ['ErrorStartEvent', 'StartErrorEvent'] : ['ErrorEndEvent', 'EndErrorEvent'];
+  ext.appendChild(iflProperty(doc, 'cmdVariantUri', `ctype::FlowstepVariant/cname::${cname}`));
+  ext.appendChild(iflProperty(doc, 'activityType', type));
+  def.appendChild(ext);
+  el.appendChild(def);
+  return el;
+};
+
+const SUB = { w: 400, h: 140 };
 
 /**
- * Lay out a straight iFlow (one integration process: Start -> steps -> End, no branches or subprocesses) the tidy
- * way: one row with the standard gap, the pool fitted around it, the start event's sender left of the pool and
- * every other Sender/Receiver box below its step. Branched flows are refused: the designer lays those out better.
+ * Add an exception subprocess to a process, as the designer's palette does: Error Start -> Error End (the message
+ * fails and the error goes back to the sender), or with end "message" Error Start -> End (the subprocess sends the
+ * reply). It is drawn below the main row inside the pool, which grows; boxes below the pool move down with it.
  */
-export function layoutStraight(doc: Document): string {
-  const processes = byTag(doc, 'process');
-  if (processes.length !== 1) throw new Error(`layout handles one integration process; this iFlow has ${processes.length} (local processes): use the designer`);
-  const proc = processes[0]!;
-  const nodes = children(proc).filter((n) => !['extensionElements', 'sequenceFlow', 'documentation'].includes(n.localName ?? ''));
+export function addExceptionSubprocess(doc: Document, { process, name = 'Exception Subprocess 1', end = 'error' }:
+  { process?: string; name?: string; end?: 'error' | 'message' }): { subId: string; startId: string; endId: string; processId: string } {
+  const proc = findProcess(doc, process);
+  const processId = proc.getAttribute('id')!;
+  const existing = children(proc, 'subProcess').find(isExceptionSub);
+  if (existing) throw new Error(`${processId} already has an exception subprocess (${existing.getAttribute('id')} "${existing.getAttribute('name')}"); a process takes one`);
+  const collab = byTag(doc, 'collaboration')[0]!;
+  const poolId = children(collab, 'participant').find((p) => p.getAttribute('processRef') === processId)?.getAttribute('id');
+  const poolShape = poolId ? shapeOf(doc, poolId) : undefined;
+  if (!poolShape) throw new Error(`${processId} has no pool in the diagram`);
+
+  const index = idIndex(doc) as Map<string, Element | null>;
+  const subId = newId(index, 'SubProcess');
+  const startId = newId(index, 'StartEvent');
+  const endId = newId(index, 'EndEvent');
+  const flowId = newId(index, 'SequenceFlow');
+
+  // 1) model, in the order the designer writes it: settings, end, start, flow
+  const sub = elementNS(doc, 'bpmn2:subProcess', { id: subId, name });
+  const ext = elementNS(doc, 'bpmn2:extensionElements');
+  for (const [k, v] of Object.entries({ componentVersion: '1.1', activityType: 'ErrorEventSubProcessTemplate', cmdVariantUri: 'ctype::FlowstepVariant/cname::ErrorEventSubProcessTemplate/version::1.1.0' })) {
+    ext.appendChild(iflProperty(doc, k, v));
+  }
+  sub.appendChild(ext);
+  if (end === 'error') sub.appendChild(errorEvent(doc, 'endEvent', { id: endId, name: 'Error End 1' }, flowId));
+  else {
+    const e = elementNS(doc, 'bpmn2:endEvent', { id: endId, name: 'End 1' });
+    const eExt = elementNS(doc, 'bpmn2:extensionElements');
+    eExt.appendChild(iflProperty(doc, 'componentVersion', '1.1'));
+    eExt.appendChild(iflProperty(doc, 'cmdVariantUri', 'ctype::FlowstepVariant/cname::MessageEndEvent/version::1.1.0'));
+    e.appendChild(eExt);
+    e.appendChild(elementNS(doc, 'bpmn2:incoming', {}, flowId));
+    e.appendChild(elementNS(doc, 'bpmn2:messageEventDefinition'));
+    sub.appendChild(e);
+  }
+  sub.appendChild(errorEvent(doc, 'startEvent', { id: startId, name: 'Error Start 1' }, flowId));
+  sub.appendChild(elementNS(doc, 'bpmn2:sequenceFlow', { id: flowId, sourceRef: startId, targetRef: endId }));
+  insertAfterEl(proc, sub, children(proc).at(-1)!);
+
+  // 2) diagram: below everything the process already draws, left-aligned with it
+  const own = new Set(children(proc).map((n) => n.getAttribute('id')));
+  const inner = byTag(doc, 'BPMNShape', NS.bpmndi).filter((x) => own.has(x.getAttribute('bpmnElement'))).map(bounds);
+  const pool = bounds(poolShape);
+  const left = inner.length ? Math.min(...inner.map((b) => b.x)) : pool.x + 20;
+  const top = (inner.length ? Math.max(...inner.map((b) => b.y + b.h)) : pool.y) + 40;
+  const box = { x: left, y: top, ...SUB };
+  const plane = byTag(doc, 'BPMNPlane', NS.bpmndi)[0]!;
+  const lastShape = byTag(doc, 'BPMNShape', NS.bpmndi).at(-1)!;
+  const shapeEl = (id: string, b: { x: number; y: number; w: number; h: number }) => {
+    const sh = elementNS(doc, 'bpmndi:BPMNShape', { bpmnElement: id, id: `BPMNShape_${id}` });
+    sh.appendChild(elementNS(doc, 'dc:Bounds', { height: fmt(b.h), width: fmt(b.w), x: fmt(b.x), y: fmt(b.y) }));
+    return sh;
+  };
+  const ev = (x: number) => ({ x, y: box.y + 46, w: 32, h: 32 });
+  const [sb, eb] = [ev(box.x + 33), ev(box.x + box.w - 84)];
+  const shapes = [shapeEl(subId, box), shapeEl(endId, eb), shapeEl(startId, sb)];
+  shapes.reduce((ref, sh) => { insertAfterEl(plane, sh, ref); return sh; }, lastShape);
+  const edge = elementNS(doc, 'bpmndi:BPMNEdge', { bpmnElement: flowId, id: `BPMNEdge_${flowId}`, sourceElement: `BPMNShape_${startId}`, targetElement: `BPMNShape_${endId}` });
+  for (const b of [sb, eb]) edge.appendChild(elementNS(doc, 'di:waypoint', { x: fmt(b.x + b.w / 2), 'xsi:type': 'dc:Point', y: fmt(b.y + b.h / 2) }));
+  insertAfterEl(plane, edge, byTag(doc, 'BPMNEdge', NS.bpmndi).at(-1) ?? shapes.at(-1)!);
+
+  // the pool grows around it (20 below, as the designer leaves); boxes under the pool move down by as much
+  fitPool(doc, poolShape, box);
+  replaceBoxes(doc, proc);
+  return { subId, startId, endId, processId };
+}
+
+/** Place the boxes of a process's adapters again (all but start-event senders), e.g. after the pool changed */
+function replaceBoxes(doc: Document, proc: Element) {
+  const own = new Set(children(proc).map((n) => n.getAttribute('id')));
+  for (const mf of byTag(doc, 'messageFlow')) {
+    const [from, to] = [mf.getAttribute('sourceRef')!, mf.getAttribute('targetRef')!];
+    const stepId = own.has(from) ? from : own.has(to) ? to : undefined;
+    const step = stepId ? idIndex(doc).get(stepId) : undefined;
+    if (!step || step.localName === 'startEvent') continue;
+    const [box, stepShape] = [shapeOf(doc, stepId === from ? to : from), shapeOf(doc, stepId!)];
+    if (box && stepShape) placeBox(doc, box, bounds(stepShape), false);
+  }
+  routeAdapters(doc);
+  keepOnCanvas(doc);
+}
+
+/** Grow a pool to hold a box (20 below and right); shapes below the old pool move down, adapter lines follow */
+function fitPool(doc: Document, poolShape: Element, box: { x: number; y: number; w: number; h: number }) {
+  const pool = bounds(poolShape);
+  const grow = box.y + box.h + 20 - (pool.y + pool.h);
+  if (box.x + box.w + 20 > pool.x + pool.w) pool.el.setAttribute('width', fmt(box.x + box.w + 20 - pool.x));
+  if (grow <= 0) return;
+  const oldBottom = pool.y + pool.h;
+  pool.el.setAttribute('height', fmt(pool.h + grow));
+  const moved = new Set<string>();
+  for (const sh of byTag(doc, 'BPMNShape', NS.bpmndi)) {
+    const b = bounds(sh);
+    if (sh !== poolShape && b.y >= oldBottom) { b.el.setAttribute('y', fmt(b.y + grow)); moved.add(sh.getAttribute('bpmnElement')!); }
+  }
+  routeAdapters(doc, moved);
+}
+
+/** Remove a process's exception subprocess with everything in it (steps inside must not have adapters) */
+export function removeExceptionSubprocess(doc: Document, process?: string): string {
+  const proc = findProcess(doc, process);
+  const sub = children(proc, 'subProcess').find(isExceptionSub);
+  if (!sub) throw new Error(`${proc.getAttribute('id')} has no exception subprocess`);
+  const ids = new Set([sub, ...children(sub)].map((n) => n.getAttribute('id')).filter((x): x is string => !!x));
+  const adapter = byTag(doc, 'messageFlow').find((m) => ids.has(m.getAttribute('sourceRef')!) || ids.has(m.getAttribute('targetRef')!));
+  if (adapter) throw new Error(`a step in the exception subprocess has an adapter (${adapter.getAttribute('id')} "${adapter.getAttribute('name')}"); remove it first (remove_adapter)`);
+  for (const di of [...byTag(doc, 'BPMNShape', NS.bpmndi), ...byTag(doc, 'BPMNEdge', NS.bpmndi)]) if (ids.has(di.getAttribute('bpmnElement')!)) removeEl(di);
+  removeEl(sub);
+  return sub.getAttribute('id')!;
+}
+
+// ---------- layout ----------
+
+/** The straight route through a process or subprocess, start to end; refuses branches and stray elements */
+function straightChain(container: Element, skip: (n: Element) => boolean): { chain: Element[]; chainFlows: Element[] } {
+  const nodes = children(container).filter((n) => !['extensionElements', 'sequenceFlow', 'documentation'].includes(n.localName ?? '') && !skip(n));
+  const where = container.getAttribute('name') ?? container.getAttribute('id');
   const starts = nodes.filter((n) => n.localName === 'startEvent');
-  if (starts.length !== 1) throw new Error(`layout needs exactly one start event (has ${starts.length})`);
-  const flows = children(proc, 'sequenceFlow');
+  if (starts.length !== 1) throw new Error(`layout needs exactly one start event in "${where}" (has ${starts.length})`);
+  const flows = children(container, 'sequenceFlow');
   const chain: Element[] = [starts[0]!];
   const chainFlows: Element[] = [];
   for (;;) {
@@ -519,34 +702,23 @@ export function layoutStraight(doc: Document): string {
   }
   if (chain.length !== nodes.length) {
     const rest = nodes.filter((n) => !chain.includes(n)).map((n) => n.getAttribute('id'));
-    throw new Error(`layout handles straight flows only; not on the main route: ${rest.join(', ')} (exception subprocess or branches): use the designer`);
+    throw new Error(`layout handles straight flows only; not on the route in "${where}": ${rest.join(', ')} (branches): use the designer`);
   }
-  const shapes = chain.map((n) => shapeOf(doc, n.getAttribute('id')!));
-  if (shapes.some((x) => !x)) throw new Error('an element has no diagram shape');
-  const collab = byTag(doc, 'collaboration')[0]!;
-  const poolId = children(collab, 'participant').find((p) => p.getAttribute('processRef') === proc.getAttribute('id'))?.getAttribute('id');
-  const poolShape = poolId ? shapeOf(doc, poolId) : undefined;
-  if (!poolShape) throw new Error('the integration process has no diagram shape');
+  return { chain, chainFlows };
+}
 
-  // one row, centred on the start event, the standard gap between elements
+/** Place a chain in one row from x, centred on cy, with the standard gap; straighten its edges */
+function placeRow(doc: Document, chain: Element[], chainFlows: Element[], x: number, cy: number, centred: boolean) {
   const GAP = 50;
-  const first = bounds(shapes[0]!);
-  const cy = first.y + first.h / 2;
-  let x = first.x;
-  const placed = shapes.map((sh) => {
-    const b = bounds(sh!);
+  const placed = chain.map((n) => {
+    const sh = shapeOf(doc, n.getAttribute('id')!);
+    if (!sh) throw new Error(`${n.getAttribute('id')} has no diagram shape`);
+    const b = bounds(sh);
     b.el.setAttribute('x', fmt(x)); b.el.setAttribute('y', fmt(cy - b.h / 2));
-    const r = { x, y: cy - b.h / 2, w: b.w, h: b.h };
+    const r = { x, y: cy - b.h / 2, w: b.w, h: b.h, el: b.el };
     x += b.w + GAP;
     return r;
   });
-  const pool = bounds(poolShape);
-  pool.el.setAttribute('width', fmt(placed.at(-1)!.x + placed.at(-1)!.w + GAP - pool.x));
-
-  // routes: straight, ends on borders or centres as the file already does
-  const firstEdge = edgeOf(doc, chainFlows[0]?.getAttribute('id') ?? '');
-  const firstWp = firstEdge && children(firstEdge, 'waypoint', NS.di)[0];
-  const centred = !!firstWp && Math.abs(Number(firstWp.getAttribute('x')) - (first.x + first.w / 2)) < 1;
   chainFlows.forEach((f, i) => {
     const edge = edgeOf(doc, f.getAttribute('id')!);
     if (!edge) return;
@@ -556,19 +728,85 @@ export function layoutStraight(doc: Document): string {
     const ends = centred ? [[a.x + a.w / 2, cy], [b.x + b.w / 2, cy]] : [[a.x + a.w, cy], [b.x, cy]];
     for (const [wp, [px, py]] of [[wps[0]!, ends[0]!], [wps.at(-1)!, ends[1]!]] as const) { wp.setAttribute('x', fmt(px!)); wp.setAttribute('y', fmt(py!)); }
   });
+  return placed;
+}
+
+/**
+ * Lay out a straight iFlow (one integration process: Start -> steps -> End, no branches) the tidy way: one row with
+ * the standard gap; an exception subprocess (itself straight) in a row below, sized to its content; the pool fitted
+ * around both; the start event's sender left of the pool and every other Sender/Receiver box below its step.
+ * Branched flows are refused: the designer lays those out better.
+ */
+export function layoutStraight(doc: Document): string {
+  const processes = byTag(doc, 'process');
+  if (processes.length !== 1) throw new Error(`layout handles one integration process; this iFlow has ${processes.length} (local processes): use the designer`);
+  const proc = processes[0]!;
+  const subs = children(proc, 'subProcess');
+  const other = subs.find((x) => !isExceptionSub(x));
+  if (other) throw new Error(`layout handles exception subprocesses only; ${other.getAttribute('id')} is another kind of subprocess: use the designer`);
+  const main = straightChain(proc, isExceptionSub);
+  const sub = subs[0];
+  const inner = sub ? straightChain(sub, () => false) : undefined;
+  const collab = byTag(doc, 'collaboration')[0]!;
+  const poolId = children(collab, 'participant').find((p) => p.getAttribute('processRef') === proc.getAttribute('id'))?.getAttribute('id');
+  const poolShape = poolId ? shapeOf(doc, poolId) : undefined;
+  if (!poolShape) throw new Error('the integration process has no diagram shape');
+
+  // edge ends on borders or centres, as the file already does
+  const GAP = 50;
+  const firstShape = shapeOf(doc, main.chain[0]!.getAttribute('id')!);
+  if (!firstShape) throw new Error('the start event has no diagram shape');
+  const first = bounds(firstShape);
+  const firstEdge = edgeOf(doc, main.chainFlows[0]?.getAttribute('id') ?? '');
+  const firstWp = firstEdge && children(firstEdge, 'waypoint', NS.di)[0];
+  const centred = !!firstWp && Math.abs(Number(firstWp.getAttribute('x')) - (first.x + first.w / 2)) < 1;
+
+  const placed = placeRow(doc, main.chain, main.chainFlows, first.x, first.y + first.h / 2, centred);
+  const rowEnd = placed.at(-1)!.x + placed.at(-1)!.w;
+  const pool = bounds(poolShape);
+  let right = rowEnd;
+  let bottom = pool.y + pool.h;
+  const placedAll = main.chain.map((n, i) => [n, placed[i]!] as const);
+  if (sub && inner) {
+    // the subprocess box below the main row: events 33 in from its border, 46 down, as the designer draws them
+    const subShape = shapeOf(doc, sub.getAttribute('id')!);
+    if (!subShape) throw new Error(`${sub.getAttribute('id')} has no diagram shape`);
+    const box = bounds(subShape);
+    const top = Math.max(...placed.map((b) => b.y + b.h)) + 40;
+    const row = placeRow(doc, inner.chain, inner.chainFlows, first.x + 33, top + 62, true);
+    const w = Math.max(SUB.w, row.at(-1)!.x + row.at(-1)!.w + 52 - first.x);
+    box.el.setAttribute('x', fmt(first.x)); box.el.setAttribute('y', fmt(top));
+    box.el.setAttribute('width', fmt(w)); box.el.setAttribute('height', fmt(SUB.h));
+    // a lone end event sits at the right end, as in a new subprocess
+    if (inner.chain.length === 2) {
+      const e = row[1]!;
+      e.el.setAttribute('x', fmt(first.x + w - 84));
+      const edge = edgeOf(doc, inner.chainFlows[0]!.getAttribute('id')!);
+      if (edge) children(edge, 'waypoint', NS.di).at(-1)!.setAttribute('x', fmt(first.x + w - 84 + e.w / 2));
+      row[1] = { ...e, x: first.x + w - 84 };
+    }
+    right = Math.max(right, first.x + w);
+    bottom = top + SUB.h + 20;
+    inner.chain.forEach((n, i) => placedAll.push([n, row[i]!]));
+  }
+  pool.el.setAttribute('width', fmt(right + GAP - pool.x));
+  if (sub) pool.el.setAttribute('height', fmt(bottom - pool.y));
 
   // Sender/Receiver boxes connected to the flow
   let boxes = 0;
   for (const mf of children(collab, 'messageFlow')) {
     const [from, to] = [mf.getAttribute('sourceRef')!, mf.getAttribute('targetRef')!];
-    const i = chain.findIndex((n) => [from, to].includes(n.getAttribute('id')!));
-    const box = shapeOf(doc, chain[i]?.getAttribute('id') === from ? to : from);
-    if (i < 0 || !box) continue;
-    placeBox(doc, box, { ...placed[i]!, el: box }, chain[i]!.localName === 'startEvent');
+    const hit = placedAll.find(([n]) => [from, to].includes(n.getAttribute('id')!));
+    if (!hit) continue;
+    const box = shapeOf(doc, hit[0].getAttribute('id') === from ? to : from);
+    if (!box) continue;
+    placeBox(doc, box, { ...hit[1], el: box }, hit[0].localName === 'startEvent' && hit[0].parentNode === proc);
     boxes++;
   }
   routeAdapters(doc);
-  return `laid out ${chain.length} elements in one row (pool width ${placed.at(-1)!.x + placed.at(-1)!.w + GAP - pool.x}), ${boxes} Sender/Receiver box(es) placed`;
+  keepOnCanvas(doc);
+  return `laid out ${main.chain.length} elements in one row${inner ? ` and ${inner.chain.length} in the exception subprocess below` : ''} ` +
+    `(pool width ${right + GAP - pool.x}), ${boxes} Sender/Receiver box(es) placed`;
 }
 
 export function rename(el: Element, name: string) {
