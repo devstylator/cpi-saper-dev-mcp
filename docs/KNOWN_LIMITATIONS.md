@@ -80,6 +80,15 @@ mappings are supported for reading only). The mapping runtime is SAP-proprietary
 | The current designer also writes `<param_references>` in `parameters.propdef` (which setting uses a parameter); `params_set` does not write them, but keeps the existing ones (and removes those of a removed parameter) | The designer may not show where a new parameter is used; the tenant configures and runs it | — | Measured (tenant lists and runs a parameter declared without references) |
 | A parameter can be used by a message mapping instead of a setting; such parameters have no `{{name}}` in the iFlow | `params_set` lists them as not used in the iFlow, without warning | — | By design |
 
+## Status, endpoints, security material — added 2026-11-02
+
+| Difference | Impact | Workaround | Basis |
+|---|---|---|---|
+| `cpi_status` ignores `META-INF/MANIFEST.MF` on the local side: a push writes the version into it and the tenant (or the designer) rewrites it | A manifest edited by hand does not show as a local change | — | By design (as `cpi_push`) |
+| `cpi_status` downloads every artifact it checks | Slow for many pulled artifacts | Pass `iflow` or `package` | By design |
+| `cpi_endpoints` lists what the tenant reports as service endpoints (`ServiceEndpoints`): HTTP endpoints of deployed iFlows | Endpoints of other adapters (for example SFTP polling) are probably not listed | — | Measured for HTTPS senders; other adapters assumed |
+| `cpi_security_material` copies listed fields only (names, types, validity, deploy status) | User names, client ids and certificate content are not shown either | Look them up in the tenant's monitor | By design |
+
 ## Script collections — added 2026-11-02
 
 | Difference | Impact | Workaround | Basis |

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CpiClient, deployErrorList, HttpError, sendMessage, listIflows, mplIdOf, odataDate, odataErrorMessage, resolvePackage } from '../dist/index.js';
+import { CpiClient, deployErrorList, HttpError, listSecurityMaterial, sendMessage, listIflows, mplIdOf, odataDate, odataErrorMessage, resolvePackage } from '../dist/index.js';
 
 const KEY = { clientid: 'id', clientsecret: 'secret', url: 'https://tenant.example.com', tokenurl: 'https://auth.example.com/oauth/token' };
 
@@ -93,4 +93,21 @@ test('deployErrorList: the JSON parameter arrays as one line per problem; other 
     "Invalid value 'none' entered in 'Authentication' field",
   ]);
   assert.deepEqual(deployErrorList('first\n\n second '), ['first', 'second']);
+});
+
+test('security material: names, types and validity only; secrets, user names and certificates never copied', async () => {
+  const deployed = { Type: 'default', DeployedBy: 'admin', DeployedOn: '/Date(1790000000000)/', Status: 'DEPLOYED' };
+  const { client } = fakeTenant({
+    '/KeystoreEntries': [{ Alias: 'partner', Type: 'Certificate', KeyType: 'RSA', KeySize: 2048, ValidNotAfter: '/Date(1800000000000)/', SubjectDN: 'CN=partner', Owner: 'Tenant', Certificate: 'MIIB-secret-ish', FingerprintSha256: 'ab:cd' }],
+    '/UserCredentials': [{ Name: 'erp', Kind: 'default', Description: 'ERP user', User: 'RFC_USER', Password: 'p4ss', CompanyId: 'C1', SecurityArtifactDescriptor: deployed }],
+    '/OAuth2ClientCredentials': [{ Name: 'crm', TokenServiceUrl: 'https://auth.example.com/token', ClientId: 'cid', ClientSecret: 's3cret', ClientAuthentication: 'BODY', SecurityArtifactDescriptor: deployed }],
+    '/SecureParameters': [{ Name: 'apikey', Description: 'API key', SecureParam: 'k3y', DeployedOn: '/Date(1790000000000)/', Status: 'DEPLOYED' }],
+  });
+  const m = await listSecurityMaterial(client, new Date(1790000000000));
+  const text = JSON.stringify(m);
+  for (const secret of ['p4ss', 's3cret', 'k3y', 'RFC_USER', 'cid', 'MIIB', 'ab:cd', 'C1']) assert.ok(!text.includes(secret), `${secret} must not appear`);
+  assert.deepEqual(m.userCredentials, [{ name: 'erp', kind: 'default', description: 'ERP user', deployedOn: new Date(1790000000000).toISOString(), status: 'DEPLOYED' }]);
+  assert.equal(m.oauth2Clients[0]!.tokenUrl, 'https://auth.example.com/token');
+  assert.equal(m.secureParameters[0]!.name, 'apikey');
+  assert.equal(m.keystore[0]!.daysLeft, 115);
 });

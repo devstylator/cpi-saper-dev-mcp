@@ -108,3 +108,55 @@ export async function downloadIflow(client: CpiClient, id: string): Promise<Uint
   const res = await client.raw('GET', `/IntegrationDesigntimeArtifacts(Id='${q(id)}',Version='active')/$value`);
   return new Uint8Array(await res.arrayBuffer());
 }
+
+// ---------- endpoints and security material ----------
+
+export interface EndpointInfo { iflow: string; version?: string; protocol?: string; urls: Array<{ url: string; type?: string }> }
+
+/** HTTP endpoints of the deployed iFlows (one entry per endpoint; an iFlow with several senders has several) */
+export async function listEndpoints(client: CpiClient): Promise<EndpointInfo[]> {
+  const rows = await client.odata<Row[]>('GET', '/ServiceEndpoints?$expand=EntryPoints');
+  return rows.map((r) => {
+    const eps = (r.EntryPoints as { results?: Row[] } | Row[] | undefined);
+    const list = Array.isArray(eps) ? eps : eps?.results ?? [];
+    return {
+      iflow: String(r.Name), ...(str(r.Version) ? { version: str(r.Version)! } : {}), ...(str(r.Protocol) ? { protocol: str(r.Protocol)! } : {}),
+      urls: list.map((e) => ({ url: String(e.Url), ...(str(e.Type) ? { type: str(e.Type)! } : {}) })),
+    };
+  });
+}
+
+export interface SecurityMaterial {
+  keystore: Array<{ alias: string; type?: string; keyType?: string; keySize?: number; validFrom?: string; validUntil?: string; daysLeft?: number; subject?: string; issuer?: string; owner?: string; status?: string }>;
+  userCredentials: Array<{ name: string; kind?: string; description?: string; deployedOn?: string; status?: string }>;
+  oauth2Clients: Array<{ name: string; description?: string; tokenUrl?: string; authentication?: string; deployedOn?: string; status?: string }>;
+  secureParameters: Array<{ name: string; description?: string; deployedOn?: string; status?: string }>;
+}
+
+/**
+ * Names, types, validity and deploy status of the tenant's security material. Only listed fields are copied, so
+ * passwords, client secrets, secure parameter values, user names and certificate content are never returned.
+ */
+export async function listSecurityMaterial(client: CpiClient, now = new Date()): Promise<SecurityMaterial> {
+  const get = (set: string) => client.odata<Row[]>('GET', `/${set}`);
+  const [keys, users, oauth, secure] = await Promise.all([get('KeystoreEntries'), get('UserCredentials'), get('OAuth2ClientCredentials'), get('SecureParameters')]);
+  const descriptor = (r: Row) => (r.SecurityArtifactDescriptor ?? {}) as Row;
+  const deployed = (d: Row) => ({ ...(iso(d.DeployedOn) ? { deployedOn: iso(d.DeployedOn)! } : {}), ...(str(d.Status) ? { status: str(d.Status)! } : {}) });
+  const opt = (k: string, v: unknown) => (str(v) ? { [k]: str(v)! } : {});
+  return {
+    keystore: keys.map((r) => {
+      const until = iso(r.ValidNotAfter);
+      return {
+        alias: String(r.Alias), ...opt('type', r.Type), ...opt('keyType', r.KeyType), ...(r.KeySize ? { keySize: Number(r.KeySize) } : {}),
+        ...(iso(r.ValidNotBefore) ? { validFrom: iso(r.ValidNotBefore)! } : {}),
+        ...(until ? { validUntil: until, daysLeft: Math.floor((Date.parse(until) - now.getTime()) / 86_400_000) } : {}),
+        ...opt('subject', r.SubjectDN), ...opt('issuer', r.IssuerDN), ...opt('owner', r.Owner), ...opt('status', r.Status),
+      };
+    }),
+    userCredentials: users.map((r) => ({ name: String(r.Name), ...opt('kind', r.Kind), ...opt('description', r.Description), ...deployed(descriptor(r)) })),
+    oauth2Clients: oauth.map((r) => ({
+      name: String(r.Name), ...opt('description', r.Description), ...opt('tokenUrl', r.TokenServiceUrl), ...opt('authentication', r.ClientAuthentication), ...deployed(descriptor(r)),
+    })),
+    secureParameters: secure.map((r) => ({ name: String(r.Name), ...opt('description', r.Description), ...deployed(r) })),
+  };
+}

@@ -41,7 +41,7 @@ test('lists the tools with their read-only and destructive hints', async () => {
   const client = await connect(projectWithConfig());
   try {
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((t) => t.name), ['cpi_tenants', 'cpi_packages', 'cpi_artifacts', 'cpi_pull',
+    assert.deepEqual(tools.map((t) => t.name), ['cpi_tenants', 'cpi_packages', 'cpi_artifacts', 'cpi_pull', 'cpi_status', 'cpi_endpoints', 'cpi_security_material',
       'iflow_describe', 'iflow_render', 'iflow_validate', 'iflow_diff', 'templates_list',
       'iflow_edit', 'xslt_run', 'mapping_describe', 'script_run',
       'iflow_create', 'iflow_delete', 'cpi_push', 'cpi_version_proposal', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',

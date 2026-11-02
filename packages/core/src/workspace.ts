@@ -135,6 +135,22 @@ export class Workspace {
     return state;
   }
 
+  /** Every pulled-state record (iFlows and script collections), of one tenant or all */
+  allPulled(tenant?: string): PulledState[] {
+    if (!existsSync(this.stateDir)) return [];
+    const out: PulledState[] = [];
+    for (const t of readdirSync(this.stateDir)) {
+      if ((tenant && t !== tenant) || !statSync(join(this.stateDir, t)).isDirectory()) continue;
+      for (const f of readdirSync(join(this.stateDir, t)).filter((n) => n.endsWith('.json'))) {
+        try {
+          const st = JSON.parse(readFileSync(join(this.stateDir, t, f), 'utf8')) as Partial<PulledState>;
+          if (typeof st.dir === 'string' && typeof st.tenant === 'string' && typeof st.iflowId === 'string') out.push(st as PulledState);
+        } catch { /* not a pulled-state record */ }
+      }
+    }
+    return out.sort((a, b) => a.iflowId.localeCompare(b.iflowId));
+  }
+
   /** Drop the pulled state of an iFlow (after it was deleted on the tenant); true if there was one */
   forgetPulledState(tenant: string, iflowId: string): boolean {
     const { zip, meta } = this.statePaths(tenant, iflowId);

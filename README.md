@@ -34,10 +34,10 @@ adds no generic file tools.
 | `cpi_packages` | List packages; a package can be named by its ID or its display name | **Available**, v1 |
 | `cpi_artifacts` | List the iFlows and script collections of a package with version and runtime status | **Available**, v1 |
 | `cpi_pull` | Download an iFlow into the local workspace (`<workspace>/<package>/<iflow>/`, SAP's file layout); never overwrites local changes unless asked | **Available**, v1 |
-| `cpi_status` | Compare local, last pulled and tenant versions: modified, new, conflict | Planned, v1 |
+| `cpi_status` | For every pulled iFlow and script collection (or one, or a package's): in sync, modified locally, changed on the tenant, or conflict, with pulled, tenant and deployed versions; with a package also what is not pulled | **Available**, v1 |
 | `cpi_runtime_status` | Deployment state and deploy errors, with step IDs translated to step names | **Available**, v1 |
-| `cpi_endpoints` | HTTP endpoint URLs of deployed iFlows | Planned |
-| `cpi_security_material` | Names, types and expiry dates of credentials and keys (never their values) | Planned |
+| `cpi_endpoints` | HTTP endpoint URLs of deployed iFlows | **Available** |
+| `cpi_security_material` | Names, types, expiry (days left) and deploy status of keystore entries, user credentials, OAuth2 clients and secure parameters; passwords, secrets, user names, secure values and certificates are never returned | **Available** |
 | `cpi_config_get` | Configured values of externalized parameters, compared with the local `parameters.prop` | **Available** |
 
 ### Understand
