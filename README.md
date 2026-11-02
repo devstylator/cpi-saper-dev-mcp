@@ -63,7 +63,7 @@ adds no generic file tools.
 |---|---|---|
 | `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters; settings the tenant refuses only at deploy (empty split or Filter expression, key alias or mapping file, a Content Enricher or Request Reply without adapter, sender authorization values, Receiver names with spaces) | **Available**, v1 |
 | `xslt_run` | Run an XSLT (1.0–3.0) locally with headers and properties as parameters, like a CPI XSLT Mapping step; errors with line numbers | **Available** |
-| `script_run` | Run one Groovy script on the tenant without deploying (script runner iFlow, development tenants only); Groovy 2.4 or 4 chosen from the script's imports; returns body, headers, properties, console output and what changed | **Available** |
+| `script_run` | Run one Groovy script (also from a script collection) on the tenant without deploying (script runner iFlow, development tenants only); Groovy 2.4 or 4 chosen from the script's imports; returns body, headers, properties, console output and what changed | **Available** |
 | `cpi_guidelines` | Run SAP's design guideline check on the tenant (deploys through the API skip it) | **Available**, v1 |
 | `cpi_check` | Run the tenant's model check ("Check for problems") | **Available**, v1 |
 | `lint` | Local rules for common mistakes, including those SAP's guideline check flags | Planned |

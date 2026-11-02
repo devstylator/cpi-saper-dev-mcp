@@ -1,10 +1,10 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
   applyEdits, DEPLOY_CHECKS, describe, diffIflows, findElement, groovyVersionOf, loadServiceKey, mappingText, parseIflw, readMapping,
-  resourceRefs, runScript, runXslt, selectTenant, serializeIflw, validate, CpiClient, type EditOp,
+  resourceRefs, runScript, runXslt, scriptCollectionRefs, selectTenant, serializeIflw, validate, CpiClient, type EditOp,
 } from '@cpi-saper-dev-mcp/core';
 import { catalogOf, context, localIflow, type ToolContext } from '../context.js';
 import { collectionIssues, syncCollectionRequirements } from '../collections.js';
@@ -105,8 +105,15 @@ function fileArg(ctx: ToolContext, args: { file?: string | undefined; iflow?: st
   const { located, doc } = localIflow(ctx, args.iflow);
   const id = findElement(doc, args.step).getAttribute('id');
   const r = resourceRefs(doc).find((x) => x.step === id);
-  if (!r || !located.dir) throw new Error(`step ${args.step} of ${args.iflow} uses no ${what} file`);
-  return join(located.dir, 'src', 'main', 'resources', r.path);
+  if (r && located.dir) return join(located.dir, 'src', 'main', 'resources', r.path);
+  // a script from a script collection: the collection's folder next to the iFlow's, in the same package folder
+  const c = scriptCollectionRefs(doc).find((x) => x.step === id);
+  if (c && located.dir) {
+    const file = join(dirname(located.dir), c.collection, 'src', 'main', 'resources', 'script', c.script);
+    if (!existsSync(file)) throw new Error(`step ${args.step} uses ${c.script} from script collection ${c.collection}, which is not pulled into this package folder; pull it (script_collection_pull)`);
+    return file;
+  }
+  throw new Error(`step ${args.step} of ${args.iflow} uses no ${what} file`);
 }
 
 const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max)}\n…(cut: ${s.length} characters, limit output.maxChars = ${max})` : s);

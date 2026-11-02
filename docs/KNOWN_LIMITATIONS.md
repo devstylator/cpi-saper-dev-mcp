@@ -79,7 +79,7 @@ mappings are supported for reading only). The mapping runtime is SAP-proprietary
 | The tenant labels a collection upload with the manifest's `Bundle-Version`, and the version is repeated in `Provide-Capability`; the tenant wraps the manifest lines itself | `script_collection_push` sets both | — | Measured |
 | The collection entity has no comment field | Version comments of collections exist only in the changelog next to the folder | — | Measured (API metadata) |
 | An iFlow uses the deployed version of a collection: scripts added since then are missing at runtime; `resolution:=optional` lets the iFlow deploy without the collection | `cpi_deploy` checks that each collection exists in the iFlow's package, has the scripts and runs its latest version | Deploy the collection first | Collection checks measured; runtime failure without the collection assumed |
-| `script_run` posts one script file: scripts that call functions from a collection cannot be run as they are | — | Inline the shared code for the test | Current state |
+| `script_run` runs a collection's script like any other: by its file, or by the iFlow step that uses it (the collection pulled into the same package folder). As for every script, only that one file is sent, so a script that uses code from another script file cannot run as it is | — | Inline the other file's code for the test | Measured |
 
 ## Comparing iFlows — added 2026-10-28
 
