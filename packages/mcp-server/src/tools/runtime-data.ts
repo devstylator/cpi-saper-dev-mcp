@@ -4,7 +4,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
   deleteDataStore, deleteDataStoreEntry, deleteQueueMessage, deleteVariable, getBroker, listQueueMessages, listQueues, moveQueueMessages,
-  retryQueueMessages, setQueueActive, findDataStore, findVariable, getDataStoreEntry, getIflow, getVariableValue,
+  retryQueueMessages, setQueueActive, createNumberRange, deleteDuplicateCheck, deleteNumberRange, getPersisted, listDuplicateChecks,
+  listNumberRanges, listPersisted, planNumberRange, updateNumberRange, findDataStore, findVariable, getDataStoreEntry, getIflow, getVariableValue,
   listDataStoreEntries, listDataStores, listVariables, redactor, type CpiClient, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
 import { context, tenantApi } from '../context.js';
@@ -258,6 +259,159 @@ export function registerRuntimeDataTools(server: McpServer) {
         return toolResult({ queue, action, ...result, ...(result.processed === 0 ? { note: 'nothing matched: retry and move apply to failed messages' } : {}) });
       } catch (e) {
         if (!(e instanceof Declined)) audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_queue_action', artifact: queue, result: `refused: ${(e as Error).message.split('\n')[0]}` });
+        return toolError(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    'cpi_number_ranges',
+    {
+      title: 'Number ranges',
+      description: 'Number ranges (used by number range steps, e.g. for EDI interchange numbers): name, description, min, max, current value, field length, rotate, deployed by and on.',
+      inputSchema: { name: z.string().optional().describe('Only this range'), tenant: tenantArg },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ name, tenant }) => {
+      try {
+        const ctx = await context(server);
+        const api = tenantApi(ctx.config, tenant);
+        const all = await listNumberRanges(api.client);
+        if (name && !all.some((r) => r.name === name)) throw new Error(`no number range "${name}"`);
+        return toolResult({ tenant: api.tenant.name, numberRanges: name ? all.filter((r) => r.name === name) : all });
+      } catch (e) {
+        return toolError(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    'cpi_number_range_set',
+    {
+      title: 'Create, change or delete a number range',
+      description:
+        'create (needs max; min defaults to 0, current to min), update (what is not given stays, e.g. reset current), ' +
+        'or delete a number range. Number ranges are global: development tenants only. Asks for confirmation ("runtime_data").',
+      inputSchema: {
+        name: z.string(),
+        action: z.enum(['create', 'update', 'delete']),
+        description: z.string().optional(),
+        min: z.string().optional().describe('Whole number, as text'),
+        max: z.string().optional(),
+        current: z.string().optional().describe('The value the next number follows'),
+        fieldLength: z.string().optional().describe('Numbers are padded to this length'),
+        rotate: z.boolean().optional().describe('Start again at min after max'),
+        tenant: tenantArg,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+    },
+    async ({ name, action, tenant: tenantName, ...input }) => {
+      const ctx = await context(server).catch((e) => e as Error);
+      if (ctx instanceof Error) return toolError(ctx);
+      const api = tenantApi(ctx.config, tenantName);
+      try {
+        await assertMayChangeData(api.client, api.tenant, '');
+        const old = (await listNumberRanges(api.client)).find((r) => r.name === name);
+        if (action === 'create' && old) throw new Error(`number range ${name} exists; use update`);
+        if (action !== 'create' && !old) throw new Error(`no number range "${name}"`);
+        const given = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
+        const planned = action === 'delete' ? undefined : planNumberRange(name, given, old);
+        await confirmAction(server, ctx.config, 'runtime_data', action === 'delete'
+          ? `Delete number range ${name} (current ${old!.current}) on tenant "${api.tenant.name}"? Steps that use it fail afterwards.`
+          : `${action === 'create' ? 'Create' : 'Change'} number range ${name} on tenant "${api.tenant.name}": ${JSON.stringify(given)}${old ? ` (now: min ${old.min}, max ${old.max}, current ${old.current})` : ''}?`);
+        if (action === 'delete') await deleteNumberRange(api.client, name);
+        else if (action === 'create') await createNumberRange(api.client, planned!);
+        else await updateNumberRange(api.client, planned!);
+        audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_number_range_set', artifact: name, result: action, details: given });
+        // what the tenant stored, read back
+        const now = (await listNumberRanges(api.client)).find((r) => r.name === name);
+        return toolResult({ numberRange: name, action, ...(now ? { now } : { deleted: true }) });
+      } catch (e) {
+        if (!(e instanceof Declined)) audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_number_range_set', artifact: name, result: `refused: ${(e as Error).message.split('\n')[0]}` });
+        return toolError(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    'cpi_duplicate_checks',
+    {
+      title: 'Duplicate checks (already processed)',
+      description:
+        'Entries of the idempotent repository: what was already processed and is skipped when it comes again, e.g. a ' +
+        'file name an SFTP sender marked as processed, or an id an Idempotent Process Call step saw. Each entry: ' +
+        'source, entry (the processed file name or id), component, created, expires. Use it when a test seems to do ' +
+        'nothing; cpi_duplicate_check_delete makes the same file or id processed again.',
+      inputSchema: { contains: z.string().optional().describe('Only entries whose source or entry contains this text, e.g. an iFlow id or file name'), tenant: tenantArg },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ contains, tenant }) => {
+      try {
+        const ctx = await context(server);
+        const api = tenantApi(ctx.config, tenant);
+        const all = await listDuplicateChecks(api.client);
+        const hit = contains ? all.filter((e) => e.source.includes(contains) || e.entry.includes(contains)) : all;
+        return toolResult({ tenant: api.tenant.name, entries: hit.map(({ hexSource, hexEntry, ...e }) => e) });
+      } catch (e) {
+        return toolError(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    'cpi_duplicate_check_delete',
+    {
+      title: 'Allow processing again',
+      description:
+        'Delete duplicate-check entries (as listed by cpi_duplicate_checks: source and entry), so the same file or id ' +
+        'is processed again on the next run. Development tenants only. Asks for confirmation ("runtime_data").',
+      inputSchema: {
+        entries: z.array(z.object({ source: z.string(), entry: z.string() })).min(1),
+        tenant: tenantArg,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    },
+    async ({ entries, tenant: tenantName }) => {
+      const ctx = await context(server).catch((e) => e as Error);
+      if (ctx instanceof Error) return toolError(ctx);
+      const api = tenantApi(ctx.config, tenantName);
+      try {
+        await assertMayChangeData(api.client, api.tenant, '');
+        const all = await listDuplicateChecks(api.client);
+        const found = entries.map((x) => ({ x, e: all.find((e) => e.source === x.source && e.entry === x.entry) }));
+        const missing = found.filter((f) => !f.e).map((f) => `${f.x.source} / ${f.x.entry}`);
+        if (missing.length) throw new Error(`no such entries: ${missing.join(', ')}`);
+        await confirmAction(server, ctx.config, 'runtime_data', `Delete ${entries.length} duplicate-check entr${entries.length === 1 ? 'y' : 'ies'} on tenant "${api.tenant.name}" (they are processed again next time): ` +
+          entries.map((x) => `${x.source} / ${x.entry}`).join(', ') + '?');
+        for (const f of found) await deleteDuplicateCheck(api.client, f.e!);
+        audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_duplicate_check_delete', artifact: entries.map((x) => x.source).join(','), result: `deleted ${entries.length}` });
+        return toolResult({ deleted: entries });
+      } catch (e) {
+        if (!(e instanceof Declined)) audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_duplicate_check_delete', artifact: 'duplicate checks', result: `refused: ${(e as Error).message.split('\n')[0]}` });
+        return toolError(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    'cpi_message_store',
+    {
+      title: 'Persisted messages',
+      description:
+        'What the Persist steps of one message stored: without id, the entries (id, step id, time); with id, the stored ' +
+        'body (cut to output.maxChars) and headers (credential-like values hidden).',
+      inputSchema: { messageLogId: z.string().describe('Message log id (cpi_send_message, cpi_messages)'), id: z.string().optional().describe('Entry id'), tenant: tenantArg },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ messageLogId, id, tenant }) => {
+      try {
+        const ctx = await context(server);
+        const api = tenantApi(ctx.config, tenant);
+        const entries = await listPersisted(api.client, messageLogId);
+        if (!id) return toolResult({ tenant: api.tenant.name, messageLogId, entries, ...(entries.length ? {} : { note: 'this message stored nothing (no Persist step ran)' }) });
+        if (!entries.some((e) => e.id === id)) throw new Error(`message ${messageLogId} has no persisted entry ${id}`);
+        return toolResult({ tenant: api.tenant.name, messageLogId, id, ...(await getPersisted(api.client, id, { redact: redactor(ctx.config.redact), maxChars: ctx.config.output.maxChars })) });
+      } catch (e) {
         return toolError(e);
       }
     },

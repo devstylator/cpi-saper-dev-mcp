@@ -122,6 +122,11 @@ iFlow using it must be in an allowed package), with your confirmation (`runtime_
 | `cpi_variable_delete` | Delete a variable, for example to restart a delta load | **Available** |
 | `cpi_queues` | JMS broker (capacity, queues used of the maximum, warnings) and queues with messages, size, state and the iFlows that read or write them; with a queue, its messages (failed, retries, next retry, message log) | **Available** |
 | `cpi_queue_action` | Retry failed messages now, move messages to another queue, delete messages, activate or deactivate a queue | **Available** |
+| `cpi_number_ranges` | Number ranges (used by number range steps): min, max, current value, field length, rotate | **Available** |
+| `cpi_number_range_set` | Create, change (for example reset the current value) or delete a number range; values checked before you are asked | **Available** |
+| `cpi_duplicate_checks` | What was already processed and is skipped when it comes again (idempotent repository: file names of SFTP senders, ids of Idempotent Process Call steps), with expiry | **Available** |
+| `cpi_duplicate_check_delete` | Remove such entries so the same file or id is processed again in the next test | **Available** |
+| `cpi_message_store` | What the Persist steps of one message stored: entries, and an entry's body and headers | **Available** |
 
 ### Test
 

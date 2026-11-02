@@ -102,3 +102,103 @@ export async function getVariableValue(client: CpiClient, v: { name: string; ifl
 export async function deleteVariable(client: CpiClient, v: { name: string; iflow: string }): Promise<void> {
   await client.raw('DELETE', `/Variables(${varKey(v)})`);
 }
+
+// ---------- number ranges (global; used by number range steps) ----------
+
+export interface NumberRangeInfo {
+  name: string; description?: string; min: string; max: string; current: string; fieldLength?: string; rotate: boolean; deployedBy?: string; deployedOn?: string;
+}
+export interface NumberRangeInput { description?: string; min?: string; max?: string; current?: string; fieldLength?: string; rotate?: boolean }
+
+const toRange = (r: Row): NumberRangeInfo => ({
+  name: String(r.Name), ...(str(r.Description) ? { description: str(r.Description)! } : {}),
+  min: String(r.MinValue ?? ''), max: String(r.MaxValue ?? ''), current: String(r.CurrentValue ?? ''), ...(str(r.FieldLength) ? { fieldLength: str(r.FieldLength)! } : {}),
+  rotate: String(r.Rotate) === 'true', ...(str(r.DeployedBy) ? { deployedBy: str(r.DeployedBy)! } : {}), ...(iso(r.DeployedOn) ? { deployedOn: iso(r.DeployedOn)! } : {}),
+});
+
+export async function listNumberRanges(client: CpiClient): Promise<NumberRangeInfo[]> {
+  return (await client.odata<Row[]>('GET', '/NumberRanges')).map(toRange);
+}
+
+/** Check a range's numbers: whole numbers, min <= current <= max, and within the field length when given */
+export function checkNumberRange(r: { min: string; max: string; current: string; fieldLength?: string }) {
+  for (const [k, v] of Object.entries({ min: r.min, max: r.max, current: r.current })) if (!/^\d+$/.test(v)) throw new Error(`${k} "${v}" is not a whole number`);
+  const [min, max, cur] = [BigInt(r.min), BigInt(r.max), BigInt(r.current)];
+  if (min > max) throw new Error(`min ${r.min} is above max ${r.max}`);
+  if (cur < min || cur > max) throw new Error(`current ${r.current} is outside ${r.min}..${r.max}`);
+  if (r.fieldLength && (!/^\d+$/.test(r.fieldLength) || r.max.length > Number(r.fieldLength))) throw new Error(`max ${r.max} does not fit in field length ${r.fieldLength}`);
+}
+
+const rangeBody = (name: string, r: NumberRangeInfo) => ({
+  Name: name, Description: r.description ?? '', MinValue: r.min, MaxValue: r.max, CurrentValue: r.current, FieldLength: r.fieldLength ?? '', Rotate: r.rotate ? 'true' : 'false',
+});
+
+/**
+ * The range after a create (old missing: needs max; min defaults to 0, current to min) or an update (what is not
+ * given stays), checked before anything is sent.
+ */
+export function planNumberRange(name: string, r: NumberRangeInput, old?: NumberRangeInfo): NumberRangeInfo {
+  const base: NumberRangeInfo = old ?? { name, min: r.min ?? '0', max: '', current: r.current ?? r.min ?? '0', rotate: false };
+  const next: NumberRangeInfo = {
+    ...base, ...(r.description !== undefined ? { description: r.description } : {}), ...(r.min !== undefined ? { min: r.min } : {}), ...(r.max !== undefined ? { max: r.max } : {}),
+    ...(r.current !== undefined ? { current: r.current } : {}), ...(r.fieldLength !== undefined ? { fieldLength: r.fieldLength } : {}), ...(r.rotate !== undefined ? { rotate: r.rotate } : {}),
+  };
+  if (!next.max) throw new Error('a new number range needs max');
+  checkNumberRange(next);
+  return next;
+}
+
+export async function createNumberRange(client: CpiClient, r: NumberRangeInfo): Promise<void> {
+  await client.odata('POST', '/NumberRanges', rangeBody(r.name, r));
+}
+
+export async function updateNumberRange(client: CpiClient, r: NumberRangeInfo): Promise<void> {
+  await client.raw('PUT', `/NumberRanges('${q(r.name)}')`, { body: JSON.stringify(rangeBody(r.name, r)), headers: { 'Content-Type': 'application/json' } });
+}
+
+export async function deleteNumberRange(client: CpiClient, name: string): Promise<void> {
+  await client.raw('DELETE', `/NumberRanges('${q(name)}')`);
+}
+
+// ---------- duplicate checks (idempotent repository: what was already processed) ----------
+
+export interface DuplicateCheckEntry { source: string; entry: string; component?: string; createdAt?: string; expiresAt?: string; hexSource: string; hexEntry: string }
+const epoch = (v: unknown) => (v !== null && v !== undefined && v !== '' ? new Date(Number(v)).toISOString() : undefined);
+
+export async function listDuplicateChecks(client: CpiClient): Promise<DuplicateCheckEntry[]> {
+  const rows = await client.odata<Row[]>('GET', '/IdempotentRepositoryEntries');
+  return rows.map((r) => ({
+    source: String(r.Source ?? ''), entry: String(r.Entry ?? ''), ...(str(r.Component) ? { component: str(r.Component)! } : {}),
+    ...(epoch(r.CreationTime) ? { createdAt: epoch(r.CreationTime)! } : {}), ...(epoch(r.ExpirationTime) ? { expiresAt: epoch(r.ExpirationTime)! } : {}),
+    hexSource: String(r.HexSource), hexEntry: String(r.HexEntry),
+  }));
+}
+
+export async function deleteDuplicateCheck(client: CpiClient, e: { hexSource: string; hexEntry: string }): Promise<void> {
+  await client.raw('DELETE', `/IdempotentRepositoryEntries(HexSource='${q(e.hexSource)}',HexEntry='${q(e.hexEntry)}')`);
+}
+
+// ---------- persisted messages (Persist steps), per message log ----------
+
+export interface PersistedEntry { id: string; step: string; at?: string; hasAttachments: boolean }
+
+export async function listPersisted(client: CpiClient, messageLogId: string): Promise<PersistedEntry[]> {
+  const rows = await client.odata<Row[]>('GET', `/MessageProcessingLogs('${q(messageLogId)}')/MessageStoreEntries`).catch((e: unknown) => {
+    if (e instanceof HttpError && e.status === 404) throw new Error(`message ${messageLogId} not found`);
+    throw e;
+  });
+  return rows.map((r) => ({ id: String(r.Id), step: String(r.MessageStoreId ?? ''), ...(iso(r.TimeStamp) ? { at: iso(r.TimeStamp)! } : {}), hasAttachments: r.HasAttachments === true }));
+}
+
+/** A persisted message: the body as stored (measured: plain content) and its headers (the entry's properties) */
+export async function getPersisted(client: CpiClient, id: string, { redact = redactor(), maxChars = 20000 } = {}) {
+  const raw = new Uint8Array(await (await client.raw('GET', `/MessageStoreEntries('${q(id)}')/$value`)).arrayBuffer());
+  const text = Buffer.from(raw).toString('utf8');
+  const binary = /[\x00-\x08\x0e-\x1f]/.test(text.slice(0, 2000));
+  const props = await client.odata<Row[]>('GET', `/MessageStoreEntries('${q(id)}')/Properties`).catch(() => [] as Row[]);
+  return {
+    bodySize: raw.length,
+    body: binary ? `(binary, ${raw.length} bytes)` : text.length > maxChars ? `${text.slice(0, maxChars)}\n…(cut: ${text.length} characters)` : text,
+    headers: Object.fromEntries(props.map((p) => [String(p.Name), redact(String(p.Name), String(p.Value ?? ''))])),
+  };
+}
