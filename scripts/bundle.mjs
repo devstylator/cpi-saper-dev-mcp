@@ -29,5 +29,5 @@ for (const dir of ['catalog', 'rules']) {
   mkdirSync(join(pkg, dir), { recursive: true });
   cpSync(join(core, dir), join(pkg, dir), { recursive: true });
 }
-for (const f of ['README.md', 'LICENSE', 'NOTICE']) cpSync(join(root, f), join(pkg, f));
-console.log('bundle ready: packages/mcp-server/bundle/index.js (+ catalog, rules, README, LICENSE, NOTICE)');
+for (const f of ['README.md', 'CHANGELOG.md', 'LICENSE', 'NOTICE']) cpSync(join(root, f), join(pkg, f));
+console.log('bundle ready: packages/mcp-server/bundle/index.js (+ catalog, rules, README, CHANGELOG, LICENSE, NOTICE)');

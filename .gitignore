@@ -12,3 +12,4 @@ packages/mcp-server/README.md
 packages/mcp-server/LICENSE
 packages/mcp-server/NOTICE
 *.tgz
+packages/mcp-server/CHANGELOG.md

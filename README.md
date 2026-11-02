@@ -11,10 +11,12 @@
 An MCP server that lets an AI agent **develop** SAP Cloud Integration (CPI) content: edit iFlows, Groovy scripts
 and XSLT as local files under git, check them locally, then push, deploy and test them on a development tenant.
 
-> **Status: in development, not released yet.** The design has been tested on a BTP trial tenant with a
-> prototype; the MCP server itself is being built in this repository.
+> **Status: public beta (0.9.0-beta).** Everything listed as Available was tried against a BTP trial tenant, by
+> the author and by AI agents in test runs. Expect rough edges and report them as
+> [issues](https://github.com/devstylator/cpi-saper-dev-mcp/issues); names and behaviour may still change before
+> 1.0 ([CHANGELOG](CHANGELOG.md)).
 
-## What it will do
+## What it does
 
 - **Read** packages, iFlows and their status; pull an iFlow into a local folder.
 - **Understand** an iFlow without reading BPMN XML: a compact model, a Mermaid diagram, readable message mappings.
@@ -26,8 +28,7 @@ and XSLT as local files under git, check them locally, then push, deploy and tes
 
 ## Tools
 
-The MCP server is not released yet. **Available** tools work in the development version (see below) and were tried
-against a real tenant; **Planned** means designed but not built yet.
+**Available** tools work and were tried against a real tenant; **Planned** means designed but not built yet.
 
 The agent's own environment (for example Claude Code or VS Code) reads and writes the local files, so the server
 adds no generic file tools.
@@ -158,9 +159,9 @@ for every change instead of the service key's technical client.
 ## Install
 
 Requires Node.js 22 or later. The server is published on npm as
-[`cpi-saper-dev-mcp`](https://www.npmjs.com/package/cpi-saper-dev-mcp) (from version 0.9.0-beta): your AI client
-starts it with `npx`, which downloads it on first use. To pin a version, write `cpi-saper-dev-mcp@0.9.0-beta.0`
-instead of `cpi-saper-dev-mcp`.
+[`cpi-saper-dev-mcp`](https://www.npmjs.com/package/cpi-saper-dev-mcp): your AI client starts it with `npx`, which
+downloads it on first use. During the beta the examples use `cpi-saper-dev-mcp@beta` (the newest beta); to pin one
+version, write for example `cpi-saper-dev-mcp@0.9.0-beta.0`.
 
 Create `.cpi/config.json` in your project folder ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)), then connect the
 server to your AI client as shown below.
@@ -175,7 +176,7 @@ in the environment variable `CPI_MCP_CONFIG`.
 From your project folder:
 
 ```sh
-claude mcp add cpi-saper-dev-mcp -- npx -y cpi-saper-dev-mcp
+claude mcp add cpi-saper-dev-mcp -- npx -y cpi-saper-dev-mcp@beta
 ```
 
 ### GitHub Copilot in VS Code
@@ -188,7 +189,7 @@ Add the server to your project in `.vscode/mcp.json` (create the file if it does
     "cpi-saper-dev-mcp": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "cpi-saper-dev-mcp"],
+      "args": ["-y", "cpi-saper-dev-mcp@beta"],
       "cwd": "${workspaceFolder}"
     }
   }
@@ -207,7 +208,7 @@ setting `chat.mcp.workspaceRootConfig.enabled` is on:
   "mcpServers": {
     "cpi-saper-dev-mcp": {
       "command": "npx",
-      "args": ["-y", "cpi-saper-dev-mcp"]
+      "args": ["-y", "cpi-saper-dev-mcp@beta"]
     }
   }
 }
@@ -234,7 +235,7 @@ npm test            # builds and runs the tests
 ```
 
 and use `node /path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js` as the command (in place of
-`npx -y cpi-saper-dev-mcp`). `npm run pack:check` builds the npm package and tries it the way users install it.
+`npx -y cpi-saper-dev-mcp@beta`). `npm run pack:check` builds the npm package and tries it the way users install it.
 
 ### Readable git diff
 
@@ -244,11 +245,11 @@ the model instead, one fact per line (steps with their settings, adapters, flows
 
 ```sh
 printf '*.iflw diff=cpi\n*.mmap diff=cpi\n' >> .gitattributes
-git config diff.cpi.textconv "npx -y cpi-saper-dev-mcp textconv"
+git config diff.cpi.textconv "npx -y cpi-saper-dev-mcp@beta textconv"
 ```
 
 `npx` looks the package up on every start, which makes diffs of many files slow: for regular use install it once
-(`npm install -g cpi-saper-dev-mcp`) and use `cpi-saper-dev-mcp textconv` as the textconv command.
+(`npm install -g cpi-saper-dev-mcp@beta`) and use `cpi-saper-dev-mcp textconv` as the textconv command.
 
 `git diff --no-textconv` still shows the XML. It applies wherever git shows diffs (`git diff`, `git log -p`, `git show`); merges are unchanged.
 

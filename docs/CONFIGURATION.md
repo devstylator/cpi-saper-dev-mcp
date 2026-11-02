@@ -1,7 +1,7 @@
 # Configuration
 
-> **Development version.** The server already reads and validates this file (`cpi_tenants` shows the result); each
-> setting takes effect as the tools that use it are built. Names and defaults may still change until the first release.
+> **Beta (0.9).** The server reads and validates this file on every tool call (`cpi_tenants` shows the result). Names
+> and defaults may still change before 1.0; changes are listed in the [CHANGELOG](../CHANGELOG.md).
 
 The server reads one JSON file with general settings and a list of tenants. Service keys stay in their own files;
 the configuration only points to them, so it never contains secrets itself.

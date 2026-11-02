@@ -16,6 +16,7 @@ import { registerLoginTools } from './tools/login.js';
 import { context } from './context.js';
 import { rulesOf } from './versioning.js';
 import { textconvFile } from './textconv.js';
+import { VERSION } from './version.js';
 
 // command line use besides the MCP server: the git diff driver
 if (process.argv[2] === 'textconv') {
@@ -28,7 +29,7 @@ if (process.argv[2] === 'textconv') {
 }
 
 const server = new McpServer(
-  { name: 'cpi-saper-dev-mcp', version: '0.1.0' },
+  { name: 'cpi-saper-dev-mcp', version: VERSION },
   {
     instructions:
       'Tools for developing SAP Cloud Integration (CPI) content. Start with cpi_tenants to see which tenants are ' +

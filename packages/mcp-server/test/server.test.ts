@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -203,4 +203,14 @@ test('textconv: the git diff driver prints one fact per line and exits', () => {
   assert.match(out, /Aggregate IP data/);
   assert.ok(out.split('\n').length > 20);
   assert.throws(() => execFileSync(process.execPath, [SERVER, 'textconv'], { stdio: 'pipe' }), /usage: cpi-saper-dev-mcp textconv/);
+});
+
+test('the server reports the package version', async () => {
+  const client = await connect(projectWithConfig());
+  try {
+    const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')) as { version: string };
+    assert.equal(client.getServerVersion()?.version, pkg.version);
+  } finally {
+    await client.close();
+  }
 });
