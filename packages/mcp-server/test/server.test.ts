@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -180,4 +181,12 @@ test('the versioning rules are an MCP resource; a project file replaces the defa
   } finally {
     await client.close();
   }
+});
+
+test('textconv: the git diff driver prints one fact per line and exits', () => {
+  const fixtures = fileURLToPath(new URL('../../core/test/fixtures', import.meta.url));
+  const out = execFileSync(process.execPath, [SERVER, 'textconv', join(fixtures, 'sample-after/src/main/resources/scenarioflows/integrationflow/SampleFlow.iflw')], { encoding: 'utf8' });
+  assert.match(out, /Aggregate IP data/);
+  assert.ok(out.split('\n').length > 20);
+  assert.throws(() => execFileSync(process.execPath, [SERVER, 'textconv'], { stdio: 'pipe' }), /usage: cpi-saper-dev-mcp textconv/);
 });

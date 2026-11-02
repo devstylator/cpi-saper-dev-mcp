@@ -46,7 +46,7 @@ adds no generic file tools.
 |---|---|---|
 | `iflow_describe` | Compact model of an iFlow (steps, adapters, settings, routes, decoded header tables) instead of BPMN XML; steps numbered `#1`, `#2` … in flow order | **Available**, v1 |
 | `iflow_render` | Mermaid diagram of an iFlow; PNG later | **Available** (Mermaid), v1 |
-| `iflow_diff` | Model-level changes between two versions: steps added or removed, settings old → new, table rows, rewired flows; ignores layout and IDs the designer regenerates. Also available as a `git diff` driver | **Available**, v1 |
+| `iflow_diff` | Model-level changes between two versions: steps added or removed, settings old → new, table rows, rewired flows; ignores layout and IDs the designer regenerates. Also available as a [`git diff` driver](#readable-git-diff) | **Available**, v1 |
 | `mapping_describe` | Message mapping as one line per target field, `target <- expression` (read-only) | **Available** |
 | `templates_list` | The bundled step and adapter catalog ([catalog](packages/core/catalog/)): 106 variants with default settings | **Available**, v1 |
 
@@ -174,6 +174,19 @@ For all projects at once, add the server to Copilot's user configuration `~/.cop
 `$COPILOT_HOME/mcp-config.json`), with the same `mcpServers` entry as above. Keep a shared configuration in
 `~/.config/cpi-saper-dev-mcp/config.json` (with absolute paths to your service keys); a project's own
 `.cpi/config.json` still takes precedence when the client reports that project as a root.
+
+### Readable git diff
+
+`git diff` of an `.iflw` file shows BPMN XML and diagram coordinates. With the server as git's diff driver, it shows
+the model instead, one fact per line (steps with their settings, adapters, flows; message mappings as
+`target <- expression`), so a change reads as "+ step … / - flow …". In your repository:
+
+```sh
+printf '*.iflw diff=cpi\n*.mmap diff=cpi\n' >> .gitattributes
+git config diff.cpi.textconv "node /path/to/cpi-saper-dev-mcp/packages/mcp-server/dist/index.js textconv"
+```
+
+`git diff --no-textconv` still shows the XML. It applies wherever git shows diffs (`git diff`, `git log -p`, `git show`); merges are unchanged.
 
 ## Requirements
 

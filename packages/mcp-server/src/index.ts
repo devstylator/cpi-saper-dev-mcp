@@ -12,6 +12,17 @@ import { registerTestTools } from './tools/test.js';
 import { registerLoginTools } from './tools/login.js';
 import { context } from './context.js';
 import { rulesOf } from './versioning.js';
+import { textconvFile } from './textconv.js';
+
+// command line use besides the MCP server: the git diff driver
+if (process.argv[2] === 'textconv') {
+  if (!process.argv[3]) {
+    console.error('usage: cpi-saper-dev-mcp textconv <file.iflw|file.mmap>');
+    process.exit(2);
+  }
+  process.stdout.write(`${textconvFile(process.argv[3])}\n`);
+  process.exit(0);
+}
 
 const server = new McpServer(
   { name: 'cpi-saper-dev-mcp', version: '0.1.0' },
