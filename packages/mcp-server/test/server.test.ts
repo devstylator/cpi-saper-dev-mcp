@@ -47,16 +47,16 @@ test('lists the tools with their read-only and destructive hints', async () => {
       'iflow_create', 'iflow_delete', 'cpi_push', 'cpi_version_proposal', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy', 'cpi_runtime_status', 'cpi_guidelines', 'cpi_check',
       'script_collection_create', 'script_collection_pull', 'script_collection_push', 'script_collection_deploy', 'script_collection_delete',
       'params_set', 'cpi_config_get', 'cpi_config_set',
-      'cpi_datastores', 'cpi_datastore_entry', 'cpi_datastore_delete', 'cpi_variables', 'cpi_variable_delete',
+      'cpi_datastores', 'cpi_datastore_entry', 'cpi_datastore_delete', 'cpi_variables', 'cpi_variable_delete', 'cpi_queues', 'cpi_queue_action',
       'cpi_send_message', 'cpi_messages', 'cpi_message', 'cpi_trace', 'cpi_login']);
     assert.deepEqual(tools.filter((t) => !t.annotations?.readOnlyHint).map((t) => t.name), ['cpi_pull', 'iflow_edit', 'script_run',
       'iflow_create', 'iflow_delete', 'cpi_push', 'cpi_save_version', 'cpi_deploy', 'cpi_undeploy',
       'script_collection_create', 'script_collection_pull', 'script_collection_push', 'script_collection_deploy', 'script_collection_delete',
-      'params_set', 'cpi_config_set', 'cpi_datastore_delete', 'cpi_variable_delete',
+      'params_set', 'cpi_config_set', 'cpi_datastore_delete', 'cpi_variable_delete', 'cpi_queue_action',
       'cpi_send_message', 'cpi_trace', 'cpi_login']);
     assert.deepEqual(tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name), ['iflow_delete', 'cpi_push', 'cpi_deploy', 'cpi_undeploy',
       'script_collection_push', 'script_collection_deploy', 'script_collection_delete', 'cpi_config_set',
-      'cpi_datastore_delete', 'cpi_variable_delete']);
+      'cpi_datastore_delete', 'cpi_variable_delete', 'cpi_queue_action']);
   } finally {
     await client.close();
   }

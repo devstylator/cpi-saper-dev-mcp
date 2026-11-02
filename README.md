@@ -109,9 +109,9 @@ as the designer does. `iflow_validate` checks the script against a collection pu
 
 ### Runtime data
 
-What iFlows keep on the tenant between messages. Reading works on every configured tenant; deleting only on
-development tenants, for data of iFlows in allowed packages (global data: any development tenant), with your
-confirmation (`runtime_data`).
+What iFlows keep on the tenant between messages. Reading works on every configured tenant; changing only on
+development tenants, for data of iFlows in allowed packages (global data: any development tenant; a JMS queue: every
+iFlow using it must be in an allowed package), with your confirmation (`runtime_data`).
 
 | Tool | What it does | Status |
 |---|---|---|
@@ -120,6 +120,8 @@ confirmation (`runtime_data`).
 | `cpi_datastore_delete` | Delete entries or a whole store, for example to reset test data | **Available** |
 | `cpi_variables` | Variables (Write Variables): all with their iFlow or global; with a name, its value | **Available** |
 | `cpi_variable_delete` | Delete a variable, for example to restart a delta load | **Available** |
+| `cpi_queues` | JMS broker (capacity, queues used of the maximum, warnings) and queues with messages, size, state and the iFlows that read or write them; with a queue, its messages (failed, retries, next retry, message log) | **Available** |
+| `cpi_queue_action` | Retry failed messages now, move messages to another queue, delete messages, activate or deactivate a queue | **Available** |
 
 ### Test
 

@@ -3,7 +3,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  deleteDataStore, deleteDataStoreEntry, deleteVariable, findDataStore, findVariable, getDataStoreEntry, getIflow, getVariableValue,
+  deleteDataStore, deleteDataStoreEntry, deleteQueueMessage, deleteVariable, getBroker, listQueueMessages, listQueues, moveQueueMessages,
+  retryQueueMessages, setQueueActive, findDataStore, findVariable, getDataStoreEntry, getIflow, getVariableValue,
   listDataStoreEntries, listDataStores, listVariables, redactor, type CpiClient, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
 import { context, tenantApi } from '../context.js';
@@ -162,6 +163,101 @@ export function registerRuntimeDataTools(server: McpServer) {
         return toolResult({ variable: v.name, iflow: v.iflow || null, deleted: true });
       } catch (e) {
         if (!(e instanceof Declined)) audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_variable_delete', artifact: name, result: `refused: ${(e as Error).message.split('\n')[0]}` });
+        return toolError(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    'cpi_queues',
+    {
+      title: 'JMS queues',
+      description:
+        'The JMS broker (capacity used and maximum, queues used out of the maximum, warnings) and its queues with ' +
+        'message count, size, active/exclusive and the iFlows that read or write them; with queue, its messages (id, ' +
+        'failed, retry count, next retry, message log id, created, overdue, expires). Failed messages are retried by ' +
+        'the tenant; cpi_queue_action retries them now.',
+      inputSchema: { queue: z.string().optional().describe('Queue name'), tenant: tenantArg },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ queue, tenant }) => {
+      try {
+        const ctx = await context(server);
+        const api = tenantApi(ctx.config, tenant);
+        if (queue) {
+          const q = (await listQueues(api.client)).find((x) => x.name === queue);
+          if (!q) throw new Error(`queue "${queue}" not found`);
+          return toolResult({ tenant: api.tenant.name, queue: q, messages: await listQueueMessages(api.client, queue) });
+        }
+        const [broker, queues] = await Promise.all([getBroker(api.client), listQueues(api.client)]);
+        return toolResult({ tenant: api.tenant.name, broker, queues });
+      } catch (e) {
+        return toolError(e);
+      }
+    },
+  );
+
+  server.registerTool(
+    'cpi_queue_action',
+    {
+      title: 'Act on a JMS queue',
+      description:
+        'retry: retry failed messages now (all failed ones, or by ids, message log id or createdBefore); move: move ' +
+        'messages to another queue (same selection); delete: delete messages by id; activate/deactivate: start or stop ' +
+        'delivering the queue\'s messages to the iFlows that read it. Development tenants only, and every iFlow using ' +
+        'the queue (both queues for move) must be in an allowed package. Asks for confirmation ("runtime_data").',
+      inputSchema: {
+        queue: z.string(),
+        action: z.enum(['retry', 'move', 'delete', 'activate', 'deactivate']),
+        ids: z.array(z.string()).optional().describe('Message ids (cpi_queues queue=...)'),
+        messageLogId: z.string().optional().describe('retry/move: the messages of this message log'),
+        createdBefore: z.string().optional().describe('retry/move: messages created before this time (ISO)'),
+        targetQueue: z.string().optional().describe('move: the queue to move to'),
+        tenant: tenantArg,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+    },
+    async ({ queue, action, ids, messageLogId, createdBefore, targetQueue, tenant: tenantName }) => {
+      const ctx = await context(server).catch((e) => e as Error);
+      if (ctx instanceof Error) return toolError(ctx);
+      const api = tenantApi(ctx.config, tenantName);
+      try {
+        if (api.tenant.role !== 'development') throw new Error(`tenant "${api.tenant.name}" is ${api.tenant.role}: the agent may not change it`);
+        const queues = await listQueues(api.client);
+        const involved = [queue, ...(action === 'move' ? [targetQueue ?? ''] : [])];
+        for (const name of involved) {
+          const qi = queues.find((x) => x.name === name);
+          if (!qi) throw new Error(name ? `queue "${name}" not found` : 'move needs targetQueue');
+          for (const u of qi.iflows) {
+            // an iFlow that cannot be identified cannot be checked against allowedPackages: refuse
+            if (!u.iflow) throw new Error(`queue ${name} is used by "${u.name}", which cannot be matched to one deployed iFlow; act on the queue in the monitor`);
+            await assertMayChangeData(api.client, api.tenant, u.iflow);
+          }
+        }
+        const when = createdBefore ? new Date(createdBefore) : undefined;
+        if (when && Number.isNaN(when.getTime())) throw new Error(`createdBefore "${createdBefore}" is not a date`);
+        if (action === 'delete' && !ids?.length) throw new Error('delete needs ids (cpi_queues lists them)');
+        if (action === 'delete') {
+          const known = new Set((await listQueueMessages(api.client, queue)).map((m) => m.id));
+          const missing = ids!.filter((i) => !known.has(i));
+          if (missing.length) throw new Error(`queue ${queue} has no messages ${missing.join(', ')}`);
+        }
+        const what = ids?.length ? `${ids.length} message(s)` : messageLogId ? `the messages of message log ${messageLogId}` : when ? `messages created before ${when.toISOString()}` : 'all failed messages';
+        const text = {
+          retry: `Retry ${what} of queue ${queue}`, move: `Move ${what} of queue ${queue} to ${targetQueue}`, delete: `Delete ${what} of queue ${queue}`,
+          activate: `Activate queue ${queue}`, deactivate: `Deactivate queue ${queue} (its messages are no longer delivered)`,
+        }[action];
+        await confirmAction(server, ctx.config, 'runtime_data', `${text} on tenant "${api.tenant.name}"?`);
+        const sel = { ...(ids?.length ? { ids } : {}), ...(messageLogId ? { messageLogId } : {}), ...(when ? { createdBefore: when } : {}) };
+        let result: Record<string, unknown>;
+        if (action === 'retry') result = await retryQueueMessages(api.client, queue, sel);
+        else if (action === 'move') result = await moveQueueMessages(api.client, queue, targetQueue!, sel);
+        else if (action === 'delete') { for (const i of ids!) await deleteQueueMessage(api.client, queue, i); result = { deleted: ids }; }
+        else { await setQueueActive(api.client, queue, action === 'activate'); result = { active: action === 'activate' }; }
+        audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_queue_action', artifact: queue, result: `${action}: ${JSON.stringify(result)}` });
+        return toolResult({ queue, action, ...result, ...(result.processed === 0 ? { note: 'nothing matched: retry and move apply to failed messages' } : {}) });
+      } catch (e) {
+        if (!(e instanceof Declined)) audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_queue_action', artifact: queue, result: `refused: ${(e as Error).message.split('\n')[0]}` });
         return toolError(e);
       }
     },
