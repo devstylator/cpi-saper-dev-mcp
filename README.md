@@ -54,14 +54,14 @@ adds no generic file tools.
 
 | Tool | What it does | Status |
 |---|---|---|
-| `iflow_edit` | Semantic edits in one all-or-nothing batch: insert a step from the catalog (with settings, headers, properties; for XSLT and message mappings the mapping file), remove a step, add or remove an adapter (sender to a start event or Poll Enrich, receiver from Request Reply, Send, Content Enricher or an end event; the Sender/Receiver box is reused or created, receivers drawn below their step), tidy the layout of a straight flow, change settings of steps, adapters or the iFlow (unknown keys refused), rename, edit Content Modifier headers and properties. Keeps SAP's formatting, lays out the diagram, refuses edits that would break the iFlow, supports a dry run | **Available**, v1 |
+| `iflow_edit` | Semantic edits in one all-or-nothing batch: insert a step from the catalog (with settings, headers, properties; for XSLT and message mappings the mapping file, for a Filter its XPath), remove a step, add or remove an adapter (sender to a start event or Poll Enrich, receiver from Request Reply, Send, Content Enricher or an end event; the Sender/Receiver box is reused or created, receivers drawn below their step), tidy the layout of a straight flow, change settings of steps, adapters or the iFlow (unknown keys refused), rename, edit Content Modifier headers and properties. Keeps SAP's formatting, lays out the diagram, refuses edits that would break the iFlow, supports a dry run | **Available**, v1 |
 | `params_set` | Keep externalized parameters (`parameters.prop`/`.propdef`) consistent | Planned |
 
 ### Check
 
 | Tool | What it does | Status |
 |---|---|---|
-| `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters; settings the tenant refuses only at deploy (empty split expression, key alias or mapping file, a Content Enricher or Request Reply without adapter, sender authorization values) | **Available**, v1 |
+| `iflow_validate` | Structural checks: dangling flows, missing diagram shapes, unreachable steps, missing script or mapping files, undeclared parameters; settings the tenant refuses only at deploy (empty split or Filter expression, key alias or mapping file, a Content Enricher or Request Reply without adapter, sender authorization values) | **Available**, v1 |
 | `xslt_run` | Run an XSLT (1.0–3.0) locally with headers and properties as parameters, like a CPI XSLT Mapping step; errors with line numbers | **Available** |
 | `script_run` | Run one Groovy script on the tenant without deploying (script runner iFlow, development tenants only); Groovy 2.4 or 4 chosen from the script's imports; returns body, headers, properties, console output and what changed | **Available** |
 | `cpi_guidelines` | Run SAP's design guideline check on the tenant (deploys through the API skip it) | **Available**, v1 |

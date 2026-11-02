@@ -25,6 +25,7 @@ const REQUIRED: Record<string, { key: string; when?: (p: Props) => boolean; what
   XMLDigitalSignMessage: [{ key: 'privateKeyAlias', what: 'the private key alias', severity: 'warning' }],
   XSLTMapping: [{ key: 'mappinguri', when: (p) => p.mappingSource === 'mappingSrcIflow', what: 'the mapping file (iflow_edit "mapping")', severity: 'error' }],
   MessageMapping: [{ key: 'mappinguri', when: (p) => p.mappingReference === 'static', what: 'the mapping file (iflow_edit "mapping")', severity: 'error' }],
+  Filter: [{ key: 'wrapContent', what: 'the XPath expression (iflow_edit "expression")', severity: 'error' }],
   GroovyScript: [{ key: 'script', what: 'the script file', severity: 'error' }],
   JavaScript: [{ key: 'script', what: 'the script file', severity: 'error' }],
 };

@@ -19,6 +19,8 @@ export type EditOp =
     settings?: Props;
     /** XSLT or message mapping file under src/main/resources ("mapping/x.xsl"; a bare name means mapping/) */
     mapping?: string;
+    /** Filter: the XPath expression (stored in the setting wrapContent) */
+    expression?: string;
     headers?: TableRowInput[];
     properties?: TableRowInput[];
   }
@@ -39,7 +41,7 @@ export type EditOp =
   }
   | { op: 'remove_adapter'; adapter: string }
   | { op: 'layout' }
-  | { op: 'set'; element: string; settings?: Props; mapping?: string; allowNewKeys?: boolean }
+  | { op: 'set'; element: string; settings?: Props; mapping?: string; expression?: string; allowNewKeys?: boolean }
   | { op: 'rename'; element: string; name: string }
   | { op: 'headers' | 'properties'; step: string; set?: TableRowInput[]; remove?: string[] };
 
@@ -61,6 +63,21 @@ export function mappingSettings(cname: string, file: string): Props {
   if (!ext.test(path)) throw new Error(`mapping "${file}" must end in ${cname === 'XSLTMapping' ? '.xsl or .xslt' : '.mmap'}`);
   const bare = path.replace(/\.[^./]+$/, '');
   return { mappinguri: `dir://${scheme}/src/main/resources/${path}`, mappingname: bare.split('/').pop()!, mappingpath: `src/main/resources/${bare}` };
+}
+
+/** Filter's value types (setting xpathType); the XPath itself is the setting wrapContent */
+export const FILTER_VALUE_TYPES = new Set(['Boolean', 'Integer', 'Node', 'Nodelist', 'String']);
+
+/** The settings for a Filter's expression; refuses an XPath given as the value type, the easy mistake */
+export function expressionSettings(cname: string, expression: string | undefined, p: Props): Props {
+  if (cname !== 'Filter') {
+    if (expression !== undefined) throw new Error('"expression" applies to Filter steps only');
+    return {};
+  }
+  if (p.xpathType !== undefined && !FILTER_VALUE_TYPES.has(p.xpathType)) {
+    throw new Error(`Filter xpathType is the value type (${[...FILTER_VALUE_TYPES].join(', ')}), not "${p.xpathType}"; pass the XPath as "expression"`);
+  }
+  return expression === undefined ? {} : { wrapContent: expression };
 }
 
 /** True when a mapping step reads its mapping from a file in the iFlow (not from a header or another source) */
@@ -92,6 +109,10 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
           const cname = parseVariant(key).cname ?? '';
           if (SCRIPT_STEPS.has(cname) && !properties.script) {
             throw new Error(`${entry.label} needs settings.script: the file name under script/ (${version.startsWith('2.') ? 'v2/<name>.groovy for script step 2.x' : '<name>.groovy'})`);
+          }
+          Object.assign(properties, expressionSettings(cname, op.expression, properties));
+          if (cname === 'Filter' && !properties.wrapContent?.trim()) {
+            throw new Error(`${entry.label} needs "expression": the XPath of the nodes to keep, for example "/Orders/Order[region='EU']"`);
           }
           if (op.mapping) Object.assign(properties, mappingSettings(cname, op.mapping));
           else if (needsMappingFile(cname, properties) && !properties.mappinguri) {
@@ -151,12 +172,14 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
         }
         case 'set': {
           const el = findElement(doc, op.element);
-          const settings = op.settings ?? {};
-          if (!op.mapping && !Object.keys(settings).length) throw new Error('nothing to set: pass settings or mapping');
+          const settings = { ...op.settings };
+          if (!op.mapping && op.expression === undefined && !Object.keys(settings).length) throw new Error('nothing to set: pass settings, mapping or expression');
+          const cname = parseVariant(readProps(el).cmdVariantUri).cname ?? '';
+          Object.assign(settings, expressionSettings(cname, op.expression, { ...readProps(el), ...settings }));
           for (const k of Object.keys(settings)) if (TABLE_KEYS.has(k)) throw new Error(`use the "headers"/"properties" operation instead of the raw ${k} setting`);
           setProperties(el, settings, { allowNewKeys: op.allowNewKeys ?? false });
           // steps inserted before the mapping keys were in the catalog lack them, so they may be added here
-          if (op.mapping) setProperties(el, mappingSettings(parseVariant(readProps(el).cmdVariantUri).cname ?? '', op.mapping), { allowNewKeys: true });
+          if (op.mapping) setProperties(el, mappingSettings(cname, op.mapping), { allowNewKeys: true });
           log.push(`set ${[...Object.keys(settings), ...(op.mapping ? [`mapping ${op.mapping}`] : [])].join(', ')} on ${el.getAttribute('id') ?? 'integrationFlow'}`);
           break;
         }

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -98,12 +98,23 @@ export function registerTenantWriteTools(server: McpServer) {
         await assertMayChange(api.client, api.tenant, pkg.id);
         const existing = await getIflow(api.client, id).catch((e: Error) => (/not found/.test(e.message) ? undefined : Promise.reject(e)));
         if (existing) throw new Error(`an iFlow with Id ${id} already exists on tenant "${api.tenant.name}" (package ${existing.packageId}); pull it with cpi_pull or choose another Id`);
+        // checked before anything is created: a refused pull would leave the new iFlow on the tenant
+        const dir = ctx.workspace.iflowDir(pkg.id, id);
+        if (existsSync(dir) && readdirSync(dir).length) {
+          throw new Error(`the local folder ${relative(ctx.workspace.root, dir)} already exists and is not empty; move or delete it first (nothing was created)`);
+        }
         await confirmAction(server, ctx.config, 'create',
           `Create the iFlow ${id}${name && name !== id ? ` ("${name}")` : ''} in package ${pkg.id} ("${pkg.name}") on tenant "${api.tenant.name}"?`);
         await createIflow(api.client, pkg.id, id, name ?? id);
         audit(ctx.config, { tenant: api.tenant.name, tool: 'iflow_create', artifact: id, result: `created in ${pkg.id}` });
-        const info = await getIflow(api.client, id);
-        const r = ctx.workspace.pull(api.tenant.name, { iflowId: id, packageId: pkg.id, ...(info.version ? { version: info.version } : {}) }, await downloadIflow(api.client, id));
+        let info, r;
+        try {
+          info = await getIflow(api.client, id);
+          r = ctx.workspace.pull(api.tenant.name, { iflowId: id, packageId: pkg.id, ...(info.version ? { version: info.version } : {}) }, await downloadIflow(api.client, id));
+        } catch (e) {
+          throw new Error(`${id} was created on tenant "${api.tenant.name}" in package ${pkg.id}, but pulling it failed: ${(e as Error).message}. ` +
+            'Pull it with cpi_pull (or delete it with iflow_delete)');
+        }
         return toolResult({
           tenant: api.tenant.name, iflow: id, package: pkg.id, version: info.version ?? null,
           folder: r.dir, folderInWorkspace: relative(ctx.workspace.root, r.dir), files: r.files,

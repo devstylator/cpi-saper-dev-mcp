@@ -259,3 +259,19 @@ test('validate: settings and adapters the tenant needs at deploy', () => {
   applyEdits(empty, [{ op: 'set', element: 'HTTPS', settings: { senderAuthType: 'RoleBased' } }], catalog);
   assert.deepEqual(validate(empty).filter((i) => i.severity === 'error'), []);
 });
+
+test('Filter: "expression" fills wrapContent; an XPath given as xpathType is refused with a hint', () => {
+  const doc = fresh();
+  const log = applyEdits(doc, [{ op: 'insert_step', after: 'CallActivity_10', type: 'Filter', expression: "/Orders/Order[region='EU']" }], catalog);
+  const id = log[0]!.match(/inserted (\S+)/)![1]!;
+  assert.equal(readProps(findElement(doc, id)).wrapContent, "/Orders/Order[region='EU']");
+  assert.equal(readProps(findElement(doc, id)).xpathType, 'Nodelist');
+  assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'Filter' }], catalog), /needs "expression"/);
+  assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'Filter', settings: { xpathType: '/Orders/Order' } }], catalog),
+    /xpathType is the value type .* pass the XPath as "expression"/);
+  applyEdits(doc, [{ op: 'set', element: id, expression: '/Orders/Order[1]', settings: { xpathType: 'Node' } }], catalog);
+  assert.deepEqual([readProps(findElement(doc, id)).wrapContent, readProps(findElement(doc, id)).xpathType], ['/Orders/Order[1]', 'Node']);
+  assert.throws(() => applyEdits(doc, [{ op: 'set', element: 'CallActivity_10', expression: '/a' }], catalog), /Filter steps only/);
+  applyEdits(doc, [{ op: 'set', element: id, expression: '' }], catalog);
+  assert.match(validate(doc).map((i) => `${i.severity} ${i.msg}`).join(), /error .*wrapContent is empty/);
+});
