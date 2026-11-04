@@ -3,6 +3,7 @@
 import type { Document, Element, Node } from '@xmldom/xmldom';
 import { byTag, children, encodeTable, idIndex, NS, readProps, decodeTable, type Props } from './model.js';
 import { scheduleTable, type Schedule } from '../schedule.js';
+import { ADAPTER_INTO_STEP, adapterMisfit } from './adapter-fit.js';
 
 const isEl = (n: Node | null | undefined): n is Element => !!n && n.nodeType === 1;
 const fmt = (n: number) => (Number.isInteger(n) ? `${n}.0` : String(n)); // SAP writes coordinates as floats
@@ -467,6 +468,9 @@ export function addAdapter(doc: Document, stepId: string, { name, properties, di
   if (adapterDirectionFor(step) !== direction) throw new Error(`${stepId} needs a ${adapterDirectionFor(step).toLowerCase()} adapter, not a ${direction.toLowerCase()} adapter`);
   const collab = byTag(doc, 'collaboration')[0]!;
   const flows = children(collab, 'messageFlow');
+  const stepKind = readProps(step).activityType ?? '';
+  const misfit = adapterMisfit(stepKind, properties.cmdVariantUri ?? '');
+  if (misfit) throw new Error(`${stepId}: ${misfit}`);
   const taken = flows.find((f) => f.getAttribute('sourceRef') === stepId || f.getAttribute('targetRef') === stepId);
   if (taken) throw new Error(`${stepId} already has an adapter (${taken.getAttribute('id')} "${taken.getAttribute('name')}"); remove it first`);
 
@@ -510,7 +514,8 @@ export function addAdapter(doc: Document, stepId: string, { name, properties, di
   if (direction === 'Receiver' && connected(box)) throw new Error(`${boxName} already has an adapter; a receiver box takes one adapter`);
 
   const flowId = newId(index, 'MessageFlow');
-  const [from, to] = direction === 'Sender' ? [boxId, stepId] : [stepId, boxId];
+  // a Content Enricher's lookup adapter points at the step (SAP: "You must connect from external system to" it)
+  const [from, to] = direction === 'Sender' || ADAPTER_INTO_STEP.has(stepKind) ? [boxId, stepId] : [stepId, boxId];
   const flow = elementNS(doc, 'bpmn2:messageFlow', { id: flowId, name, sourceRef: from, targetRef: to });
   const ext = elementNS(doc, 'bpmn2:extensionElements');
   for (const [k, v] of Object.entries({ ...properties, ...('system' in properties ? { system: boxName } : {}) })) ext.appendChild(iflProperty(doc, k, v));

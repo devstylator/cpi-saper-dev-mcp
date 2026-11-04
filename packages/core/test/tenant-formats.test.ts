@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { zipSync } from 'fflate';
 import {
   bytesText, CpiClient, createNumberRange, deleteQueueMessage, deployErrorList, getConfigurations, getDataStoreEntry, getPersisted, getVariableValue,
-  listDataStores, listQueueMessages, listQueues, moveQueueMessages, planNumberRange, retryQueueMessages, setConfiguration,
+  listDataStores, listQueueMessages, listQueues, modelCheck, moveQueueMessages, planNumberRange, retryQueueMessages, setConfiguration,
 } from '../dist/index.js';
 
 const KEY = { clientid: 'id', clientsecret: 'secret', url: 'https://tenant.example.com', tokenurl: 'https://auth.example.com/oauth/token' };
@@ -133,4 +133,15 @@ test('JMS broker: capacity also as readable text', () => {
   assert.equal(bytesText(6291456000), '5.9 GB');
   assert.equal(bytesText(1303), '1.3 KB');
   assert.equal(bytesText(0), '0 B');
+});
+
+test('model check: verdict and the issues as step id (name): message', async () => {
+  const failed = 'Check execution result: Failed\n[\n  {\n    "severity": "Error",\n    "message": "Send to 2nd receiver is not supported for the adapter",\n    "sourceObject": "IFlowEditor/etype:serviceTask/eid:ServiceTask_6/location:Send to 2nd receiver",\n    "resourcePath": "src/main/resources/scenarioflows/integrationflow",\n    "resourceName": "Flow.iflw"\n  }\n]';
+  const { client } = tenant({ 'POST /ValidateIntegrationDesigntimeArtifact': { raw: failed, type: 'text/plain' } });
+  assert.deepEqual(await modelCheck(client, 'Flow'), {
+    passed: false,
+    issues: [{ severity: 'Error', message: 'Send to 2nd receiver is not supported for the adapter', where: 'ServiceTask_6 (Send to 2nd receiver)' }],
+  });
+  const ok = tenant({ 'POST /ValidateIntegrationDesigntimeArtifact': { raw: 'Check execution result: Passed', type: 'text/plain' } });
+  assert.deepEqual(await modelCheck(ok.client, 'Flow'), { passed: true, issues: [] });
 });

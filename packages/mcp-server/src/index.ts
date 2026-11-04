@@ -17,6 +17,7 @@ import { context } from './context.js';
 import { rulesOf } from './versioning.js';
 import { textconvFile } from './textconv.js';
 import { VERSION } from './version.js';
+import { enableToolLog } from './tool-log.js';
 
 // command line use besides the MCP server: the git diff driver
 if (process.argv[2] === 'textconv') {
@@ -41,6 +42,8 @@ const server = new McpServer(
   },
 );
 
+// before the tools: wraps each one for the optional tool-call log (configuration "toolLog")
+enableToolLog(server);
 registerTenantTools(server);
 registerTenantReadTools(server);
 registerUnderstandTools(server);

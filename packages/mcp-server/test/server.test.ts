@@ -214,3 +214,22 @@ test('the server reports the package version', async () => {
     await client.close();
   }
 });
+
+test('toolLog: each tool call is written as one JSON line, off by default', async () => {
+  const root = projectWithConfig();
+  const plain = await connect(root, [root]);
+  await tenants(plain);
+  await plain.close();
+  assert.throws(() => readFileSync(join(root, '.cpi', 'tools.log'), 'utf8'));
+
+  writeFileSync(join(root, '.cpi', 'config.json'), JSON.stringify({ toolLog: true, tenants: { t: { apiKey: 'keys/api.json' } } }));
+  const client = await connect(root, [root]);
+  await tenants(client);
+  await client.callTool({ name: 'templates_list', arguments: { query: 'Send' } });
+  await client.close();
+  const lines = readFileSync(join(root, '.cpi', 'tools.log'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual(lines.map((l) => l.tool), ['cpi_tenants', 'templates_list']);
+  assert.deepEqual(lines[1].args, { query: 'Send' });
+  assert.match(lines[1].result, /Send/);
+  assert.equal(typeof lines[0].ms, 'number');
+});

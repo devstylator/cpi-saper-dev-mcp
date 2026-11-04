@@ -3,7 +3,7 @@ import { dirname, join, relative } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  checkModel, createIflow, deleteIflow, getScriptCollection, deployErrorList, DEPLOY_CHECKS, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
+  modelCheck, createIflow, deleteIflow, getScriptCollection, deployErrorList, DEPLOY_CHECKS, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
   IFLOW_ID, resolvePackage, runGuidelines, runtimeError, undeployIflow, uploadIflow, validate, withVersion, zipChanges, zipFolder, zipVersion,
   type CpiClient, type GuidelineFinding, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
@@ -178,7 +178,8 @@ export function registerTenantWriteTools(server: McpServer) {
         'cpi_version_proposal first and pass version and comment by the versioning rules; the user confirms or edits ' +
         'both in a dialog (in unattendedTestMode, test only, they are used as passed). Collect and check related edits locally before pushing, rather than pushing every small step. ' +
         'Refuses when the tenant is not a development tenant, the package is not allowed or read-only, the local iFlow ' +
-        'has structural errors, the iFlow is open in the designer, or its content changed on the tenant since the pull.',
+        'has structural errors, the iFlow is open in the designer, or its content changed on the tenant since the pull. ' +
+        'After the upload it runs SAP\'s model check on the new version: modelCheck.errors must be fixed before cpi_deploy.',
       inputSchema: {
         iflow: z.string().describe('Local iFlow: Id, folder or .iflw'),
         version: z.string().optional().describe('Proposed version, e.g. 1.2.0 (default: the hint from the changes)'),
@@ -214,10 +215,24 @@ export function registerTenantWriteTools(server: McpServer) {
         const info = await getIflow(api.client, id);
         ctx.workspace.updatePulledState(api.tenant.name, { iflowId: id, packageId: info.packageId, version: v.version }, await downloadIflow(api.client, id), local.dir);
         const rec = recordVersion(ctx, api.tenant, 'cpi_push', id, info.packageId, v, local.dir);
+        // SAP's model check on the uploaded version: catches what the local validation does not know yet
+        let modelErrors: string[] | undefined;
+        let modelCheckFailed: string | undefined;
+        try {
+          const m = await modelCheck(api.client, id);
+          modelErrors = m.issues.filter((i) => /error/i.test(i.severity)).map((i) => `${i.where}: ${i.message}`);
+        } catch (e) {
+          modelCheckFailed = (e as Error).message.split('\n')[0];
+        }
+        const problems = [...deployWillFail, ...(modelErrors ?? [])];
         return toolResult({
           iflow: id, pushed: true, version: v.version, comment: v.comment, previous: p.lastVersion, files, changelog: rec.changelog,
           ...(deployWillFail.length ? { deployWillFail } : {}),
-          next: deployWillFail.length ? 'fix deployWillFail before cpi_deploy' : 'deploy it with cpi_deploy when it should run',
+          ...(modelErrors ? { modelCheck: modelErrors.length ? { passed: false, errors: modelErrors.slice(0, 30), ...(modelErrors.length > 30 ? { more: modelErrors.length - 30 } : {}) } : { passed: true } } : {}),
+          ...(modelCheckFailed ? { modelCheckNotRun: modelCheckFailed } : {}),
+          next: problems.length
+            ? `version ${v.version} is on the tenant but will not deploy: fix these errors locally (iflow_edit, iflow_validate), then cpi_push again; do not cpi_deploy this version`
+            : 'deploy it with cpi_deploy when it should run',
         });
       } catch (e) {
         if (!(e instanceof Declined)) audit(ctx.config, { tenant: api.tenant.name, tool: 'cpi_push', artifact: id, result: `refused: ${(e as Error).message.split('\n')[0]}` });
@@ -452,8 +467,8 @@ export function registerTenantWriteTools(server: McpServer) {
       try {
         const ctx = await context(server);
         const api = tenantApi(ctx.config, tenantName);
-        const r = await checkModel(api.client, iflow, version ?? 'active');
-        return toolResult({ iflow, passed: /Passed/i.test(r.text), result: r.text });
+        const r = await modelCheck(api.client, iflow, version ?? 'active');
+        return toolResult({ iflow, passed: r.passed, issues: r.issues.map((i) => `${i.severity} ${i.where}: ${i.message}`) });
       } catch (e) {
         return toolError(e);
       }

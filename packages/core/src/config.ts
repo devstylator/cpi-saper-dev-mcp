@@ -28,6 +28,7 @@ const ConfigSchema = z.object({
   confirm: z.array(z.enum(CONFIRMABLE)).default(['create', 'delete', 'push', 'deploy', 'undeploy', 'runtime_data']),
   experimental: z.object({ trace: z.boolean().default(false) }).strict().default({ trace: false }),
   auditLog: z.string().optional(),
+  toolLog: z.union([z.boolean(), z.string().min(1)]).default(false),
   catalog: z.string().optional(),
   output: z.object({ maxChars: z.number().int().positive().default(20000) }).strict().default({ maxChars: 20000 }),
   redact: z.array(z.string().min(1)).default([]),
@@ -64,6 +65,8 @@ export interface Config {
   confirm: ConfirmableAction[];
   experimental: { trace: boolean };
   auditLog: string;
+  /** when set: file recording every tool call (arguments, result, duration), for debugging how agents use the server */
+  toolLog?: string;
   /** undefined = bundled catalog */
   catalog?: string;
   output: { maxChars: number };
@@ -161,6 +164,7 @@ export function parseConfig(raw: unknown, path: string, { cwd = process.cwd(), h
     confirm: c.confirm,
     experimental: c.experimental,
     auditLog: abs(c.auditLog ?? 'audit.log'),
+    ...(c.toolLog !== false && { toolLog: abs(c.toolLog === true ? 'tools.log' : c.toolLog) }),
     ...(c.catalog !== undefined && { catalog: abs(c.catalog) }),
     output: c.output,
     redact: c.redact,

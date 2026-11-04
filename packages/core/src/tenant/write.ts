@@ -201,10 +201,25 @@ export async function runGuidelines(client: CpiClient, id: string, version = 'ac
   return { ...(r.ArtifactVersion ? { artifactVersion: String(r.ArtifactVersion) } : {}), ...(r.ExecutionStatus ? { status: String(r.ExecutionStatus) } : {}), findings };
 }
 
-/** The tenant's model validation ("Check for problems" in the designer) */
-export async function checkModel(client: CpiClient, id: string, version = 'active'): Promise<{ status: number; text: string }> {
+export interface ModelIssue { severity: string; message: string; where: string }
+
+/**
+ * SAP's model check ("Check for problems" in the designer) as a list. Recorded answer: HTTP 202 with
+ * "Check execution result: Failed" (or Passed) followed by a JSON array of {severity, message, sourceObject, …}.
+ */
+export async function modelCheck(client: CpiClient, id: string, version = 'active'): Promise<{ passed: boolean; issues: ModelIssue[] }> {
   const res = await client.raw('POST', `/ValidateIntegrationDesigntimeArtifact?Id='${q(id)}'&Version='${q(version)}'`);
-  return { status: res.status, text: (await res.text()).slice(0, 3000) };
+  const text = await res.text();
+  if (!res.ok) throw new HttpError('POST', 'ValidateIntegrationDesigntimeArtifact', res.status, text);
+  let rows: Array<Record<string, unknown>> = [];
+  try { rows = text.includes('[') ? JSON.parse(text.slice(text.indexOf('['))) : []; } catch { /* no list: only the verdict */ }
+  const issues = rows.map((r) => ({
+    severity: String(r.severity ?? ''),
+    message: String(r.message ?? ''),
+    // "IFlowEditor/etype:serviceTask/eid:ServiceTask_6/location:Send to 2nd receiver" -> "ServiceTask_6 (Send to 2nd receiver)"
+    where: ((s: string) => { const id = s.match(/eid:([^/]+)/)?.[1]; const at = s.match(/location:(.*)$/)?.[1]; return id ? `${id}${at ? ` (${at})` : ''}` : s; })(String(r.sourceObject ?? '')),
+  }));
+  return { passed: /Passed/i.test(text) && !issues.some((i) => /error/i.test(i.severity)), issues };
 }
 
 // ---------- configured values of externalized parameters ----------

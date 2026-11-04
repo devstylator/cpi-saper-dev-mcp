@@ -1,5 +1,6 @@
 // Structural checks an agent gets as feedback before anything reaches the tenant.
 import type { Document, Element, Node } from '@xmldom/xmldom';
+import { ADAPTER_INTO_STEP, adapterMisfit } from './adapter-fit.js';
 import { byTag, children, decodeTable, NS, parseVariant, readProps, resourceRefs, serializeIflw, type Props } from './model.js';
 
 export interface Issue { severity: 'error' | 'warning'; code: string; msg: string }
@@ -109,7 +110,8 @@ export function validate(doc: Document, { resourceFiles, declaredParameters }: V
     }
   }
 
-  const adapterOn = new Set(byTag(doc, 'messageFlow').flatMap((mf) => [mf.getAttribute('sourceRef'), mf.getAttribute('targetRef')]));
+  const messageFlows = byTag(doc, 'messageFlow');
+  const adapterOn = new Set(messageFlows.flatMap((mf) => [mf.getAttribute('sourceRef'), mf.getAttribute('targetRef')]));
   for (const el of [...byTag(doc, 'callActivity'), ...byTag(doc, 'serviceTask')]) {
     const p = readProps(el);
     const cname = parseVariant(p.cmdVariantUri).cname ?? p.activityType ?? '';
@@ -119,6 +121,15 @@ export function validate(doc: Document, { resourceFiles, declaredParameters }: V
     }
     const need = NEEDS_ADAPTER[cname];
     if (need && !adapterOn.has(el.getAttribute('id'))) add(need.severity, 'NO_ADAPTER', `${label} needs ${need.what} (iflow_edit add_adapter)`);
+    // measured: SAP's model check refuses these step/adapter pairs ("not supported for the adapter"), and a Content
+    // Enricher whose adapter points away from it; the tenant accepts the upload, so they are caught here, before a version
+    for (const mf of messageFlows.filter((f) => f.getAttribute('sourceRef') === el.getAttribute('id') || f.getAttribute('targetRef') === el.getAttribute('id'))) {
+      const misfit = adapterMisfit(cname, readProps(mf).cmdVariantUri ?? '');
+      if (misfit) add('error', 'ADAPTER_NOT_SUPPORTED', `${label}: ${misfit}`);
+      if (ADAPTER_INTO_STEP.has(cname) && mf.getAttribute('sourceRef') === el.getAttribute('id')) {
+        add('error', 'ADAPTER_DIRECTION', `${label}: its adapter ${mf.getAttribute('id')} must point from the receiver box to the step (SAP: "You must connect from external system to" it); remove it and add it again with iflow_edit add_adapter`);
+      }
+    }
     // a Process Call or Looping Process Call must name an existing local process; a looping one its loop element
     if (p.activityType === 'ProcessCallElement') {
       const target = p.processId ? byTag(doc, 'process').find((x) => x.getAttribute('id') === p.processId) : undefined;

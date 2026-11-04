@@ -9,6 +9,7 @@ export * from './tenant/client.js';
 export * from './tenant/read.js';
 export * from './iflow/edit.js';
 export * from './iflow/batch.js';
+export * from './iflow/adapter-fit.js';
 export * from './xslt.js';
 export * from './mapping.js';
 export * from './tenant/runner.js';

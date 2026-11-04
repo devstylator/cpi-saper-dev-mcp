@@ -3,6 +3,23 @@
 All notable changes of the `cpi-saper-dev-mcp` server. Versions follow [semantic versioning](https://semver.org/);
 before 1.0, names and behaviour may still change between versions.
 
+## Unreleased
+
+### Added
+
+- `toolLog` setting: every tool call (arguments, result, duration) as one JSON line, for debugging how agents use
+  the server. Off by default.
+- `cpi_push` runs SAP's model check on the uploaded version and returns its errors (`modelCheck`); `cpi_check`
+  returns the issues as a list.
+
+### Fixed
+
+- Step and adapter must fit (measured on the tenant): `iflow_edit` `add_adapter` refuses, and `iflow_validate`
+  reports, adapters that Send, Request Reply or Content Enricher do not support (for example HTTP on Send), so
+  `cpi_push` stops before such a version exists.
+- `add_adapter` on a Content Enricher drew the line from the step to the Receiver box; SAP's model check wants it
+  from the box to the step.
+
 ## 0.9.0-beta.1 (2026-11-04)
 
 ### Added

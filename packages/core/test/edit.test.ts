@@ -271,7 +271,7 @@ test('validate: settings and adapters the tenant needs at deploy', () => {
   applyEdits(doc, [
     { op: 'set', element: splitter!, settings: { splitExprValue: '//order' } },
     { op: 'set', element: signer!, settings: { privateKeyAlias: 'sign' } },
-    { op: 'add_adapter', step: enricher!, type: 'HTTP' },
+    { op: 'add_adapter', step: enricher!, type: 'ctype::AdapterVariant/cname::sap:HCIOData/tp::HTTP/mp::OData V2/direction::Receiver' },
   ], catalog);
   assert.deepEqual(codes(doc), []);
 
@@ -282,6 +282,38 @@ test('validate: settings and adapters the tenant needs at deploy', () => {
   assert.match(validate(empty).map((i) => i.msg).join(), /ClientCertificate needs clientCertificates/);
   applyEdits(empty, [{ op: 'set', element: 'HTTPS', settings: { senderAuthType: 'RoleBased' } }], catalog);
   assert.deepEqual(validate(empty).filter((i) => i.severity === 'error'), []);
+});
+
+test('step and adapter must fit (measured with SAP\'s model check); a Content Enricher\'s adapter points at the step', () => {
+  const doc = parseIflw(EMPTY);
+  applyEdits(doc, [
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Send', name: 'Out' },
+    { op: 'insert_step', after: 'Out', type: 'Request Reply', name: 'Call' },
+    { op: 'insert_step', after: 'Call', type: 'Content Enricher', name: 'Lookup' },
+  ], catalog);
+  assert.throws(() => applyEdits(doc, [{ op: 'add_adapter', step: 'Out', type: 'HTTP' }], catalog), /Send does not support the HTTP adapter.*use Request Reply/);
+  assert.throws(() => applyEdits(doc, [{ op: 'add_adapter', step: 'Call', type: 'JMS' }], catalog), /Request Reply does not support the JMS adapter.*use Send/);
+  assert.throws(() => applyEdits(doc, [{ op: 'add_adapter', step: 'Lookup', type: 'HTTP' }], catalog), /Content Enricher supports SuccessFactors, Soap1\.x, and OData/);
+  const log = applyEdits(doc, [
+    { op: 'add_adapter', step: 'Out', type: 'JMS' },
+    { op: 'add_adapter', step: 'Call', type: 'HTTP' },
+    { op: 'add_adapter', step: 'Lookup', type: 'ctype::AdapterVariant/cname::sap:SOAP/tp::HTTP/mp::SOAP 1.x/direction::Receiver' },
+  ], catalog);
+  assert.match(log[2]!, /from ServiceTask_\d+ to Receiver/);
+  const lookup = findElement(doc, 'Lookup').getAttribute('id');
+  const flow = [...doc.getElementsByTagNameNS('*', 'messageFlow')].find((f) => f.getAttribute('targetRef') === lookup)!;
+  assert.ok(flow, 'the enricher\'s adapter points at the step');
+  assert.deepEqual(validate(doc).filter((i) => i.code.startsWith('ADAPTER')), []);
+
+  // an iFlow written elsewhere: HTTP on Send, and the enricher's line the wrong way round
+  const [from, to] = [flow.getAttribute('sourceRef')!, flow.getAttribute('targetRef')!];
+  flow.setAttribute('sourceRef', to); flow.setAttribute('targetRef', from);
+  const out = [...doc.getElementsByTagNameNS('*', 'messageFlow')].find((f) => f.getAttribute('sourceRef') === findElement(doc, 'Out').getAttribute('id'))!;
+  for (const p of [...out.getElementsByTagNameNS('*', 'property')]) {
+    if (p.getElementsByTagName('key')[0]!.textContent === 'cmdVariantUri') p.getElementsByTagName('value')[0]!.textContent = 'ctype::AdapterVariant/cname::sap:HTTP/tp::HTTP/mp::None/direction::Receiver/version::1.22.1';
+  }
+  assert.deepEqual(validate(doc).filter((i) => i.code.startsWith('ADAPTER')).map((i) => `${i.code} ${i.msg.split(' ')[0]}`).sort(),
+    [`ADAPTER_DIRECTION ${lookup}`, `ADAPTER_NOT_SUPPORTED ${findElement(doc, 'Out').getAttribute('id')}`].sort());
 });
 
 test('Filter: "expression" fills wrapContent; an XPath given as xpathType is refused with a hint', () => {
