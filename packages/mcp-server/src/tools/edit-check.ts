@@ -64,6 +64,13 @@ const operation = z.discriminatedUnion('op', [
   }).describe('Add an exception subprocess (one per process), drawn below the main flow; insert steps into it with insert_step after its Error Start'),
   z.object({ op: z.literal('add_local_process'), name: z.string().optional().describe('Default "Local Integration Process <n>"') })
     .describe('Add a local integration process (a pool below the others, Start -> End); insert steps after its start, call it with a Process Call step ("process")'),
+  z.object({
+    op: z.literal('set_start'),
+    process: z.string().optional().describe('Integration process (id or name); default: the main one'),
+    kind: z.enum(['timer', 'message']).describe('timer: a scheduled iFlow (no sender adapter; remove it first); message: started by a sender adapter again'),
+    schedule: z.union([z.literal('once'), z.object({ every: z.number().int().positive(), unit: z.enum(['minutes', 'hours']) })])
+      .optional().describe('timer: "once" (run once after deploy, the default) or { every, unit }: repeat every n minutes (1-59) or hours (1-23), UTC'),
+  }).describe('Make the start event a timer start (scheduled iFlow) or a message start'),
   z.object({ op: z.literal('remove_local_process'), process: z.string().describe('Id or name; refused while a Process Call calls it') }),
   z.object({ op: z.literal('remove_exception_subprocess'), process: z.string().optional() }).describe('Remove the exception subprocess with all steps in it (they must not have adapters)'),
   z.object({
@@ -138,7 +145,8 @@ export function registerEditCheckTools(server: McpServer) {
         'box), add or remove an exception subprocess (insert steps into it after its Error Start), add a router or a ' +
         'parallel/sequential multicast (with Join) and put steps on its routes (insert_step "route"), change or remove ' +
         'routes and gateways, add or remove local integration processes and call them (Process Call / Looping Process ' +
-        'Call with "process", "loop"), lay out the iFlow (one pool per process, branches in rows), change settings of a ' +
+        'Call with "process", "loop"), make the start a timer or a message start (set_start), lay out the iFlow (one ' +
+        'pool per process, branches in rows), change settings of a ' +
         'step, adapter or the iFlow, ' +
         'rename, and add/change/remove Content Modifier headers and properties. All operations succeed or nothing is ' +
         'written; edits that would introduce structural errors are refused. New elements are formatted like SAP\'s ' +

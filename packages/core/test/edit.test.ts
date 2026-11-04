@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  applyEdits, byTag, children, CpiClient, describe, mappingSettings, NS, scriptCollectionRefs, textconv, withCollectionRequirements, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
+  applyEdits, byTag, children, CpiClient, describe, mappingSettings, NS, scheduleTable, scriptCollectionRefs, textconv, withCollectionRequirements, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
   mappingText, parseIflw, readMapping, readProps, removeStep, runScript, runXslt, serializeIflw, validate,
 } from '../dist/index.js';
 
@@ -576,5 +576,49 @@ test('local integration processes: add, steps inside, Process Call and Looping P
 
   applyEdits(doc, [{ op: 'remove_step', step: 'Call enrich' }, { op: 'remove_step', step: 'Repeat enrich' }, { op: 'remove_local_process', process: 'Enrich order' }], catalog);
   assert.equal(byTag(doc, 'process').length, 1);
+  assert.deepEqual(validate(doc), []);
+});
+
+test('timer start: run once or cron, as the designer writes it; refusals; back to a message start', () => {
+  const doc = parseIflw(EMPTY);
+  const before = describe(doc, { maxLen: 0 });
+  assert.match(applyEdits(doc, [{ op: 'set_start', kind: 'timer' }], catalog)[0]!, /timer start, runs once after deploy/);
+  const start = findElement(doc, 'StartEvent_2');
+  const timer = children(start, 'timerEventDefinition')[0]!;
+  const p = readProps(timer);
+  assert.deepEqual([p.cmdVariantUri, p.activityType, p.componentVersion], ['ctype::FlowstepVariant/cname::intermediatetimer/version::1.4.0', 'StartTimerEvent', '1.4']);
+  assert.match(p.scheduleKey!, /<row><cell>triggerType<\/cell><cell>simple<\/cell><\/row><row><cell>noOfSchedules<\/cell><cell>1<\/cell><\/row><row><cell>schedule1<\/cell><cell>fireNow=true<\/cell><\/row>$/);
+  assert.equal(children(start, 'messageEventDefinition').length, 0);
+  assert.deepEqual(validate(doc), []);
+
+  const withSender = parseIflw(EMPTY);
+  applyEdits(withSender, [{ op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS' }], catalog);
+  assert.throws(() => applyEdits(withSender, [{ op: 'set_start', kind: 'timer' }], catalog), /has a sender adapter .*remove it first/);
+  const withLocal = parseIflw(EMPTY);
+  applyEdits(withLocal, [{ op: 'add_local_process', name: 'Sub' }], catalog);
+  assert.throws(() => applyEdits(withLocal, [{ op: 'set_start', process: 'Sub', kind: 'timer' }], catalog), /started by a Process Call/);
+
+  applyEdits(doc, [{ op: 'set_start', kind: 'message' }], catalog);
+  assert.deepEqual(describe(doc, { maxLen: 0 }), before, 'back to the model it had');
+  assert.deepEqual(validate(doc), []);
+});
+
+test('timer start: the designer\'s simple schedule, character for character (recorded every 30 minutes)', () => {
+  const recorded = '<row><cell>dateType</cell><cell>SIMPLE</cell></row><row><cell>secondValue</cell><cell>0</cell></row><row><cell>minutesValue</cell><cell></cell></row>' +
+    '<row><cell>hourValue</cell><cell></cell></row><row><cell>toInterval</cell><cell>1</cell></row><row><cell>fromInterval</cell><cell>0</cell></row>' +
+    '<row><cell>OnEveryMinute</cell><cell>1</cell></row><row><cell>timeType</cell><cell>TIME_INTERVAL</cell></row>' +
+    '<row><cell>timeZone</cell><cell>( UTC 0:00 ) Greenwich Mean Time(Etc/GMT)</cell></row><row><cell>throwExceptionOnExpiry</cell><cell>true</cell></row>' +
+    '<row><cell>second</cell><cell>*</cell></row><row><cell>minute</cell><cell>*</cell></row><row><cell>hour</cell><cell>*</cell></row>' +
+    '<row><cell>day_of_month</cell><cell>?</cell></row><row><cell>month</cell><cell>*</cell></row><row><cell>dayOfWeek</cell><cell>*</cell></row>' +
+    '<row><cell>year</cell><cell>*</cell></row><row><cell>startAt</cell><cell></cell></row><row><cell>endAt</cell><cell></cell></row>' +
+    '<row><cell>attributeBehaviour</cell><cell>isThrowExceptionOnExpiryVisible,isScheduleAdvancedVisible,isScheduleAdvancedStartEndVisible,isScheduleSimpleVisible</cell></row>' +
+    '<row><cell>triggerType</cell><cell>cron</cell></row><row><cell>noOfSchedules</cell><cell>1</cell></row>' +
+    '<row><cell>schedule1</cell><cell>simple.repeat=MINUTES&amp;simple.every=30&amp;trigger.timeZone=Etc/GMT</cell></row>';
+  assert.equal(scheduleTable({ every: 30, unit: 'minutes' }), recorded);
+  assert.match(scheduleTable({ every: 2, unit: 'hours' }), /simple\.repeat=HOURS&amp;simple\.every=2&amp;/);
+  assert.throws(() => scheduleTable({ every: 60, unit: 'minutes' }), /1 to 59/);
+  assert.throws(() => scheduleTable({ every: 0, unit: 'hours' }), /1 to 23/);
+  const doc = parseIflw(EMPTY);
+  assert.match(applyEdits(doc, [{ op: 'set_start', kind: 'timer', schedule: { every: 15, unit: 'minutes' } }], catalog)[0]!, /every 15 minutes \(UTC\)/);
   assert.deepEqual(validate(doc), []);
 });

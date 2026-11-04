@@ -896,6 +896,80 @@ export function setLoop(el: Element, { condition, max = 100 }: { condition: stri
   return id;
 }
 
+// ---------- start event: message or timer ----------
+
+/** Run once after deploy, or repeat every n minutes or hours (the designer's "Simple Schedule") */
+export type TimerSchedule = 'once' | { every: number; unit: 'minutes' | 'hours' };
+
+/**
+ * The timer's schedule table exactly as the designer writes it (measured): "run once" is triggerType simple with
+ * fireNow=true; a simple schedule ("Repeat: Minutes, Every: 30") is triggerType cron with schedule1
+ * simple.repeat=MINUTES&simple.every=30 plus the designer's other rows, which it writes unchanged (OnEveryMinute stays
+ * 1 whatever the interval: the designer and the runtime read schedule1). Times are UTC.
+ */
+export function scheduleTable(schedule: TimerSchedule): string {
+  const esc = (v: string) => v.replace(/&/g, '&amp;');
+  let rows: Array<[string, string]>;
+  if (schedule === 'once') {
+    rows = [
+      ['dateType', ''], ['timeType', ''], ['dayValue', ''], ['monthValue', ''], ['yearValue', ''], ['onWeekly', ''], ['onMonthly', ''],
+      ['OnEveryMinute', ''], ['fromInterval', ''], ['toInterval', ''], ['timeZone', '( UTC 0:00 ) Greenwich Mean Time(Etc/GMT)'], ['secondValue', '0'],
+      ['minutesValue', ''], ['hourValue', ''], ['triggerType', 'simple'], ['noOfSchedules', '1'], ['schedule1', 'fireNow=true'],
+    ];
+  } else {
+    const { every, unit } = schedule;
+    const max = unit === 'minutes' ? 59 : 23;
+    if (!Number.isInteger(every) || every < 1 || every > max) throw new Error(`every ${unit}: a whole number from 1 to ${max}`);
+    rows = [
+      ['dateType', 'SIMPLE'], ['secondValue', '0'], ['minutesValue', ''], ['hourValue', ''], ['toInterval', '1'], ['fromInterval', '0'],
+      ['OnEveryMinute', '1'], ['timeType', 'TIME_INTERVAL'], ['timeZone', '( UTC 0:00 ) Greenwich Mean Time(Etc/GMT)'], ['throwExceptionOnExpiry', 'true'],
+      ['second', '*'], ['minute', '*'], ['hour', '*'], ['day_of_month', '?'], ['month', '*'], ['dayOfWeek', '*'], ['year', '*'], ['startAt', ''], ['endAt', ''],
+      ['attributeBehaviour', 'isThrowExceptionOnExpiryVisible,isScheduleAdvancedVisible,isScheduleAdvancedStartEndVisible,isScheduleSimpleVisible'],
+      ['triggerType', 'cron'], ['noOfSchedules', '1'],
+      ['schedule1', `simple.repeat=${unit === 'minutes' ? 'MINUTES' : 'HOURS'}&simple.every=${every}&trigger.timeZone=Etc/GMT`],
+    ];
+  }
+  return rows.map(([k, v]) => `<row><cell>${k}</cell><cell>${esc(v)}</cell></row>`).join('');
+}
+
+/**
+ * Make a process's start event a timer start (a scheduled iFlow: no sender) or a message start again. A timer start is
+ * refused while a sender adapter is connected; a message start then takes one (add_adapter).
+ */
+export function setStart(doc: Document, { process, kind, schedule = 'once' }: { process?: string; kind: 'message' | 'timer'; schedule?: TimerSchedule }): string {
+  const proc = findProcess(doc, process);
+  if (readProps(proc).processType === 'directCall') throw new Error(`${proc.getAttribute('id')} is a local integration process: it is started by a Process Call`);
+  const starts = children(proc, 'startEvent');
+  if (starts.length !== 1) throw new Error(`${proc.getAttribute('id')} must have exactly one start event (has ${starts.length})`);
+  const start = starts[0]!;
+  const id = start.getAttribute('id')!;
+  const index = idIndex(doc) as Map<string, Element | null>;
+  const docEl = start.ownerDocument!;
+  const timer = children(start, 'timerEventDefinition')[0];
+  if (kind === 'timer') {
+    const sender = byTag(doc, 'messageFlow').find((m) => m.getAttribute('targetRef') === id);
+    if (sender) throw new Error(`${id} has a sender adapter (${sender.getAttribute('id')} "${sender.getAttribute('name')}"); a scheduled iFlow has none: remove it first (remove_adapter)`);
+    const table = scheduleTable(schedule);
+    const what = schedule === 'once' ? 'runs once after deploy' : `every ${schedule.every} ${schedule.unit} (UTC)`;
+    if (timer) { setProperties(timer, { scheduleKey: table }); return `${id}: schedule ${what}`; }
+    for (const c of [...children(start, 'extensionElements'), ...children(start, 'messageEventDefinition')]) removeEl(c);
+    const def = elementNS(docEl, 'bpmn2:timerEventDefinition', { id: newId(index, 'TimerEventDefinition') });
+    withProps(docEl, def, { scheduleKey: table, componentVersion: '1.4', cmdVariantUri: 'ctype::FlowstepVariant/cname::intermediatetimer/version::1.4.0', activityType: 'StartTimerEvent' });
+    insertAfterEl(start, def, Array.from(start.childNodes).filter(isEl).at(-1)!);
+    return `${id}: timer start, ${what}`;
+  }
+  if (!timer) return `${id} is a message start already`;
+  removeEl(timer);
+  withProps(docEl, start, { cmdVariantUri: 'ctype::FlowstepVariant/cname::MessageStartEvent/version::1.0', componentVersion: '1.0' });
+  // the settings on their own line, indented like the start event's other children
+  const ext = children(start, 'extensionElements')[0]!;
+  const inner = indentBefore(children(start, 'outgoing')[0] ?? start);
+  start.insertBefore(docEl.createTextNode(inner), ext);
+  prettify(ext, inner.replace(/^\n/, ''));
+  insertAfterEl(start, elementNS(docEl, 'bpmn2:messageEventDefinition'), Array.from(start.childNodes).filter(isEl).at(-1)!);
+  return `${id}: message start again; connect a sender with add_adapter`;
+}
+
 // ---------- exception subprocess ----------
 
 /** The process an operation means: by id or name, else the one with a message start event (the main process) */

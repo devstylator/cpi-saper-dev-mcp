@@ -3,7 +3,7 @@ import type { Document, Element } from '@xmldom/xmldom';
 import { findEntries, pickVersion, type Catalog } from '../catalog.js';
 import {
   adapterDirectionFor, addAdapter, addExceptionSubprocess, addMulticast, addRouter, editTable, findRoute, layoutAround, removeGateway, setRoute, type RouteInput,
-  addLocalProcess, findLocalProcess, removeLocalProcess, setLoop, findElement, insertStepAfter, layoutStraight, removeAdapter, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
+  addLocalProcess, findLocalProcess, removeLocalProcess, setLoop, setStart, type TimerSchedule, findElement, insertStepAfter, layoutStraight, removeAdapter, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
 } from './edit.js';
 import { parseVariant, readProps, type Props } from './model.js';
 
@@ -59,6 +59,7 @@ export type EditOp =
   }
   | { op: 'remove_exception_subprocess'; process?: string }
   | { op: 'add_local_process'; name?: string }
+  | { op: 'set_start'; process?: string; kind: 'message' | 'timer'; schedule?: TimerSchedule }
   | { op: 'remove_local_process'; process: string }
   | {
     op: 'add_router';
@@ -240,6 +241,10 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
         }
         case 'remove_exception_subprocess': {
           log.push(`removed exception subprocess ${removeExceptionSubprocess(doc, op.process)} with its content`);
+          break;
+        }
+        case 'set_start': {
+          log.push(setStart(doc, { ...(op.process ? { process: op.process } : {}), kind: op.kind, ...(op.schedule ? { schedule: op.schedule } : {}) }));
           break;
         }
         case 'add_local_process': {
