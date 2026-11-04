@@ -161,7 +161,7 @@ for every change instead of the service key's technical client.
 Requires Node.js 22 or later. The server is published on npm as
 [`cpi-saper-dev-mcp`](https://www.npmjs.com/package/cpi-saper-dev-mcp): your AI client starts it with `npx`, which
 downloads it on first use. During the beta the examples use `cpi-saper-dev-mcp@beta` (the newest beta); to pin one
-version, write for example `cpi-saper-dev-mcp@0.9.0-beta.1`.
+version, write for example `cpi-saper-dev-mcp@0.9.0-beta.2`.
 
 Create `.cpi/config.json` in your project folder ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)), then connect the
 server to your AI client as shown below.
