@@ -157,6 +157,13 @@ export function validate(doc: Document, { resourceFiles, declaredParameters }: V
       add('error', 'INVALID_SETTING', `route ${f.getAttribute('id')} (${f.getAttribute('name') ?? ''}): condition "${cond.trim()}" uses ==; Camel Simple compares with = (also !=, >, >=, <, <=, contains, in, regex)`);
     }
   }
+  // the user's rule: a timer's schedule is always externalized (configurable on the tenant without a new version)
+  for (const t of byTag(doc, 'timerEventDefinition')) {
+    const key = readProps(t).scheduleKey ?? '';
+    if (!/^\{\{[^{}]+\}\}$/.test(key.trim())) {
+      add('warning', 'SCHEDULE_NOT_EXTERNALIZED', `${(t.parentNode as Element).getAttribute('id')}: the timer's schedule is not externalized; iflow_edit set_start writes it as a parameter`);
+    }
+  }
   // measured: "entryId,fail" let no header through; the list is separated by |
   const allowed = byTag(doc, 'collaboration')[0] ? readProps(byTag(doc, 'collaboration')[0]!).allowedHeaderList : undefined;
   if (allowed?.includes(',')) add('warning', 'ALLOWED_HEADERS', `allowedHeaderList "${allowed}": headers are separated by | (with commas no header gets through): "${allowed.split(/\s*,\s*/).join('|')}"`);

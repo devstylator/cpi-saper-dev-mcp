@@ -3,9 +3,10 @@ import type { Document, Element } from '@xmldom/xmldom';
 import { findEntries, pickVersion, type Catalog } from '../catalog.js';
 import {
   adapterDirectionFor, addAdapter, addExceptionSubprocess, addMulticast, addRouter, editTable, findRoute, layoutAround, removeGateway, setRoute, type RouteInput,
-  addLocalProcess, findLocalProcess, removeLocalProcess, setLoop, setStart, type TimerSchedule, findElement, insertStepAfter, layoutStraight, removeAdapter, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
+  addLocalProcess, findLocalProcess, removeLocalProcess, setLoop, setStart, findElement, insertStepAfter, layoutStraight, removeAdapter, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
 } from './edit.js';
 import { parseVariant, readProps, type Props } from './model.js';
+import type { Schedule } from '../schedule.js';
 
 export type EditOp =
   | {
@@ -59,7 +60,7 @@ export type EditOp =
   }
   | { op: 'remove_exception_subprocess'; process?: string }
   | { op: 'add_local_process'; name?: string }
-  | { op: 'set_start'; process?: string; kind: 'message' | 'timer'; schedule?: TimerSchedule }
+  | { op: 'set_start'; process?: string; kind: 'message' | 'timer'; schedule?: Schedule; parameter?: string }
   | { op: 'remove_local_process'; process: string }
   | {
     op: 'add_router';
@@ -125,7 +126,10 @@ const needsMappingFile = (cname: string, p: Props) =>
   (cname === 'XSLTMapping' && p.mappingSource === 'mappingSrcIflow') || (cname === 'MessageMapping' && p.mappingReference === 'static');
 
 /** Applies the operations; returns one line per operation describing what happened */
-export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): string[] {
+/** What an edit needs written outside the .iflw: externalized parameters (name, value, type) for parameters.prop/.propdef */
+export interface EditEffects { params: Array<{ name: string; value: string; type: string; description: string }> }
+
+export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog, effects: EditEffects = { params: [] }): string[] {
   const log: string[] = [];
   ops.forEach((op, i) => {
     const where = `operation ${i + 1} (${op.op})`;
@@ -244,7 +248,9 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
           break;
         }
         case 'set_start': {
-          log.push(setStart(doc, { ...(op.process ? { process: op.process } : {}), kind: op.kind, ...(op.schedule ? { schedule: op.schedule } : {}) }));
+          const r = setStart(doc, { ...(op.process ? { process: op.process } : {}), kind: op.kind, ...(op.schedule ? { schedule: op.schedule } : {}), ...(op.parameter ? { parameter: op.parameter } : {}) });
+          if (r.parameter) effects.params.push({ name: r.parameter.name, value: r.parameter.table, type: 'custom:schedule', description: 'Schedule of the timer start' });
+          log.push(r.message);
           break;
         }
         case 'add_local_process': {

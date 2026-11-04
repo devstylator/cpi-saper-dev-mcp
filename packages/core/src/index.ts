@@ -20,3 +20,4 @@ export * from './versioning.js';
 export * from './params.js';
 export * from './tenant/runtime-data.js';
 export * from './tenant/jms.js';
+export * from './schedule.js';

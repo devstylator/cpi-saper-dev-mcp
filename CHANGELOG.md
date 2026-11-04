@@ -10,8 +10,10 @@ before 1.0, names and behaviour may still change between versions.
   processes (one pool per process, stacked); a branching edit lays out only its own process.
 - `iflow_validate`: calls pointing to no local process, a looping call without its loop, unquoted values in Camel loop
   conditions.
-- `iflow_edit` `set_start`: timer start (scheduled iFlow: run once, or every n minutes or hours, UTC) or back to a
-  message start.
+- `iflow_edit` `set_start`: timer start (scheduled iFlow) or back to a message start. The schedule is always
+  externalized (parameter of type `custom:schedule`): run once, every n minutes or hours, or a cron schedule, with
+  start, end and time zone. `params_set` and `cpi_config_set` take schedule objects; `iflow_validate` warns about a
+  timer whose schedule is not externalized.
 
 ## 0.9.0-beta.0 (2026-11-02)
 

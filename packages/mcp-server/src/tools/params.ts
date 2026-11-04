@@ -6,7 +6,7 @@ import { join, relative } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  byTag, downloadIflow, getConfigurations, getIflow, localChanges, NS, readParams, setConfiguration, setParams, unzipEntries, zipChanges,
+  byTag, checkSchedule, downloadIflow, scheduleConfigValue, scheduleTable, type Schedule, getConfigurations, getIflow, localChanges, NS, readParams, setConfiguration, setParams, unzipEntries, zipChanges,
   type Document, type Element,
 } from '@cpi-saper-dev-mcp/core';
 import { context, localIflow, tenantApi } from '../context.js';
@@ -50,9 +50,13 @@ export function registerParamTools(server: McpServer) {
         set: z.array(z.object({
           name: z.string(),
           value: z.string().optional(),
-          type: z.enum(['xsd:string', 'xsd:integer', 'xsd:long', 'xsd:boolean', 'xsd:date', 'xsd:time', 'xsd:dateTime']).optional().describe('Default xsd:string (kept when changing)'),
+          type: z.enum(['xsd:string', 'xsd:integer', 'xsd:long', 'xsd:boolean', 'xsd:date', 'xsd:time', 'xsd:dateTime', 'custom:schedule']).optional().describe('Default xsd:string (kept when changing)'),
           required: z.boolean().optional(),
           description: z.string().optional(),
+          schedule: z.union([z.literal('once'), z.object({
+            every: z.number().int().positive().optional(), unit: z.enum(['minutes', 'hours']).optional(), cron: z.string().optional(),
+            from: z.string().optional(), until: z.string().optional(), timeZone: z.string().optional(),
+          })]).optional().describe('For a timer schedule parameter (type custom:schedule) instead of value: "once", {every, unit} or {cron}, with from, until, timeZone'),
         })).default([]),
         remove: z.array(z.string()).default([]).describe('Parameter names to remove (declaration, value and the designer\'s references)'),
       },
@@ -63,7 +67,9 @@ export function registerParamTools(server: McpServer) {
         const ctx = await context(server);
         const { located, doc } = localIflow(ctx, iflow);
         if (!located.dir) throw new Error(`${iflow}: parameters belong to an iFlow folder (src/main/resources), not a loose .iflw`);
-        const log = set.length || remove.length ? setParams(located.dir, set, remove) : [];
+        // a schedule object becomes the designer's table
+        const input = set.map(({ schedule, ...p }) => (schedule !== undefined ? { ...p, type: 'custom:schedule', value: scheduleTable(checkSchedule(schedule)) } : p));
+        const log = (input.length || remove.length ? setParams(located.dir, input, remove) : []).map((l) => l.replace(/ = <row>.*$/, ' = (schedule table)'));
         const used = uses(doc);
         const params = readParams(located.dir).map((p) => ({ ...p, usedBy: used.get(p.name) ?? [] }));
         const declared = new Set(params.map((p) => p.name));
@@ -122,12 +128,16 @@ export function registerParamTools(server: McpServer) {
         'too (unless it has local changes, which a later cpi_push would upload over these values).',
       inputSchema: {
         iflow: z.string().describe('iFlow Id'),
-        values: z.record(z.string(), z.string()).describe('Parameter name -> value'),
+        values: z.record(z.string(), z.string()).default({}).describe('Parameter name -> value'),
+        schedules: z.record(z.string(), z.object({
+          every: z.number().int().positive().optional(), unit: z.enum(['minutes', 'hours']).optional(), cron: z.string().optional(),
+          from: z.string().optional(), until: z.string().optional(), timeZone: z.string().optional(),
+        })).default({}).describe('Schedule parameter name (type custom:schedule) -> {every, unit} or {cron}, with from, until, timeZone'),
         tenant: tenantArg,
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
-    async ({ iflow, values, tenant: tenantName }) => {
+    async ({ iflow, values: plain, schedules, tenant: tenantName }) => {
       const ctx = await context(server).catch((e) => e as Error);
       if (ctx instanceof Error) return toolError(ctx);
       const api = tenantApi(ctx.config, tenantName);
@@ -135,13 +145,20 @@ export function registerParamTools(server: McpServer) {
         const info = await getIflow(api.client, iflow);
         await assertMayChange(api.client, api.tenant, info.packageId);
         const current = new Map((await getConfigurations(api.client, iflow)).map((v) => [v.key, v]));
+        // schedules go in the API's own short form (recorded), checked first
+        const values: Record<string, string> = { ...plain };
+        for (const [k, sch] of Object.entries(schedules)) {
+          if (current.get(k) && current.get(k)!.type !== 'custom:schedule') throw new Error(`${k} is not a schedule parameter (${current.get(k)!.type})`);
+          values[k] = scheduleConfigValue(checkSchedule(sch) as Exclude<Schedule, 'once'>);
+        }
+        for (const k of Object.keys(plain)) if (current.get(k)?.type === 'custom:schedule') throw new Error(`${k} is a schedule: pass it in "schedules" as {every, unit} or {cron}`);
         const keys = Object.keys(values);
         if (!keys.length) throw new Error('nothing to set: pass values');
         for (const k of keys) {
           const c = current.get(k);
           if (!c) throw new Error(`${iflow} has no parameter "${k}"; parameters: ${[...current.keys()].filter((x) => !x.startsWith('SAP_')).join(', ') || 'none'}`);
           if (k.startsWith('SAP_')) throw new Error(`${k} is set by SAP, not configured`);
-          checkValue(k, c.type, values[k]!);
+          if (c.type !== 'custom:schedule') checkValue(k, c.type, values[k]!);
         }
         await confirmAction(server, ctx.config, 'config_set', `Configure ${iflow} on tenant "${api.tenant.name}"?\n` +
           keys.map((k) => `${k}: ${current.get(k)!.value} -> ${values[k]}`).join('\n'));

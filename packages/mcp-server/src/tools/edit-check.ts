@@ -3,7 +3,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  applyEdits, DEPLOY_CHECKS, describe, diffIflows, findElement, groovyVersionOf, loadServiceKey, mappingText, parseIflw, readMapping,
+  applyEdits, DEPLOY_CHECKS, describe, setParams, type EditEffects, diffIflows, findElement, groovyVersionOf, loadServiceKey, mappingText, parseIflw, readMapping,
   resourceRefs, runScript, runXslt, scriptCollectionRefs, selectTenant, serializeIflw, validate, CpiClient, type EditOp,
 } from '@cpi-saper-dev-mcp/core';
 import { catalogOf, context, localIflow, type ToolContext } from '../context.js';
@@ -68,8 +68,15 @@ const operation = z.discriminatedUnion('op', [
     op: z.literal('set_start'),
     process: z.string().optional().describe('Integration process (id or name); default: the main one'),
     kind: z.enum(['timer', 'message']).describe('timer: a scheduled iFlow (no sender adapter; remove it first); message: started by a sender adapter again'),
-    schedule: z.union([z.literal('once'), z.object({ every: z.number().int().positive(), unit: z.enum(['minutes', 'hours']) })])
-      .optional().describe('timer: "once" (run once after deploy, the default) or { every, unit }: repeat every n minutes (1-59) or hours (1-23), UTC'),
+    schedule: z.union([z.literal('once'), z.object({
+      every: z.number().int().positive().optional().describe('Simple schedule: every n minutes (1-59) or hours (1-23)'),
+      unit: z.enum(['minutes', 'hours']).optional(),
+      cron: z.string().optional().describe('Advanced schedule instead: Quartz cron "second minute hour day-of-month month day-of-week [year]", e.g. "0 15 8 ? * MON-FRI" (weekdays 08:15)'),
+      from: z.string().optional().describe('Not before, local time in timeZone: 2026-11-05T08:00:00'),
+      until: z.string().optional().describe('Not after'),
+      timeZone: z.string().optional().describe('IANA time zone id, e.g. Europe/Warsaw; default UTC'),
+    })]).optional().describe('timer: "once" (run once after deploy, the default), a simple schedule {every, unit} or an advanced one {cron}; always externalized into parameters.prop'),
+    parameter: z.string().optional().describe('timer: name of the schedule parameter (default: the existing one, else timer_schedule)'),
   }).describe('Make the start event a timer start (scheduled iFlow) or a message start'),
   z.object({ op: z.literal('remove_local_process'), process: z.string().describe('Id or name; refused while a Process Call calls it') }),
   z.object({ op: z.literal('remove_exception_subprocess'), process: z.string().optional() }).describe('Remove the exception subprocess with all steps in it (they must not have adapters)'),
@@ -165,7 +172,9 @@ export function registerEditCheckTools(server: McpServer) {
         const { located, doc } = localIflow(ctx, iflow);
         const before = parseIflw(serializeIflw(doc));
         const known = new Set(validate(before, located).map((i) => `${i.code} ${i.msg}`));
-        const log = applyEdits(doc, operations as EditOp[], catalogOf(ctx.config));
+        const effects: EditEffects = { params: [] };
+        const log = applyEdits(doc, operations as EditOp[], catalogOf(ctx.config), effects);
+        if (effects.params.length && !located.dir) throw new Error('a timer schedule is externalized into parameters.prop: edit the iFlow folder, not a loose .iflw');
         const issues = validate(doc, located).filter((i) => !known.has(`${i.code} ${i.msg}`));
         const filesToCreate = issues.filter((i) => i.code === 'MISSING_RESOURCE').map((i) => i.msg.replace(/^.* -> /, ''));
         const blocking = issues.filter((i) => i.severity === 'error' && i.code !== 'MISSING_RESOURCE' && !DEPLOY_CHECKS.has(i.code));
@@ -175,6 +184,8 @@ export function registerEditCheckTools(server: McpServer) {
           throw new Error(`not written: the edits would introduce errors:\n${blocking.map((i) => `  ${i.code} ${i.msg}`).join('\n')}`);
         }
         if (!dryRun) writeFileSync(located.iflwPath, serializeIflw(doc));
+        // externalized values (timer schedules) go to parameters.prop/.propdef, like the designer's Externalize
+        const paramChanges = !dryRun && effects.params.length ? setParams(located.dir!, effects.params.map((p) => ({ name: p.name, value: p.value, type: p.type, description: p.description }))) : [];
         const manifest = !dryRun && syncCollectionRequirements(located, doc);
         const collections = collectionIssues(located, doc).map((i) => `${i.code} ${i.msg}`);
         const changes = diffIflows(describe(before, { maxLen: 0 }), describe(doc, { maxLen: 0 }), { docA: before, docB: doc });
@@ -186,6 +197,7 @@ export function registerEditCheckTools(server: McpServer) {
           filesToCreate,
           ...(beforeDeploy.length ? { beforeDeploy } : {}),
           ...(manifest ? { manifest: 'META-INF/MANIFEST.MF: Require-Capability updated for the script collections used' } : {}),
+          ...(paramChanges.length ? { parameters: paramChanges.map((c) => c.replace(/ = <row>.*$/, ' = (schedule table)')) } : {}),
           warnings: [...issues.filter((i) => i.severity === 'warning' && !DEPLOY_CHECKS.has(i.code)).map((i) => `${i.code} ${i.msg}`), ...collections],
         });
       } catch (e) {

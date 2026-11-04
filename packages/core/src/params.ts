@@ -9,7 +9,7 @@ export interface ParamDef { name: string; type: string; required: boolean; descr
 export interface ParamInput { name: string; value?: string; type?: string; required?: boolean; description?: string }
 
 /** Types the designer offers for externalized parameters */
-export const PARAM_TYPES = ['xsd:string', 'xsd:integer', 'xsd:long', 'xsd:boolean', 'xsd:date', 'xsd:time', 'xsd:dateTime'];
+export const PARAM_TYPES = ['xsd:string', 'xsd:integer', 'xsd:long', 'xsd:boolean', 'xsd:date', 'xsd:time', 'xsd:dateTime', 'custom:schedule'];
 
 const rx = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /** The <parameter> block of one name */

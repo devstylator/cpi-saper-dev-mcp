@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  applyEdits, byTag, children, CpiClient, describe, mappingSettings, NS, scheduleTable, scriptCollectionRefs, textconv, withCollectionRequirements, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
+  applyEdits, byTag, children, CpiClient, describe, mappingSettings, NS, cronFields, scheduleConfigValue, scheduleTable, scriptCollectionRefs, zoneLabel, textconv, withCollectionRequirements, diffIflows, findElement, groovyVersionOf, insertStepAfter, loadCatalog, locateIflow,
   mappingText, parseIflw, readMapping, readProps, removeStep, runScript, runXslt, serializeIflw, validate,
 } from '../dist/index.js';
 
@@ -579,17 +579,25 @@ test('local integration processes: add, steps inside, Process Call and Looping P
   assert.deepEqual(validate(doc), []);
 });
 
-test('timer start: run once or cron, as the designer writes it; refusals; back to a message start', () => {
+test('timer start: always externalized (scheduleKey {{parameter}}, table for parameters.prop); refusals; back to a message start', () => {
   const doc = parseIflw(EMPTY);
   const before = describe(doc, { maxLen: 0 });
-  assert.match(applyEdits(doc, [{ op: 'set_start', kind: 'timer' }], catalog)[0]!, /timer start, runs once after deploy/);
+  const effects = { params: [] as Array<{ name: string; value: string; type: string; description: string }> };
+  assert.match(applyEdits(doc, [{ op: 'set_start', kind: 'timer' }], catalog, effects)[0]!, /timer start, runs once after deploy, externalized as parameter timer_schedule/);
   const start = findElement(doc, 'StartEvent_2');
   const timer = children(start, 'timerEventDefinition')[0]!;
   const p = readProps(timer);
-  assert.deepEqual([p.cmdVariantUri, p.activityType, p.componentVersion], ['ctype::FlowstepVariant/cname::intermediatetimer/version::1.4.0', 'StartTimerEvent', '1.4']);
-  assert.match(p.scheduleKey!, /<row><cell>triggerType<\/cell><cell>simple<\/cell><\/row><row><cell>noOfSchedules<\/cell><cell>1<\/cell><\/row><row><cell>schedule1<\/cell><cell>fireNow=true<\/cell><\/row>$/);
+  assert.deepEqual([p.scheduleKey, p.cmdVariantUri, p.activityType, p.componentVersion], ['{{timer_schedule}}', 'ctype::FlowstepVariant/cname::intermediatetimer/version::1.4.0', 'StartTimerEvent', '1.4']);
+  assert.equal(effects.params[0]!.type, 'custom:schedule');
+  assert.match(effects.params[0]!.value, /<cell>triggerType<\/cell><cell>simple<\/cell>.*<cell>schedule1<\/cell><cell>fireNow=true<\/cell><\/row>$/);
   assert.equal(children(start, 'messageEventDefinition').length, 0);
   assert.deepEqual(validate(doc), []);
+
+  // a new schedule keeps the parameter's name
+  const again = { params: [] as typeof effects.params };
+  applyEdits(doc, [{ op: 'set_start', kind: 'timer', schedule: { cron: '0 15 8 ? * MON-FRI', timeZone: 'Europe/Warsaw' } }], catalog, again);
+  assert.equal(again.params[0]!.name, 'timer_schedule');
+  assert.match(again.params[0]!.value, /<cell>schedule1<\/cell><cell>0\+15\+8\+\?\+\*\+MON-FRI\+\*&amp;trigger\.timeZone=Europe\/Warsaw<\/cell>/);
 
   const withSender = parseIflw(EMPTY);
   applyEdits(withSender, [{ op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS' }], catalog);
@@ -597,10 +605,42 @@ test('timer start: run once or cron, as the designer writes it; refusals; back t
   const withLocal = parseIflw(EMPTY);
   applyEdits(withLocal, [{ op: 'add_local_process', name: 'Sub' }], catalog);
   assert.throws(() => applyEdits(withLocal, [{ op: 'set_start', process: 'Sub', kind: 'timer' }], catalog), /started by a Process Call/);
+  // a timer made in the designer without externalizing is reported
+  const inline = parseIflw(serializeIflw(doc));
+  applyEdits(inline, [{ op: 'set', element: 'TimerEventDefinition_1', settings: { scheduleKey: '<row><cell>triggerType</cell><cell>simple</cell></row>' } }], catalog);
+  assert.match(validate(inline).map((i) => i.code).join(), /SCHEDULE_NOT_EXTERNALIZED/);
 
   applyEdits(doc, [{ op: 'set_start', kind: 'message' }], catalog);
   assert.deepEqual(describe(doc, { maxLen: 0 }), before, 'back to the model it had');
   assert.deepEqual(validate(doc), []);
+});
+
+test('schedules recorded from the designer and the tenant: tables, API short form, time zones, checks', () => {
+  // simple, every hour, with a time range (recorded)
+  const hourly = { every: 1, unit: 'hours' as const, from: '2026-11-05T08:00:00', until: '2026-12-31T18:00:00' };
+  assert.match(scheduleTable(hourly), /<cell>startAt<\/cell><cell>2026-11-05T08:00:00<\/cell>.*<cell>endAt<\/cell><cell>2026-12-31T18:00:00<\/cell>/);
+  assert.match(scheduleTable(hourly), /<cell>schedule1<\/cell><cell>simple\.repeat=HOURS&amp;simple\.every=1&amp;trigger\.timeZone=Etc\/GMT&amp;trigger\.startAt=2026-11-05T08:00:00&amp;trigger\.endAt=2026-12-31T18:00:00<\/cell>/);
+  assert.equal(scheduleConfigValue(hourly), 'simple.repeat=HOURS --simple.every=1 --tz=Etc/GMT --startAt=2026-11-05T08:00:00 --endAt=2026-12-31T18:00:00');
+  // advanced (recorded): the cron fields in their rows and in schedule1
+  const adv = { cron: '* 0/15 0/8 ? * MON,TUE,THU,WED,FRI *', from: '2026-11-05T08:00:00', until: '2026-12-31T18:00:00' };
+  const t = scheduleTable(adv);
+  assert.match(t, /^<row><cell>dateType<\/cell><cell>ADVANCED<\/cell>/);
+  assert.match(t, /<cell>minute<\/cell><cell>0\/15<\/cell><\/row><row><cell>hour<\/cell><cell>0\/8<\/cell>.*<cell>dayOfWeek<\/cell><cell>MON,TUE,THU,WED,FRI<\/cell>/);
+  assert.match(t, /<cell>schedule1<\/cell><cell>\*\+0\/15\+0\/8\+\?\+\*\+MON,TUE,THU,WED,FRI\+\*&amp;trigger\.timeZone=Etc\/GMT&amp;trigger\.startAt=/);
+  assert.equal(scheduleConfigValue(adv), '* 0/15 0/8 ? * MON,TUE,THU,WED,FRI * --tz=Etc/GMT --startAt=2026-11-05T08:00:00 --endAt=2026-12-31T18:00:00');
+  // time zones (recorded label for NST; others built in the same form)
+  assert.match(scheduleTable({ every: 30, unit: 'minutes', timeZone: 'NST' }), /<cell>timeZone<\/cell><cell>\( UTC 12:00 \) New Zealand Standard Time\(NST\)<\/cell>.*trigger\.timeZone=NST/);
+  assert.equal(zoneLabel('Pacific/Auckland'), '( UTC 12:00 ) New Zealand Standard Time(Pacific/Auckland)');
+  assert.match(zoneLabel('Europe/Warsaw'), /^\( UTC 1:00 \) .+\(Europe\/Warsaw\)$/);
+  assert.match(zoneLabel('America/St_Johns'), /^\( UTC -3:30 \) /);
+  // checks
+  assert.throws(() => scheduleTable({ cron: '0 15 8 * * MON-FRI' }), /exactly one of day-of-month and day-of-week must be "\?"/);
+  assert.throws(() => scheduleTable({ cron: '0 61 8 ? * *' }), /"61" is not a valid minute/);
+  assert.throws(() => scheduleTable({ cron: '0 15 8 ? *' }), /needs 6 or 7 fields/);
+  assert.throws(() => scheduleTable({ every: 5, unit: 'minutes', timeZone: 'Mars/Olympus' }), /not a time zone id/);
+  assert.throws(() => scheduleTable({ every: 5, unit: 'minutes', from: '2026-11-05 08:00' }), /must look like/);
+  assert.throws(() => scheduleTable({ every: 5 } as never), /unit "minutes" or "hours"/);
+  assert.equal(cronFields('0 0/5 * ? * * 2027').length, 7);
 });
 
 test('timer start: the designer\'s simple schedule, character for character (recorded every 30 minutes)', () => {

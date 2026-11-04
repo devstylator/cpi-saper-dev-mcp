@@ -2,6 +2,7 @@
 // formatted the way SAP's designer writes them, so git diffs stay small and the designer opens the result.
 import type { Document, Element, Node } from '@xmldom/xmldom';
 import { byTag, children, encodeTable, idIndex, NS, readProps, decodeTable, type Props } from './model.js';
+import { scheduleTable, type Schedule } from '../schedule.js';
 
 const isEl = (n: Node | null | undefined): n is Element => !!n && n.nodeType === 1;
 const fmt = (n: number) => (Number.isInteger(n) ? `${n}.0` : String(n)); // SAP writes coordinates as floats
@@ -898,45 +899,14 @@ export function setLoop(el: Element, { condition, max = 100 }: { condition: stri
 
 // ---------- start event: message or timer ----------
 
-/** Run once after deploy, or repeat every n minutes or hours (the designer's "Simple Schedule") */
-export type TimerSchedule = 'once' | { every: number; unit: 'minutes' | 'hours' };
-
 /**
- * The timer's schedule table exactly as the designer writes it (measured): "run once" is triggerType simple with
- * fireNow=true; a simple schedule ("Repeat: Minutes, Every: 30") is triggerType cron with schedule1
- * simple.repeat=MINUTES&simple.every=30 plus the designer's other rows, which it writes unchanged (OnEveryMinute stays
- * 1 whatever the interval: the designer and the runtime read schedule1). Times are UTC.
+ * Make a process's start event a timer start (a scheduled iFlow: no sender) or a message start again. The schedule is
+ * always externalized (the user's rule): scheduleKey is {{parameter}} and the table goes into parameters.prop, as the
+ * designer's "Externalize" writes it; an existing parameter keeps its name. Returns the parameter for the caller to
+ * write. A timer start is refused while a sender adapter is connected.
  */
-export function scheduleTable(schedule: TimerSchedule): string {
-  const esc = (v: string) => v.replace(/&/g, '&amp;');
-  let rows: Array<[string, string]>;
-  if (schedule === 'once') {
-    rows = [
-      ['dateType', ''], ['timeType', ''], ['dayValue', ''], ['monthValue', ''], ['yearValue', ''], ['onWeekly', ''], ['onMonthly', ''],
-      ['OnEveryMinute', ''], ['fromInterval', ''], ['toInterval', ''], ['timeZone', '( UTC 0:00 ) Greenwich Mean Time(Etc/GMT)'], ['secondValue', '0'],
-      ['minutesValue', ''], ['hourValue', ''], ['triggerType', 'simple'], ['noOfSchedules', '1'], ['schedule1', 'fireNow=true'],
-    ];
-  } else {
-    const { every, unit } = schedule;
-    const max = unit === 'minutes' ? 59 : 23;
-    if (!Number.isInteger(every) || every < 1 || every > max) throw new Error(`every ${unit}: a whole number from 1 to ${max}`);
-    rows = [
-      ['dateType', 'SIMPLE'], ['secondValue', '0'], ['minutesValue', ''], ['hourValue', ''], ['toInterval', '1'], ['fromInterval', '0'],
-      ['OnEveryMinute', '1'], ['timeType', 'TIME_INTERVAL'], ['timeZone', '( UTC 0:00 ) Greenwich Mean Time(Etc/GMT)'], ['throwExceptionOnExpiry', 'true'],
-      ['second', '*'], ['minute', '*'], ['hour', '*'], ['day_of_month', '?'], ['month', '*'], ['dayOfWeek', '*'], ['year', '*'], ['startAt', ''], ['endAt', ''],
-      ['attributeBehaviour', 'isThrowExceptionOnExpiryVisible,isScheduleAdvancedVisible,isScheduleAdvancedStartEndVisible,isScheduleSimpleVisible'],
-      ['triggerType', 'cron'], ['noOfSchedules', '1'],
-      ['schedule1', `simple.repeat=${unit === 'minutes' ? 'MINUTES' : 'HOURS'}&simple.every=${every}&trigger.timeZone=Etc/GMT`],
-    ];
-  }
-  return rows.map(([k, v]) => `<row><cell>${k}</cell><cell>${esc(v)}</cell></row>`).join('');
-}
-
-/**
- * Make a process's start event a timer start (a scheduled iFlow: no sender) or a message start again. A timer start is
- * refused while a sender adapter is connected; a message start then takes one (add_adapter).
- */
-export function setStart(doc: Document, { process, kind, schedule = 'once' }: { process?: string; kind: 'message' | 'timer'; schedule?: TimerSchedule }): string {
+export function setStart(doc: Document, { process, kind, schedule = 'once', parameter }: { process?: string; kind: 'message' | 'timer'; schedule?: Schedule; parameter?: string }):
+  { message: string; parameter?: { name: string; table: string } } {
   const proc = findProcess(doc, process);
   if (readProps(proc).processType === 'directCall') throw new Error(`${proc.getAttribute('id')} is a local integration process: it is started by a Process Call`);
   const starts = children(proc, 'startEvent');
@@ -950,15 +920,19 @@ export function setStart(doc: Document, { process, kind, schedule = 'once' }: { 
     const sender = byTag(doc, 'messageFlow').find((m) => m.getAttribute('targetRef') === id);
     if (sender) throw new Error(`${id} has a sender adapter (${sender.getAttribute('id')} "${sender.getAttribute('name')}"); a scheduled iFlow has none: remove it first (remove_adapter)`);
     const table = scheduleTable(schedule);
-    const what = schedule === 'once' ? 'runs once after deploy' : `every ${schedule.every} ${schedule.unit} (UTC)`;
-    if (timer) { setProperties(timer, { scheduleKey: table }); return `${id}: schedule ${what}`; }
+    const existing = timer ? readProps(timer).scheduleKey?.match(/^\{\{([^{}]+)\}\}$/)?.[1] : undefined;
+    const name = parameter ?? existing ?? 'timer_schedule';
+    if (/[{}]/.test(name) || !name.trim()) throw new Error(`"${name}" is not a usable parameter name`);
+    const what = schedule === 'once' ? 'runs once after deploy' : 'every' in schedule ? `every ${schedule.every} ${schedule.unit}` : `cron ${schedule.cron}`;
+    const where = schedule !== 'once' && schedule.timeZone ? ` (${schedule.timeZone})` : schedule === 'once' ? '' : ' (UTC)';
+    if (timer) { setProperties(timer, { scheduleKey: `{{${name}}}` }); return { message: `${id}: schedule ${what}${where}, parameter ${name}`, parameter: { name, table } }; }
     for (const c of [...children(start, 'extensionElements'), ...children(start, 'messageEventDefinition')]) removeEl(c);
     const def = elementNS(docEl, 'bpmn2:timerEventDefinition', { id: newId(index, 'TimerEventDefinition') });
-    withProps(docEl, def, { scheduleKey: table, componentVersion: '1.4', cmdVariantUri: 'ctype::FlowstepVariant/cname::intermediatetimer/version::1.4.0', activityType: 'StartTimerEvent' });
+    withProps(docEl, def, { scheduleKey: `{{${name}}}`, componentVersion: '1.4', cmdVariantUri: 'ctype::FlowstepVariant/cname::intermediatetimer/version::1.4.0', activityType: 'StartTimerEvent' });
     insertAfterEl(start, def, Array.from(start.childNodes).filter(isEl).at(-1)!);
-    return `${id}: timer start, ${what}`;
+    return { message: `${id}: timer start, ${what}${where}, externalized as parameter ${name}`, parameter: { name, table } };
   }
-  if (!timer) return `${id} is a message start already`;
+  if (!timer) return { message: `${id} is a message start already` };
   removeEl(timer);
   withProps(docEl, start, { cmdVariantUri: 'ctype::FlowstepVariant/cname::MessageStartEvent/version::1.0', componentVersion: '1.0' });
   // the settings on their own line, indented like the start event's other children
@@ -967,7 +941,7 @@ export function setStart(doc: Document, { process, kind, schedule = 'once' }: { 
   start.insertBefore(docEl.createTextNode(inner), ext);
   prettify(ext, inner.replace(/^\n/, ''));
   insertAfterEl(start, elementNS(docEl, 'bpmn2:messageEventDefinition'), Array.from(start.childNodes).filter(isEl).at(-1)!);
-  return `${id}: message start again; connect a sender with add_adapter`;
+  return { message: `${id}: message start again; connect a sender with add_adapter (the schedule parameter stays in parameters.prop)` };
 }
 
 // ---------- exception subprocess ----------
