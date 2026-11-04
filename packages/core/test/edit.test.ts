@@ -513,3 +513,68 @@ test('validate: Groovy 2.x scripts under script/v2/, == in Camel conditions, hea
   assert.ok(msgs.some((m) => /^warning .*header name "2" starts with a digit/.test(m)), msgs.join('\n'));
   assert.ok(!msgs.some((m) => /X-Region/.test(m)), 'normal names pass');
 });
+
+test('local integration processes: add, steps inside, Process Call and Looping Process Call, layout, refusals, removal', () => {
+  const doc = parseIflw(EMPTY);
+  const box = (id: string) => {
+    const s = byTag(doc, 'BPMNShape', NS.bpmndi).find((x) => x.getAttribute('bpmnElement') === id)!;
+    const b = children(s, 'Bounds', NS.dc)[0]!;
+    return ['x', 'y', 'width', 'height'].map((k) => Number(b.getAttribute(k)));
+  };
+  const log = applyEdits(doc, [
+    { op: 'add_adapter', step: 'StartEvent_2', type: 'HTTPS', settings: { urlPath: '/local' } },
+    { op: 'add_local_process', name: 'Enrich order' },
+  ], catalog);
+  assert.match(log[1]!, /added local integration process (Process_\d+) "Enrich order": (StartEvent_\d+) -> (EndEvent_\d+)/);
+  const local = byTag(doc, 'process').find((x) => x.getAttribute('name') === 'Enrich order')!;
+  const pid = local.getAttribute('id')!;
+  assert.equal(readProps(local).processType, 'directCall');
+  assert.equal(readProps(local).cmdVariantUri, 'ctype::FlowElementVariant/cname::LocalIntegrationProcess/version::1.1.3');
+  assert.deepEqual(box(`Participant_${pid}`), [250, 340, 540, 220], 'below the main pool (bottom 280) + 60, same size as the designer');
+  assert.deepEqual(validate(doc), []);
+
+  applyEdits(doc, [
+    { op: 'insert_step', after: 'Start Enrich order', type: 'Content Modifier', name: 'Add details' },
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Process Call', name: 'Call enrich', process: 'Enrich order' },
+    { op: 'insert_step', after: 'Call enrich', type: 'Looping Process Call', name: 'Repeat enrich', process: pid, loop: { condition: "${property.more} = 'true'", max: 5 } },
+  ], catalog);
+  assert.equal(readProps(findElement(doc, 'Call enrich')).processId, pid);
+  const looping = findElement(doc, 'Repeat enrich');
+  const loop = children(looping, 'standardLoopCharacteristics')[0]!;
+  assert.equal(readProps(looping).loopId, loop.getAttribute('id'));
+  assert.equal(loop.getAttribute('loopMaximum'), '5');
+  assert.equal(children(loop, 'loopCondition')[0]!.textContent, "${property.more} = 'true'");
+  assert.equal(readProps(looping).expressionType, 'Non XML');
+  assert.deepEqual(validate(doc), []);
+
+  // layout stacks the pools; a router in the local process moves nothing in the main pool
+  assert.match(applyEdits(doc, [{ op: 'layout' }], catalog)[0]!, /"Integration Process": .*; "Enrich order": /);
+  assert.deepEqual(overlapping(doc), []);
+  const mainEnd = box('EndEvent_2');
+  applyEdits(doc, [{ op: 'add_router', after: 'Add details', routes: [{ name: 'Big', condition: '//amount > 100' }, { name: 'Small' }] }], catalog);
+  assert.deepEqual(box('EndEvent_2'), mainEnd);
+  assert.deepEqual(overlapping(doc), []);
+  assert.deepEqual(validate(doc), []);
+
+  const refused = (ops: object[], re: RegExp) => assert.throws(() => applyEdits(parseIflw(serializeIflw(doc)), ops as never, catalog), re);
+  refused([{ op: 'insert_step', after: 'StartEvent_2', type: 'Process Call' }], /needs "process"/);
+  refused([{ op: 'insert_step', after: 'StartEvent_2', type: 'Process Call', process: 'Integration Process' }], /not a local integration process/);
+  refused([{ op: 'insert_step', after: 'StartEvent_2', type: 'Looping Process Call', process: pid }], /needs "loop"/);
+  refused([{ op: 'insert_step', after: 'Add details', type: 'Process Call', process: pid }], /cannot call its own process/);
+  refused([{ op: 'insert_step', after: 'StartEvent_2', type: 'Content Modifier', process: pid }], /Process Call and Looping Process Call steps only/);
+  refused([{ op: 'remove_local_process', process: 'Enrich order' }], /called by .*Call enrich.*Repeat enrich/);
+
+  // an unquoted value in a Camel loop condition is refused by SAP's model check (measured)
+  const unquoted = parseIflw(serializeIflw(doc));
+  applyEdits(unquoted, [{ op: 'insert_step', after: 'Repeat enrich', type: 'Looping Process Call', name: 'Count', process: pid, loop: { condition: '${property.i} < 3' } }], catalog);
+  assert.match(validate(unquoted).map((i) => i.msg).join(), /loop condition "\$\{property\.i\} < 3": put the compared value in quotes/);
+
+  // a call pointing nowhere is reported
+  const broken = parseIflw(serializeIflw(doc));
+  applyEdits(broken, [{ op: 'set', element: 'Call enrich', settings: { processId: 'Process_999' } }], catalog);
+  assert.match(validate(broken).map((i) => i.msg).join(), /calls Process_999, which is not a process of this iFlow/);
+
+  applyEdits(doc, [{ op: 'remove_step', step: 'Call enrich' }, { op: 'remove_step', step: 'Repeat enrich' }, { op: 'remove_local_process', process: 'Enrich order' }], catalog);
+  assert.equal(byTag(doc, 'process').length, 1);
+  assert.deepEqual(validate(doc), []);
+});

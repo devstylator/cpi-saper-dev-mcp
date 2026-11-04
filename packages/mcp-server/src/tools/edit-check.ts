@@ -32,6 +32,12 @@ const operation = z.discriminatedUnion('op', [
     version: z.string().optional().describe('Component version; default: the version this iFlow already uses, else the latest'),
     name: z.string().optional().describe('Step name; default: the catalog label'),
     settings: kv.optional().describe('Settings to change from the catalog defaults; script steps need "script" (file under script/, v2/<name>.groovy for 2.x; with scriptCollection the file name in the collection)'),
+    process: z.string().optional().describe('Process Call / Looping Process Call: the local integration process to call (id or name; add_local_process creates one)'),
+    loop: z.object({
+      condition: z.string().describe('Repeat while this holds, e.g. ${property.hasMore} = \'true\''),
+      max: z.number().int().positive().optional().describe('At most this many times (default 100)'),
+      expressionType: z.enum(['NonXML', 'XML']).optional().describe('NonXML: Camel Simple (default); XML: XPath'),
+    }).optional().describe('Looping Process Call: the loop'),
     scriptCollection: z.string().optional().describe('Groovy/JavaScript step: Id of a script collection of the same package the script comes from (settings.script = its file name, e.g. "Utils.groovy"); the manifest requirement is written'),
     mapping: z.string().optional().describe('XSLT Mapping / Message Mapping: the file under src/main/resources, e.g. "mapping/orders.xsl" (a bare name means mapping/); sets mappinguri, mappingpath and mappingname as the designer does'),
     expression: z.string().optional().describe('Filter: the XPath of the nodes to keep, e.g. "/Orders/Order[region=\'EU\']" (stored as wrapContent; xpathType is only the value type: Nodelist, Node, Boolean, Integer, String)'),
@@ -56,6 +62,9 @@ const operation = z.discriminatedUnion('op', [
     end: z.enum(['error', 'message']).default('error')
       .describe('error: Error Start -> Error End, the message fails and the sender gets the error; message: Error Start -> End, the subprocess sends the reply (set it with steps)'),
   }).describe('Add an exception subprocess (one per process), drawn below the main flow; insert steps into it with insert_step after its Error Start'),
+  z.object({ op: z.literal('add_local_process'), name: z.string().optional().describe('Default "Local Integration Process <n>"') })
+    .describe('Add a local integration process (a pool below the others, Start -> End); insert steps after its start, call it with a Process Call step ("process")'),
+  z.object({ op: z.literal('remove_local_process'), process: z.string().describe('Id or name; refused while a Process Call calls it') }),
   z.object({ op: z.literal('remove_exception_subprocess'), process: z.string().optional() }).describe('Remove the exception subprocess with all steps in it (they must not have adapters)'),
   z.object({
     op: z.literal('add_router'),
@@ -128,7 +137,9 @@ export function registerEditCheckTools(server: McpServer) {
         'properties), remove a step (its neighbours are reconnected), add or remove an adapter (with its Sender/Receiver ' +
         'box), add or remove an exception subprocess (insert steps into it after its Error Start), add a router or a ' +
         'parallel/sequential multicast (with Join) and put steps on its routes (insert_step "route"), change or remove ' +
-        'routes and gateways, lay out the process (branches in rows), change settings of a step, adapter or the iFlow, ' +
+        'routes and gateways, add or remove local integration processes and call them (Process Call / Looping Process ' +
+        'Call with "process", "loop"), lay out the iFlow (one pool per process, branches in rows), change settings of a ' +
+        'step, adapter or the iFlow, ' +
         'rename, and add/change/remove Content Modifier headers and properties. All operations succeed or nothing is ' +
         'written; edits that would introduce structural errors are refused. New elements are formatted like SAP\'s ' +
         'designer writes them and the diagram is laid out. Returns what changed (as iflow_diff) and the new step ids. ' +

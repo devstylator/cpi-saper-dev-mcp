@@ -792,6 +792,110 @@ export function removeGateway(doc: Document, ref: string): string {
   return `removed ${gwId}${join ? ` and its Join ${join.getAttribute('id')}` : ''} with ${routes.length} routes; ${inFlow.getAttribute('sourceRef')} leads to ${next.getAttribute('id')} again`;
 }
 
+// ---------- local integration processes ----------
+
+/** A process by id or name that is a local integration process (processType directCall) */
+export function findLocalProcess(doc: Document, ref: string): Element {
+  const p = findProcess(doc, ref);
+  if (readProps(p).processType !== 'directCall') throw new Error(`${p.getAttribute('id')} "${p.getAttribute('name')}" is not a local integration process`);
+  return p;
+}
+
+const plainEvent = (doc: Document, tag: 'startEvent' | 'endEvent', id: string, name: string, flow: string) => {
+  const el = elementNS(doc, `bpmn2:${tag}`, { id, name });
+  const ext = elementNS(doc, 'bpmn2:extensionElements');
+  const cname = tag === 'startEvent' ? 'StartEvent' : 'EndEvent';
+  ext.appendChild(iflProperty(doc, 'cmdVariantUri', `ctype::FlowstepVariant/cname::${cname}`));
+  ext.appendChild(iflProperty(doc, 'activityType', cname));
+  el.appendChild(ext);
+  el.appendChild(elementNS(doc, tag === 'startEvent' ? 'bpmn2:outgoing' : 'bpmn2:incoming', {}, flow));
+  return el;
+};
+
+/**
+ * Add a local integration process, as the designer does: a pool (540 x 220) below all pools, its process (the
+ * catalog's settings: processType directCall, transactional handling from the calling process) with Start -> End.
+ * Steps go in with insert_step after its start; a Process Call or Looping Process Call calls it.
+ */
+export function addLocalProcess(doc: Document, { name, processProps }: { name?: string; processProps: Props }): { processId: string; startId: string; endId: string; name: string } {
+  const index = idIndex(doc) as Map<string, Element | null>;
+  const collab = byTag(doc, 'collaboration')[0]!;
+  const pools = children(collab, 'participant').filter((p) => p.getAttribute('ifl:type') === 'IntegrationProcess');
+  const names = new Set(byTag(doc, 'process').map((p) => p.getAttribute('name')));
+  let procName = name;
+  for (let n = 1; !procName; n++) if (!names.has(`Local Integration Process ${n}`)) procName = `Local Integration Process ${n}`;
+  if (names.has(procName)) throw new Error(`a process named "${procName}" exists already`);
+  const processId = newId(index, 'Process');
+  const startId = newId(index, 'StartEvent');
+  const endId = newId(index, 'EndEvent');
+  const flowId = newId(index, 'SequenceFlow');
+  const poolId = `Participant_${processId}`;
+  index.set(poolId, null);
+
+  const participant = elementNS(doc, 'bpmn2:participant', { id: poolId, 'ifl:type': 'IntegrationProcess', name: procName, processRef: processId });
+  participant.appendChild(elementNS(doc, 'bpmn2:extensionElements'));
+  insertAfterEl(collab, participant, pools.at(-1) ?? children(collab, 'participant').at(-1)!);
+  const proc = withProps(doc, elementNS(doc, 'bpmn2:process', { id: processId, name: procName }), processProps);
+  proc.appendChild(plainEvent(doc, 'startEvent', startId, `Start ${procName}`, flowId));
+  proc.appendChild(plainEvent(doc, 'endEvent', endId, `End ${procName}`, flowId));
+  proc.appendChild(flowEl(doc, flowId, startId, endId));
+  insertAfterEl(doc.documentElement!, proc, byTag(doc, 'process').at(-1)!);
+
+  // below every pool, left-aligned with the first one; events where the designer puts them in a new pool
+  const shapes = pools.map((p) => shapeOf(doc, p.getAttribute('id')!)).filter((x): x is Element => !!x).map(bounds);
+  const x = shapes.length ? Math.min(...shapes.map((b) => b.x)) : 250;
+  const y = shapes.length ? Math.max(...byTag(doc, 'BPMNShape', NS.bpmndi).map(bounds).map((b) => b.y + b.h)) + 60 : 60;
+  const plane = byTag(doc, 'BPMNPlane', NS.bpmndi)[0]!;
+  let last = byTag(doc, 'BPMNShape', NS.bpmndi).at(-1)!;
+  const put = (id: string, b: { x: number; y: number; w: number; h: number }) => {
+    const sh = elementNS(doc, 'bpmndi:BPMNShape', { bpmnElement: id, id: `BPMNShape_${id}` });
+    sh.appendChild(elementNS(doc, 'dc:Bounds', { height: fmt(b.h), width: fmt(b.w), x: fmt(b.x), y: fmt(b.y) }));
+    insertAfterEl(plane, sh, last); last = sh;
+    return b;
+  };
+  put(poolId, { x, y, w: 540, h: 220 });
+  const sb = put(startId, { x: x + 42, y: y + 82, w: 32, h: 32 });
+  const eb = put(endId, { x: x + 453, y: y + 82, w: 32, h: 32 });
+  const edge = elementNS(doc, 'bpmndi:BPMNEdge', { bpmnElement: flowId, id: `BPMNEdge_${flowId}`, sourceElement: `BPMNShape_${startId}`, targetElement: `BPMNShape_${endId}` });
+  for (const b of [sb, eb]) edge.appendChild(elementNS(doc, 'di:waypoint', { x: fmt(b.x + b.w / 2), 'xsi:type': 'dc:Point', y: fmt(b.y + b.h / 2) }));
+  insertAfterEl(plane, edge, byTag(doc, 'BPMNEdge', NS.bpmndi).at(-1) ?? last);
+  return { processId, startId, endId, name: procName };
+}
+
+/** Remove a local integration process with everything in it; refused while a Process Call calls it */
+export function removeLocalProcess(doc: Document, ref: string): string {
+  const proc = findLocalProcess(doc, ref);
+  const id = proc.getAttribute('id')!;
+  const callers = byTag(doc, 'callActivity').filter((c) => readProps(c).activityType === 'ProcessCallElement' && readProps(c).processId === id);
+  if (callers.length) throw new Error(`${id} is called by ${callers.map((c) => `${c.getAttribute('id')} "${c.getAttribute('name')}"`).join(', ')}; remove those calls first`);
+  const ids = new Set<string>();
+  const collect = (el: Element) => { const x = el.getAttribute('id'); if (x) ids.add(x); for (const c of children(el)) collect(c); };
+  collect(proc);
+  const adapter = byTag(doc, 'messageFlow').find((m) => ids.has(m.getAttribute('sourceRef')!) || ids.has(m.getAttribute('targetRef')!));
+  if (adapter) throw new Error(`a step in ${id} has an adapter (${adapter.getAttribute('id')}); remove it first (remove_adapter)`);
+  const participant = children(byTag(doc, 'collaboration')[0]!, 'participant').find((p) => p.getAttribute('processRef') === id);
+  if (participant) ids.add(participant.getAttribute('id')!);
+  for (const di of [...byTag(doc, 'BPMNShape', NS.bpmndi), ...byTag(doc, 'BPMNEdge', NS.bpmndi)]) if (ids.has(di.getAttribute('bpmnElement')!)) removeEl(di);
+  if (participant) removeEl(participant);
+  removeEl(proc);
+  return `removed local integration process ${id} "${proc.getAttribute('name')}" with its content`;
+}
+
+/**
+ * The loop of a Looping Process Call, as the designer writes it: a standardLoopCharacteristics child with the
+ * maximum and the condition (the step's loopId names it). Returns the loop's id.
+ */
+export function setLoop(el: Element, { condition, max = 100 }: { condition: string; max?: number }): string {
+  const doc = el.ownerDocument!;
+  for (const old of children(el, 'standardLoopCharacteristics')) removeEl(old);
+  const stamp = Date.now();
+  const id = `StandardLoopCharacteristics_${stamp}`;
+  const loop = elementNS(doc, 'bpmn2:standardLoopCharacteristics', { id, loopMaximum: String(max) });
+  loop.appendChild(elementNS(doc, 'bpmn2:loopCondition', { id: `FormalExpression_${stamp}`, 'xsi:type': 'bpmn2:tFormalExpression' }, condition));
+  insertAfterEl(el, loop, Array.from(el.childNodes).filter(isEl).at(-1)!);
+  return id;
+}
+
 // ---------- exception subprocess ----------
 
 /** The process an operation means: by id or name, else the one with a message start event (the main process) */
@@ -1005,24 +1109,117 @@ const isBranching = (doc: Document, flowId: string) => {
   return !!src && byTag(doc, 'sequenceFlow').filter((x) => x.getAttribute('sourceRef') === src).length > 1;
 };
 
+const poolShapeOf = (doc: Document, proc: Element) => {
+  const id = children(byTag(doc, 'collaboration')[0]!, 'participant').find((p) => p.getAttribute('processRef') === proc.getAttribute('id'))?.getAttribute('id');
+  return id ? shapeOf(doc, id) : undefined;
+};
+const procName = (proc: Element) => `"${proc.getAttribute('name') ?? proc.getAttribute('id')}"`;
+/** The integration processes first (as in the file), then the local ones: the order pools are stacked in */
+const processesInOrder = (doc: Document) => {
+  const all = byTag(doc, 'process');
+  const local = (p: Element) => readProps(p).processType === 'directCall';
+  return [...all.filter((p) => !local(p)), ...all.filter(local)];
+};
+
+/** Move a process's pool with everything drawn in it (shapes and the lines of its flows) */
+function moveProcess(doc: Document, proc: Element, dx: number, dy: number) {
+  if (!dx && !dy) return;
+  const ids = new Set<string>();
+  const collect = (el: Element) => { const id = el.getAttribute('id'); if (id) ids.add(id); for (const c of children(el)) collect(c); };
+  collect(proc);
+  const pool = poolShapeOf(doc, proc);
+  for (const sh of byTag(doc, 'BPMNShape', NS.bpmndi)) {
+    if (sh !== pool && !ids.has(sh.getAttribute('bpmnElement')!)) continue;
+    const b = bounds(sh); b.el.setAttribute('x', fmt(b.x + dx)); b.el.setAttribute('y', fmt(b.y + dy));
+  }
+  for (const e of byTag(doc, 'BPMNEdge', NS.bpmndi)) {
+    if (!ids.has(e.getAttribute('bpmnElement')!)) continue;
+    for (const wp of children(e, 'waypoint', NS.di)) { wp.setAttribute('x', fmt(Number(wp.getAttribute('x')) + dx)); wp.setAttribute('y', fmt(Number(wp.getAttribute('y')) + dy)); }
+  }
+}
+
 /**
- * Lay out one integration process, left to right: every element in the column of its longest path from the start
- * (so joins come after all their branches); the first route of a router or multicast stays on its row, every
+ * Lay out every process of the iFlow (see layoutProcess): the first integration process stays where it is, every
+ * other pool is stacked below it, left-aligned, 60 apart.
+ */
+export function layoutStraight(doc: Document): string {
+  const procs = processesInOrder(doc);
+  if (!procs.length) throw new Error('the iFlow has no integration process');
+  const lines: string[] = [];
+  let below: number | undefined;
+  let left: number | undefined;
+  for (const proc of procs) {
+    const pool = poolShapeOf(doc, proc);
+    if (!pool) throw new Error(`process ${procName(proc)} has no pool in the diagram`);
+    if (below !== undefined) { const b = bounds(pool); moveProcess(doc, proc, left! - b.x, below + 60 - b.y); }
+    const msg = layoutProcess(doc, proc);
+    lines.push(procs.length > 1 ? `${procName(proc)}: ${msg}` : msg);
+    const b = bounds(pool);
+    // the next pool goes below this one and below the Sender/Receiver boxes placed under it
+    const ids = new Set<string>();
+    const collect = (el: Element) => { const id = el.getAttribute('id'); if (id) ids.add(id); for (const c of children(el)) collect(c); };
+    collect(proc);
+    const boxes = byTag(doc, 'messageFlow').flatMap((m) => [m.getAttribute('sourceRef')!, m.getAttribute('targetRef')!].filter((x) => !ids.has(x))
+      .filter(() => ids.has(m.getAttribute('sourceRef')!) || ids.has(m.getAttribute('targetRef')!)));
+    const boxBottoms = boxes.map((id) => shapeOf(doc, id)).filter((x): x is Element => !!x).map(bounds).map((x) => x.y + x.h);
+    below = Math.max(b.y + b.h, ...boxBottoms); left ??= b.x;
+  }
+  routeAdapters(doc);
+  keepOnCanvas(doc);
+  return lines.join('; ');
+}
+
+/**
+ * Lay out the process holding an element again (after a branching edit) and keep the rest of the diagram clear of it:
+ * when its pool grew, everything below its old bottom moves down by as much (other pools keep their arrangement).
+ */
+export function layoutAround(doc: Document, elementId: string): string {
+  let proc = idIndex(doc).get(elementId) ?? null;
+  while (proc && proc.localName !== 'process') proc = proc.parentNode as Element | null;
+  if (!proc) throw new Error(`${elementId} is not in a process`);
+  const pool = poolShapeOf(doc, proc);
+  if (!pool) throw new Error(`process ${procName(proc)} has no pool in the diagram`);
+  const before = bounds(pool);
+  const mine = new Set<string>();
+  const collect = (el: Element) => { const id = el.getAttribute('id'); if (id) mine.add(id); for (const c of children(el)) collect(c); };
+  collect(proc);
+  // boxes connected to this process are placed by its layout
+  for (const mf of byTag(doc, 'messageFlow')) {
+    const [a, b] = [mf.getAttribute('sourceRef')!, mf.getAttribute('targetRef')!];
+    if (mine.has(a) || mine.has(b)) { mine.add(a); mine.add(b); mine.add(mf.getAttribute('id')!); }
+  }
+  const msg = layoutProcess(doc, proc);
+  const grow = bounds(pool).y + bounds(pool).h - (before.y + before.h);
+  if (grow > 0 && byTag(doc, 'process').length > 1) {
+    for (const sh of byTag(doc, 'BPMNShape', NS.bpmndi)) {
+      const b = bounds(sh);
+      if (sh !== pool && !mine.has(sh.getAttribute('bpmnElement')!) && b.y >= before.y + before.h) b.el.setAttribute('y', fmt(b.y + grow));
+    }
+    for (const e of byTag(doc, 'BPMNEdge', NS.bpmndi)) {
+      if (mine.has(e.getAttribute('bpmnElement')!)) continue;
+      for (const wp of children(e, 'waypoint', NS.di)) if (Number(wp.getAttribute('y')) >= before.y + before.h) wp.setAttribute('y', fmt(Number(wp.getAttribute('y')) + grow));
+    }
+  }
+  routeAdapters(doc);
+  keepOnCanvas(doc);
+  return msg;
+}
+
+/**
+ * Lay out one process inside its pool, left to right: every element in the column of its longest path from the
+ * start (so joins come after all their branches); the first route of a router or multicast stays on its row, every
  * further route gets a new row below; the standard gap of 50 between columns, 40 between rows. An exception
  * subprocess (straight inside) goes in a row below; the pool is fitted; the start event's sender sits left of the
  * pool and every other Sender/Receiver box below or above its step.
  */
-export function layoutStraight(doc: Document): string {
-  const processes = byTag(doc, 'process');
-  if (processes.length !== 1) throw new Error(`layout handles one integration process; this iFlow has ${processes.length} (local processes): use the designer`);
-  const proc = processes[0]!;
+function layoutProcess(doc: Document, proc: Element): string {
   const subs = children(proc, 'subProcess');
   const other = subs.find((x) => !isExceptionSub(x));
   if (other) throw new Error(`layout handles exception subprocesses only; ${other.getAttribute('id')} is another kind of subprocess: use the designer`);
   const nodes = flowNodes(proc);
   const byId = new Map(nodes.map((n) => [n.getAttribute('id')!, n]));
   const starts = nodes.filter((n) => n.localName === 'startEvent');
-  if (starts.length !== 1) throw new Error(`layout needs exactly one start event (has ${starts.length})`);
+  if (starts.length !== 1) throw new Error(`layout needs exactly one start event in process ${procName(proc)} (has ${starts.length}): use the designer`);
   const flows = children(proc, 'sequenceFlow');
   const out = (id: string) => {
     // in the order the node lists them (the designer's order: the first route stays on the row)
@@ -1086,9 +1283,8 @@ export function layoutStraight(doc: Document): string {
   rows = used.length - 1;
 
   const collab = byTag(doc, 'collaboration')[0]!;
-  const poolId = children(collab, 'participant').find((p) => p.getAttribute('processRef') === proc.getAttribute('id'))?.getAttribute('id');
-  const poolShape = poolId ? shapeOf(doc, poolId) : undefined;
-  if (!poolShape) throw new Error('the integration process has no diagram shape');
+  const poolShape = poolShapeOf(doc, proc);
+  if (!poolShape) throw new Error(`process ${procName(proc)} has no diagram shape`);
   const shapeBounds = new Map(nodes.map((n) => {
     const sh = shapeOf(doc, n.getAttribute('id')!);
     if (!sh) throw new Error(`${n.getAttribute('id')} has no diagram shape`);
@@ -1176,8 +1372,6 @@ export function layoutStraight(doc: Document): string {
     placeBox(doc, box, { ...hit[1] }, hit[0].localName === 'startEvent' && hit[0].parentNode === proc);
     boxes++;
   }
-  routeAdapters(doc);
-  keepOnCanvas(doc);
   const where = rows ? `in ${cols} columns and ${rows + 1} rows` : 'in one row';
   return `laid out ${nodes.length} elements ${where}${inner ? ` and ${inner.chain.length} in the exception subprocess below` : ''} ` +
     `(pool width ${right + GAP - pool.x}), ${boxes} Sender/Receiver box(es) placed`;

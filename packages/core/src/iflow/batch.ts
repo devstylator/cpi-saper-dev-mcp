@@ -1,8 +1,9 @@
 // A batch of semantic edits, applied in order to one iFlow DOM. Callers validate and write only if all succeed.
-import type { Document } from '@xmldom/xmldom';
+import type { Document, Element } from '@xmldom/xmldom';
 import { findEntries, pickVersion, type Catalog } from '../catalog.js';
 import {
-  adapterDirectionFor, addAdapter, addExceptionSubprocess, addMulticast, addRouter, editTable, findRoute, removeGateway, setRoute, type RouteInput, findElement, insertStepAfter, layoutStraight, removeAdapter, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
+  adapterDirectionFor, addAdapter, addExceptionSubprocess, addMulticast, addRouter, editTable, findRoute, layoutAround, removeGateway, setRoute, type RouteInput,
+  addLocalProcess, findLocalProcess, removeLocalProcess, setLoop, findElement, insertStepAfter, layoutStraight, removeAdapter, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
 } from './edit.js';
 import { parseVariant, readProps, type Props } from './model.js';
 
@@ -25,6 +26,10 @@ export type EditOp =
     expression?: string;
     /** Groovy/JavaScript step: Id of the script collection the script comes from (settings.script = its file name) */
     scriptCollection?: string;
+    /** Process Call / Looping Process Call: the local integration process to call (id or name) */
+    process?: string;
+    /** Looping Process Call: repeat while the condition holds, at most max times */
+    loop?: { condition: string; max?: number; expressionType?: 'NonXML' | 'XML' };
     headers?: TableRowInput[];
     properties?: TableRowInput[];
   }
@@ -53,6 +58,8 @@ export type EditOp =
     end?: 'error' | 'message';
   }
   | { op: 'remove_exception_subprocess'; process?: string }
+  | { op: 'add_local_process'; name?: string }
+  | { op: 'remove_local_process'; process: string }
   | {
     op: 'add_router';
     after: string;
@@ -147,6 +154,18 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
             if (!properties.script || properties.script.includes('/')) throw new Error(`a script from collection ${op.scriptCollection} needs settings.script: its file name in the collection, e.g. "Utils.groovy"`);
             properties.scriptBundleId = op.scriptCollection;
           }
+          if (cname === 'NonLoopingProcess' || cname === 'LoopingProcess') {
+            if (!op.process) throw new Error(`${entry.label} needs "process": the local integration process to call (add one with add_local_process)`);
+            const target = findLocalProcess(doc, op.process);
+            let own: Element | null = findElement(doc, after);
+            while (own && own.localName !== 'process') own = own.parentNode as Element | null;
+            if (own === target) throw new Error(`a step in ${target.getAttribute('id')} cannot call its own process`);
+            properties.processId = target.getAttribute('id')!;
+            if (cname === 'LoopingProcess') {
+              if (!op.loop?.condition) throw new Error(`${entry.label} needs "loop": { condition (repeat while true), max (default 100) }`);
+              properties.expressionType = op.loop.expressionType === 'XML' ? 'XML' : 'Non XML';
+            }
+          } else if (op.process || op.loop) throw new Error('"process" and "loop" apply to Process Call and Looping Process Call steps only');
           if (cname === 'GroovyScript' && version.startsWith('2.') && properties.script && !op.scriptCollection && !properties.script.startsWith('v2/')) {
             throw new Error(`a Groovy Script ${version} step takes its script from script/v2/: use settings.script "v2/${properties.script}" (and put the file there)`);
           }
@@ -166,11 +185,12 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
             ...(onRoute ? { flowId: onRoute.getAttribute('id')! } : {}),
           });
           const el = findElement(doc, stepId);
+          if (op.loop && cname === 'LoopingProcess') setProperties(el, { loopId: setLoop(el, { condition: op.loop.condition, ...(op.loop.max ? { max: op.loop.max } : {}) }) });
           if (op.headers?.length) editTable(el, 'headerTable', { set: op.headers });
           if (op.properties?.length) editTable(el, 'propertyTable', { set: op.properties });
           log.push(`inserted ${stepId} "${op.name ?? entry.label}" (${entry.label} ${version}, ${reason}) ${onRoute ? `at the start of route ${onRoute.getAttribute('id')}` : `after ${after}`}`);
           // a step on a route goes into that route's row: lay the process out again where possible
-          if (onRoute) { try { log.push(layoutStraight(doc)); } catch (e) { log.push(`not laid out (${(e as Error).message}); the new step sits next to ${after}`); } }
+          if (onRoute) { try { log.push(layoutAround(doc, stepId)); } catch (e) { log.push(`not laid out (${(e as Error).message}); the new step sits next to ${after}`); } }
           break;
         }
         case 'remove_step': {
@@ -222,6 +242,15 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
           log.push(`removed exception subprocess ${removeExceptionSubprocess(doc, op.process)} with its content`);
           break;
         }
+        case 'add_local_process': {
+          const r = addLocalProcess(doc, { ...(op.name ? { name: op.name } : {}), processProps: catalogProps(catalog, 'LocalIntegrationProcess', doc) });
+          log.push(`added local integration process ${r.processId} "${r.name}": ${r.startId} -> ${r.endId}; insert steps after ${r.startId}, call it with insert_step Process Call "process"`);
+          break;
+        }
+        case 'remove_local_process': {
+          log.push(removeLocalProcess(doc, op.process));
+          break;
+        }
         case 'add_router': {
           const after = findElement(doc, op.after).getAttribute('id')!;
           const r = addRouter(doc, after, {
@@ -232,7 +261,7 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
           });
           log.push(`added router ${r.gatewayId} after ${after} with routes ${r.routeIds.join(', ')} (default ${r.routeIds[0]})${r.endIds.length ? `, End events ${r.endIds.join(', ')}` : ''}; ` +
             'insert steps on a route with insert_step "route"');
-          log.push(layoutStraight(doc));
+          log.push(layoutAround(doc, r.gatewayId));
           break;
         }
         case 'add_multicast': {
@@ -246,7 +275,7 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
           });
           log.push(`added ${sequential ? 'sequential' : 'parallel'} multicast ${r.gatewayId} after ${after} with branches ${r.branchIds.join(', ')}` +
             `${r.joinId ? `, joined in ${r.joinId}` : ''}${r.endIds.length ? `, End events ${r.endIds.join(', ')}` : ''}; insert steps on a branch with insert_step "route"`);
-          log.push(layoutStraight(doc));
+          log.push(layoutAround(doc, r.gatewayId));
           break;
         }
         case 'set_route': {
@@ -254,8 +283,11 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog): stri
           break;
         }
         case 'remove_gateway': {
+          // the process it is in, to lay out again once it is gone
+          let proc: Element | null = findElement(doc, op.gateway);
+          while (proc && proc.localName !== 'process') proc = proc.parentNode as Element | null;
           log.push(removeGateway(doc, op.gateway));
-          log.push(layoutStraight(doc));
+          if (proc) log.push(layoutAround(doc, proc.getAttribute('id')!));
           break;
         }
         case 'layout': {

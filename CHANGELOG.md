@@ -3,6 +3,14 @@
 All notable changes of the `cpi-saper-dev-mcp` server. Versions follow [semantic versioning](https://semver.org/);
 before 1.0, names and behaviour may still change between versions.
 
+## Unreleased
+
+- `iflow_edit`: local integration processes: `add_local_process`, `remove_local_process`, Process Call and Looping
+  Process Call with `insert_step` `process` (and `loop` for the looping one); `layout` handles iFlows with several
+  processes (one pool per process, stacked); a branching edit lays out only its own process.
+- `iflow_validate`: calls pointing to no local process, a looping call without its loop, unquoted values in Camel loop
+  conditions.
+
 ## 0.9.0-beta.0 (2026-11-02)
 
 First public beta. **For development tenants only**: do not connect a production tenant (see the README).
@@ -39,6 +47,6 @@ Read-only and development roles per tenant, allowed packages, confirmation of ch
 
 - Tried against one tenant (a BTP trial); other tenants may answer differently in places
   ([docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md) lists every difference found).
-- iFlows with local integration processes cannot be laid out or branched by `iflow_edit`.
+- iFlows with local integration processes cannot be laid out or branched by `iflow_edit` (added in the next version).
 - Not offered by design: creating or deleting packages, editing message mappings, managing locks.
 - Planned: `lint`, PNG rendering, user roles for sender authorization.

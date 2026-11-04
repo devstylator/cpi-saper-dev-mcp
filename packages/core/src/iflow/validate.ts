@@ -119,6 +119,23 @@ export function validate(doc: Document, { resourceFiles, declaredParameters }: V
     }
     const need = NEEDS_ADAPTER[cname];
     if (need && !adapterOn.has(el.getAttribute('id'))) add(need.severity, 'NO_ADAPTER', `${label} needs ${need.what} (iflow_edit add_adapter)`);
+    // a Process Call or Looping Process Call must name an existing local process; a looping one its loop element
+    if (p.activityType === 'ProcessCallElement') {
+      const target = p.processId ? byTag(doc, 'process').find((x) => x.getAttribute('id') === p.processId) : undefined;
+      if (!p.processId?.trim()) add('error', 'MISSING_SETTING', `${label}: processId is empty; set the local integration process to call (iflow_edit insert_step "process")`);
+      else if (!target) add('error', 'INVALID_SETTING', `${label}: calls ${p.processId}, which is not a process of this iFlow`);
+      else if (readProps(target).processType !== 'directCall') add('error', 'INVALID_SETTING', `${label}: calls ${p.processId}, which is not a local integration process`);
+      if (p.subActivityType === 'LoopingProcess') {
+        const loop = children(el, 'standardLoopCharacteristics')[0];
+        if (!loop || loop.getAttribute('id') !== p.loopId) add('error', 'INVALID_SETTING', `${label}: the loop (standardLoopCharacteristics ${p.loopId ?? ''}) is missing; insert the step with "loop"`);
+        // measured: SAP's model check refuses "${property.i} < 3" ("Invalid format of condition expression value");
+        // "${property.i} < '3'" passes
+        const cond = loop ? children(loop, 'loopCondition')[0]?.textContent?.trim() ?? '' : '';
+        if (p.expressionType !== 'XML' && /(?:<=|>=|!=|=|<|>)\s*(?!['"$])[^\s')]+/.test(cond)) {
+          add('error', 'INVALID_SETTING', `${label}: loop condition "${cond}": put the compared value in quotes (e.g. < '3'); SAP's model check refuses it otherwise`);
+        }
+      }
+    }
     // measured by a tester: a Groovy step 2.x finds its script only under script/v2/ ("Script file '…' not found")
     const version = parseVariant(p.cmdVariantUri).version ?? '';
     if (cname === 'GroovyScript' && version.startsWith('2.') && p.script && !p.scriptBundleId?.trim() && !p.script.startsWith('v2/')) {
