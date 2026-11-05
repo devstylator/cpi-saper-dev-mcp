@@ -246,3 +246,20 @@ test('repeated identical test messages: a hint from the third same answer, a ref
   assert.equal(g.check('req', 13), undefined, 'the count starts again');
   assert.equal(g.record('req', 'different answer', 14), undefined);
 });
+
+test('templates_list finds entries by words; a call failing the same way three times in a row says so', async () => {
+  const root = projectWithConfig();
+  const client = await connect(root, [root]);
+  const text = async (args: Record<string, unknown>) => {
+    const r = await client.callTool({ name: 'templates_list', arguments: args });
+    return { isError: Boolean(r.isError), text: (r.content as Array<{ text: string }>)[0]!.text };
+  };
+  const near = await text({ query: 'Groovy' });
+  assert.equal(near.isError, false);
+  assert.match(near.text, /"candidates"[\s\S]*"label": "Groovy Script"/);
+  const fails = [await text({ query: 'zzzz' }), await text({ query: 'zzzz' }), await text({ query: 'zzzz' })];
+  assert.ok(fails.every((f) => f.isError));
+  assert.doesNotMatch(fails[1]!.text, /times in a row/);
+  assert.match(fails[2]!.text, /This exact call failed this way 3 times in a row/);
+  await client.close();
+});

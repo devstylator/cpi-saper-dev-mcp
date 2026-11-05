@@ -64,11 +64,11 @@ test('refusals: unknown keys, ambiguous or unknown types, script steps without f
   assert.throws(() => applyEdits(fresh(), [{ op: 'set', element: 'MessageFlow_8', settings: { httpMetod: 'GET' } }], catalog), /operation 1 \(set\): MessageFlow_8: unknown setting\(s\) httpMetod/);
   assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'End' }], catalog), /ambiguous/);
   assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'Teleporter' }], catalog), /not in the catalog/);
-  assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'Router' }], catalog), /cannot be inserted as a step yet/);
+  assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'Router' }], catalog), /is not inserted as a step: add a router with the operation add_router/);
   assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'Groovy Script' }], catalog), /needs settings\.script/);
   assert.throws(() => applyEdits(fresh(), [{ op: 'insert_step', after: 'CallActivity_10', type: 'Content Modifier', settings: { bodyTyp: 'x' } }], catalog), /has no setting "bodyTyp"/);
   assert.throws(() => applyEdits(fresh(), [{ op: 'remove_step', step: 'ServiceTask_5' }], catalog), /has an adapter connected/);
-  assert.throws(() => applyEdits(fresh(), [{ op: 'remove_step', step: 'ExclusiveGateway_16' }], catalog), /only steps can be removed/);
+  assert.throws(() => applyEdits(fresh(), [{ op: 'remove_step', step: 'ExclusiveGateway_16' }], catalog), /remove_step removes steps only: a router is removed with remove_gateway/);
   assert.throws(() => applyEdits(fresh(), [{ op: 'headers', step: 'CallActivity_13', remove: ['Nope'] }], catalog), /has no row "Nope"/);
 });
 
@@ -362,6 +362,28 @@ test('boxes: no adapter line crosses an exception subprocess; a hand-moved diagr
   const helperStart = [...multi.getElementsByTagNameNS('*', 'process')].find((p) => p.getAttribute('name') === 'Helper')!.getElementsByTagNameNS('*', 'startEvent')[0]!.getAttribute('id')!;
   applyEdits(multi, [{ op: 'insert_step', after: helperStart, type: 'Content Modifier', name: 'Inside helper' }, { op: 'add_exception_subprocess', process: 'Process_1' }], catalog);
   assert.deepEqual(validate(multi).filter((i) => i.code === 'DIAGRAM'), []);
+});
+
+test('removing boxes and asking for the wrong thing: remove_box, errors that name the next call, catalog names as describe writes them', () => {
+  const doc = parseIflw(EMPTY);
+  applyEdits(doc, [
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Request Reply', name: 'Call' },
+    { op: 'add_adapter', step: 'Call', type: 'HTTP', participant: 'Receiver' },
+  ], catalog);
+  assert.throws(() => applyEdits(doc, [{ op: 'remove_step', step: 'Call' }], catalog), /remove it first in the same batch, \{ "op": "remove_adapter", "adapter": "MessageFlow_1" \} \("HTTP"\)/);
+  assert.throws(() => applyEdits(doc, [{ op: 'remove_box', box: 'Receiver' }], catalog), /still has adapters \(MessageFlow_1 "HTTP"\); remove_adapter them first/);
+  const log = applyEdits(doc, [{ op: 'remove_adapter', adapter: 'HTTP' }, { op: 'remove_step', step: 'Call' }, { op: 'remove_box', box: 'Receiver' }], catalog);
+  assert.match(log[0]!, /the box Participant_2 "Receiver" stays, as in the designer \(remove it with remove_box/);
+  assert.equal(log[2], 'removed Receiver box Participant_2 "Receiver"');
+  assert.doesNotMatch(serializeIflw(doc), /Participant_2/);
+  assert.deepEqual(validate(doc).filter((i) => i.severity === 'error'), []);
+  assert.throws(() => applyEdits(doc, [{ op: 'remove_box', box: 'Nope' }], catalog), /no Sender\/Receiver box "Nope"; boxes: Participant_1 "Sender"/);
+
+  // the kind as iflow_describe writes it, a near miss with suggestions, a router asked for as a step
+  assert.match(applyEdits(parseIflw(EMPTY), [{ op: 'insert_step', after: 'StartEvent_2', type: 'Script:GroovyScript', settings: { script: 'v2/a.groovy' } }], catalog)[0]!, /Groovy Script/);
+  assert.throws(() => applyEdits(parseIflw(EMPTY), [{ op: 'insert_step', after: 'StartEvent_2', type: 'Groovy' }], catalog), /"Groovy" is not in the catalog; did you mean: "Groovy Script"/);
+  assert.throws(() => applyEdits(parseIflw(EMPTY), [{ op: 'insert_step', after: 'StartEvent_2', type: 'Router' }], catalog), /not inserted as a step: add a router with the operation add_router/);
+  assert.throws(() => applyEdits(parseIflw(EMPTY), [{ op: 'remove_step', step: 'EndEvent_2' }], catalog), /remove_step removes steps only: an End event of a route goes with remove_gateway/);
 });
 
 test('Filter: "expression" fills wrapContent; an XPath given as xpathType is refused with a hint', () => {

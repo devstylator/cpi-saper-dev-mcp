@@ -54,9 +54,29 @@ export function cmpVersion(a: string, b: string): number {
 export function findEntries(catalog: Catalog, query: string): Array<[string, CatalogEntry]> {
   const exact = catalog.entries[query];
   if (exact) return [[query, exact]];
-  const q = query.toLowerCase();
-  return Object.entries(catalog.entries).filter(([key, e]) =>
+  const match = (q: string) => Object.entries(catalog.entries).filter(([key, e]) =>
     (parseVariant(key).cname ?? '').toLowerCase() === q || e.label.toLowerCase() === q);
+  const q = query.trim().toLowerCase();
+  const found = match(q);
+  // iflow_describe names kinds as "Script:GroovyScript" or "Mapping:XSLTMapping" (activity type and subtype)
+  return found.length || !q.includes(':') ? found : match(q.slice(q.lastIndexOf(':') + 1));
+}
+
+/** Entries whose key, component name or label contains the query (for "did you mean" and searching) */
+export function searchEntries(catalog: Catalog, query: string, max = 10): Array<[string, CatalogEntry]> {
+  const words = query.toLowerCase().split(/[\s:_-]+/).filter(Boolean);
+  if (!words.length) return [];
+  return Object.entries(catalog.entries)
+    .filter(([key, e]) => { const hay = `${key} ${e.label}`.toLowerCase(); return words.every((w) => hay.includes(w)); })
+    .slice(0, max);
+}
+
+/** "x" is not in the catalog, with the closest entries when there are some */
+export function notInCatalog(catalog: Catalog, query: string): string {
+  const near = searchEntries(catalog, query, 6);
+  return `"${query}" is not in the catalog` + (near.length
+    ? `; did you mean: ${near.map(([k, e]) => `"${e.label}" (${parseVariant(k).cname ?? k})`).join(', ')}?`
+    : '; templates_list without query (or with kind) lists all entries');
 }
 
 /**

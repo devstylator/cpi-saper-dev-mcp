@@ -107,7 +107,8 @@ const operation = z.discriminatedUnion('op', [
     default: z.boolean().optional().describe('Make it the default route; the old default route takes its condition'),
   }),
   z.object({ op: z.literal('remove_gateway'), gateway: ref.describe('Router or multicast whose routes have no steps left (with its Join)') }),
-  z.object({ op: z.literal('remove_adapter'), adapter: z.string().describe('Adapter (message flow) id or unique name; its Sender/Receiver box stays') }),
+  z.object({ op: z.literal('remove_adapter'), adapter: z.string().describe('Adapter (message flow) id or unique name; its Sender/Receiver box stays (remove_box removes it)') }),
+  z.object({ op: z.literal('remove_box'), box: z.string().describe('Sender/Receiver box (participant) id or name, without adapters') }),
   z.object({
     op: z.literal('set'),
     element: z.string().describe('Step, adapter (message flow) id or unique name, or "integrationFlow" for the iFlow\'s own settings'),
@@ -149,7 +150,7 @@ export function registerEditCheckTools(server: McpServer) {
       description:
         'The only way to change a local iFlow (do not edit the .iflw XML directly). Apply semantic edits in one batch: insert a step from the catalog (with settings, headers, ' +
         'properties), remove a step (its neighbours are reconnected), add or remove an adapter (with its Sender/Receiver ' +
-        'box), add or remove an exception subprocess (insert steps into it after its Error Start), add a router or a ' +
+        'box; remove_box removes a box without adapters), add or remove an exception subprocess (insert steps into it after its Error Start), add a router or a ' +
         'parallel/sequential multicast (with Join) and put steps on its routes (insert_step "route"), change or remove ' +
         'routes and gateways, add or remove local integration processes and call them (Process Call / Looping Process ' +
         'Call with "process", "loop"), make the start a timer or a message start (set_start), lay out the iFlow (one ' +

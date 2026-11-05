@@ -1,7 +1,7 @@
 import { relative } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { describe, diffIflows, findEntries, iflowFromZip, toMermaid, validate } from '@cpi-saper-dev-mcp/core';
+import { describe, diffIflows, findEntries, iflowFromZip, toMermaid, validate, notInCatalog, searchEntries } from '@cpi-saper-dev-mcp/core';
 import { catalogOf, context, localIflow } from '../context.js';
 import { toolError, toolResult } from '../result.js';
 import { collectionIssues } from '../collections.js';
@@ -149,8 +149,15 @@ export function registerUnderstandTools(server: McpServer) {
         const catalog = catalogOf(ctx.config);
         if (query) {
           const matches = findEntries(catalog, query);
-          if (!matches.length) throw new Error(`"${query}" is not in the catalog; call templates_list without query to see all entries`);
-          return toolResult({ matches: matches.map(([key, e]) => ({ key, ...e })) });
+          if (matches.length) return toolResult({ matches: matches.map(([key, e]) => ({ key, ...e })) });
+          // no exact name: the entries containing the words, short, to pick one and ask again
+          const near = searchEntries(catalog, query, 20).filter(([, e]) => !kind || e.kind === kind);
+          if (!near.length) throw new Error(notInCatalog(catalog, query));
+          return toolResult({
+            query, exact: false,
+            candidates: near.map(([key, e]) => ({ key, kind: e.kind, label: e.label, latest: e.latest })),
+            next: 'use a candidate\'s label or key as "type" in iflow_edit, or as query here for its settings',
+          });
         }
         const entries = Object.entries(catalog.entries).filter(([, e]) => !kind || e.kind === kind)
           .map(([key, e]) => ({ key, kind: e.kind, label: e.label, versions: Object.keys(e.versions), latest: e.latest }));

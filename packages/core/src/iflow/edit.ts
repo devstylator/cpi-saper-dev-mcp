@@ -288,14 +288,25 @@ export function removeStep(doc: Document, stepId: string) {
   const index = idIndex(doc);
   const step = index.get(stepId);
   if (!step) throw new Error(`no element with id ${stepId}`);
-  if (!['callActivity', 'serviceTask'].includes(step.localName ?? '')) throw new Error(`${stepId} is a ${step.localName}; only steps can be removed`);
+  if (!['callActivity', 'serviceTask'].includes(step.localName ?? '')) {
+    const how: Record<string, string> = {
+      exclusiveGateway: 'a router is removed with remove_gateway (after the steps on its routes), which also takes its routes\' End events',
+      parallelGateway: 'a multicast or Join is removed with remove_gateway',
+      endEvent: 'an End event of a route goes with remove_gateway; an exception subprocess with remove_exception_subprocess',
+      subProcess: 'an exception subprocess is removed with remove_exception_subprocess',
+      participant: 'a Sender/Receiver box is removed with remove_box (after remove_adapter)',
+    };
+    throw new Error(`${stepId} is a ${step.localName}; remove_step removes steps only${how[step.localName ?? ''] ? `: ${how[step.localName ?? '']}` : ''}`);
+  }
   const incoming = byTag(doc, 'sequenceFlow').filter((f) => f.getAttribute('targetRef') === stepId);
   const outgoing = byTag(doc, 'sequenceFlow').filter((f) => f.getAttribute('sourceRef') === stepId);
   if (incoming.length !== 1 || outgoing.length !== 1) {
     throw new Error(`${stepId} must have exactly one incoming and one outgoing flow to be removed (has ${incoming.length} and ${outgoing.length})`);
   }
-  if (byTag(doc, 'messageFlow').some((m) => m.getAttribute('sourceRef') === stepId || m.getAttribute('targetRef') === stepId)) {
-    throw new Error(`${stepId} has an adapter connected; remove the adapter first (remove_adapter)`);
+  const adapter = byTag(doc, 'messageFlow').find((m) => m.getAttribute('sourceRef') === stepId || m.getAttribute('targetRef') === stepId);
+  if (adapter) {
+    throw new Error(`${stepId} has an adapter connected: remove it first in the same batch, { "op": "remove_adapter", "adapter": "${adapter.getAttribute('id')}" } ` +
+      `("${adapter.getAttribute('name') ?? ''}"), then remove_step`);
   }
   const [inFlow, outFlow] = [incoming[0]!, outgoing[0]!];
   const targetId = outFlow.getAttribute('targetRef')!;
@@ -546,13 +557,35 @@ export function addAdapter(doc: Document, stepId: string, { name, properties, di
   return { flowId, participantId: boxId, participantName: boxName, createdParticipant: created };
 }
 
-/** Remove an adapter (message flow and its edge); the Sender/Receiver box stays, as in the designer */
-export function removeAdapter(doc: Document, flowId: string) {
-  const flow = idIndex(doc).get(flowId);
+/** Remove an adapter (message flow and its edge); the Sender/Receiver box stays, as in the designer. Returns that box */
+export function removeAdapter(doc: Document, flowId: string): { id: string; name: string } | undefined {
+  const index = idIndex(doc);
+  const flow = index.get(flowId);
   if (flow?.localName !== 'messageFlow') throw new Error(`${flowId} is not an adapter (message flow)`);
   const edge = edgeOf(doc, flowId);
   if (edge) removeEl(edge);
   removeEl(flow);
+  const box = [flow.getAttribute('sourceRef'), flow.getAttribute('targetRef')].map((id) => index.get(id ?? '')).find((el) => el?.localName === 'participant');
+  return box ? { id: box.getAttribute('id')!, name: box.getAttribute('name') ?? '' } : undefined;
+}
+
+/** Remove a Sender/Receiver box (participant and its shape); only one without adapters */
+export function removeBox(doc: Document, ref: string): { id: string; name: string; type: string } {
+  const collab = byTag(doc, 'collaboration')[0]!;
+  const boxes = children(collab, 'participant').filter((p) => ['EndpointSender', 'EndpointRecevier'].includes(p.getAttribute('ifl:type') ?? ''));
+  const hits = boxes.filter((p) => p.getAttribute('id') === ref || p.getAttribute('name') === ref);
+  if (hits.length !== 1) {
+    throw new Error(hits.length ? `"${ref}" names ${hits.length} boxes (${hits.map((p) => p.getAttribute('id')).join(', ')}); use the id`
+      : `no Sender/Receiver box "${ref}"; boxes: ${boxes.map((p) => `${p.getAttribute('id')} "${p.getAttribute('name')}"`).join(', ')}`);
+  }
+  const box = hits[0]!;
+  const id = box.getAttribute('id')!;
+  const flows = children(collab, 'messageFlow').filter((m) => m.getAttribute('sourceRef') === id || m.getAttribute('targetRef') === id);
+  if (flows.length) throw new Error(`${id} "${box.getAttribute('name')}" still has adapters (${flows.map((f) => `${f.getAttribute('id')} "${f.getAttribute('name') ?? ''}"`).join(', ')}); remove_adapter them first`);
+  const shape = shapeOf(doc, id);
+  if (shape) removeEl(shape);
+  removeEl(box);
+  return { id, name: box.getAttribute('name') ?? '', type: box.getAttribute('ifl:type') ?? '' };
 }
 
 // ---------- routers and multicasts ----------

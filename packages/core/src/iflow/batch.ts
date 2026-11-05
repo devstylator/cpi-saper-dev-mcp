@@ -1,9 +1,9 @@
 // A batch of semantic edits, applied in order to one iFlow DOM. Callers validate and write only if all succeed.
 import type { Document, Element } from '@xmldom/xmldom';
-import { findEntries, pickVersion, type Catalog } from '../catalog.js';
+import { findEntries, notInCatalog, pickVersion, type Catalog } from '../catalog.js';
 import {
   adapterDirectionFor, addAdapter, addExceptionSubprocess, addMulticast, addRouter, editTable, findRoute, layoutAround, removeGateway, setRoute, type RouteInput,
-  addLocalProcess, findLocalProcess, removeLocalProcess, setLoop, setStart, findElement, insertStepAfter, layoutStraight, removeAdapter, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
+  addLocalProcess, findLocalProcess, removeLocalProcess, setLoop, setStart, findElement, insertStepAfter, layoutStraight, removeAdapter, removeBox, removeExceptionSubprocess, removeStep, rename, setProperties, type TableRowInput,
 } from './edit.js';
 import { parseVariant, readProps, type Props } from './model.js';
 import type { Schedule } from '../schedule.js';
@@ -50,6 +50,8 @@ export type EditOp =
     settings?: Props;
   }
   | { op: 'remove_adapter'; adapter: string }
+  /** a Sender/Receiver box without adapters */
+  | { op: 'remove_box'; box: string }
   | {
     op: 'add_exception_subprocess';
     /** process id or name; default: the main integration process */
@@ -138,11 +140,19 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog, effec
         case 'insert_step': {
           const matches = findEntries(catalog, op.type);
           if (matches.length !== 1) {
-            throw new Error(matches.length ? `"${op.type}" is ambiguous: ${matches.map(([k]) => k).join(', ')}` : `"${op.type}" is not in the catalog`);
+            throw new Error(matches.length ? `"${op.type}" is ambiguous: ${matches.map(([k]) => k).join(', ')}` : notInCatalog(catalog, op.type));
           }
           const [key, entry] = matches[0]!;
           if (parseVariant(key).cname === 'ErrorEventSubProcessTemplate') throw new Error('an exception subprocess is added with the operation add_exception_subprocess');
-          if (!['callActivity', 'serviceTask'].includes(entry.bpmn)) throw new Error(`${entry.label} (${entry.bpmn}) cannot be inserted as a step yet`);
+          if (!['callActivity', 'serviceTask'].includes(entry.bpmn)) {
+            const instead: Record<string, string> = {
+              exclusiveGateway: 'add a router with the operation add_router (routes with conditions; then insert_step "route" for steps on a route)',
+              parallelGateway: 'add a multicast with the operation add_multicast (branches, optional Join)',
+              startEvent: 'a start event is set with the operation set_start (message or timer)',
+              endEvent: 'end events come with add_router routes ("end": true) and with add_exception_subprocess',
+            };
+            throw new Error(`${entry.label} (${entry.bpmn}) is not inserted as a step: ${instead[entry.bpmn] ?? 'it cannot be added yet'}`);
+          }
           const { version, reason } = pickVersion(entry, key, doc, op.version);
           const properties: Props = { ...entry.versions[version]!.properties };
           if (!op.after === !op.route) throw new Error('give either "after" (a step) or "route" (a route of a router or branch of a multicast)');
@@ -233,8 +243,14 @@ export function applyEdits(doc: Document, ops: EditOp[], catalog: Catalog, effec
         case 'remove_adapter': {
           const el = findElement(doc, op.adapter);
           const id = el.getAttribute('id')!;
-          removeAdapter(doc, id);
-          log.push(`removed adapter ${id} "${el.getAttribute('name') ?? ''}"`);
+          const box = removeAdapter(doc, id);
+          log.push(`removed adapter ${id} "${el.getAttribute('name') ?? ''}"` +
+            (box ? `; the box ${box.id} "${box.name}" stays, as in the designer (remove it with remove_box when it is not needed)` : ''));
+          break;
+        }
+        case 'remove_box': {
+          const r = removeBox(doc, op.box);
+          log.push(`removed ${r.type === 'EndpointSender' ? 'Sender' : 'Receiver'} box ${r.id} "${r.name}"`);
           break;
         }
         case 'add_exception_subprocess': {

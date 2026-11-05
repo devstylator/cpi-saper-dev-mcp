@@ -3,6 +3,23 @@
 All notable changes of the `cpi-saper-dev-mcp` server. Versions follow [semantic versioning](https://semver.org/);
 before 1.0, names and behaviour may still change between versions.
 
+## Unreleased
+
+### Added
+
+- `iflow_edit` `remove_box`: removes a Sender/Receiver box without adapters (`remove_adapter` keeps the box, as the
+  designer does, and now says so).
+- Any tool: a call that fails the same way three times in a row says that repeating it will not help (seen: one
+  refused edit sent 15 times).
+- `templates_list` with a query that names no entry returns the entries containing its words instead of an error.
+
+### Changed
+
+- Clearer refusals that name the next call: `remove_step` on a step with an adapter gives the `remove_adapter`
+  operation with the adapter's id; `remove_step` on a router, End event or subprocess and `insert_step` of a router,
+  multicast or event name the operation that does it; an unknown catalog name lists the closest entries.
+- Catalog names as `iflow_describe` writes them (`Script:GroovyScript`, `Mapping:XSLTMapping`) are accepted.
+
 ## 0.9.0-beta.3 (2026-11-05)
 
 ### Fixed
