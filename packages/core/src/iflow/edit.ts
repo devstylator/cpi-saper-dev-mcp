@@ -383,17 +383,32 @@ function placeBox(doc: Document, shape: Element, step: Bounds, sideways: boolean
     // an exception subprocess drawn below the main row
     const pools = new Set(poolBounds(doc).map((p) => `${p.x},${p.y}`));
     const inside = others.filter((b) => !pools.has(`${b.x},${b.y}`) && !(b.x === step.x && b.y === step.y));
-    const cx = step.x + step.w / 2;
-    const clear = (c: { y: number }) => {
-      const [y1, y2] = c.y > step.y ? [step.y + step.h, c.y] : [c.y + BOX.h, step.y];
-      return !inside.some((b) => b.x <= cx && cx <= b.x + b.w && b.y < y2 && y1 < b.y + b.h);
-    };
-    const good = (c: { x: number; y: number }) => free(c) && clear(c);
-    c = good(below) || (!good(above) && (free(below) || !free(above))) ? below : above;
+    const from = { x: step.x + step.w / 2, y: step.y + step.h / 2 };
+    // the line from the step's centre to the box's centre (as the designer draws it) crosses no other shape
+    const clear = (c: { x: number; y: number }) => !inside.some((b) => segmentHits(from, { x: c.x + BOX.w / 2, y: c.y + BOX.h / 2 }, b));
+    const good = (c: { x: number; y: number }) => c.x >= 20 && free(c) && clear(c);
+    // straight below or above; else a little to the side (another box may hold the place above, an exception
+    // subprocess may lie below); else below, as before
+    const sideways = [1, -1, 2, -2, 3, -3].flatMap((k) => [above, below].map((v) => ({ x: v.x + k * (BOX.w + 20), y: v.y })));
+    c = [below, above, ...sideways].find(good) ?? (free(below) || !free(above) ? below : above);
   }
   while (!free(c)) c = { x: c.x, y: Math.max(...others.filter((b) => overlaps({ ...c, ...BOX }, b)).map((b) => b.y + b.h)) + 30 };
   const b = bounds(shape).el;
   b.setAttribute('x', fmt(c.x)); b.setAttribute('y', fmt(c.y));
+}
+
+/** Whether the segment a-b passes through the inside of the rectangle (touching its border does not count) */
+function segmentHits(a: { x: number; y: number }, b: { x: number; y: number }, r: { x: number; y: number; w: number; h: number }): boolean {
+  // Liang-Barsky clipping against the rectangle shrunk by 1, so lines along a border pass
+  const [x0, y0, dx, dy] = [a.x, a.y, b.x - a.x, b.y - a.y];
+  let [t0, t1] = [0, 1];
+  for (const [p, q] of [[-dx, x0 - (r.x + 1)], [dx, r.x + r.w - 1 - x0], [-dy, y0 - (r.y + 1)], [dy, r.y + r.h - 1 - y0]] as const) {
+    if (p === 0) { if (q < 0) return false; continue; }
+    const t = q / p;
+    if (p < 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t);
+    if (t0 > t1) return false;
+  }
+  return true;
 }
 
 /** When a box was placed above the top of the diagram, move the whole diagram down so it starts at y 20 again */
@@ -1038,6 +1053,9 @@ export function addExceptionSubprocess(doc: Document, { process, name = 'Excepti
     sh.appendChild(elementNS(doc, 'dc:Bounds', { height: fmt(b.h), width: fmt(b.w), x: fmt(b.x), y: fmt(b.y) }));
     return sh;
   };
+  // the pool grows around it first (20 below, as the designer leaves): what lies below the pool moves down, the new
+  // subprocess must not move along
+  fitPool(doc, poolShape, box);
   const ev = (x: number) => ({ x, y: box.y + 46, w: 32, h: 32 });
   const [sb, eb] = [ev(box.x + 33), ev(box.x + box.w - 84)];
   const shapes = [shapeEl(subId, box), shapeEl(endId, eb), shapeEl(startId, sb)];
@@ -1046,8 +1064,6 @@ export function addExceptionSubprocess(doc: Document, { process, name = 'Excepti
   for (const b of [sb, eb]) edge.appendChild(elementNS(doc, 'di:waypoint', { x: fmt(b.x + b.w / 2), 'xsi:type': 'dc:Point', y: fmt(b.y + b.h / 2) }));
   insertAfterEl(plane, edge, byTag(doc, 'BPMNEdge', NS.bpmndi).at(-1) ?? shapes.at(-1)!);
 
-  // the pool grows around it (20 below, as the designer leaves); boxes under the pool move down by as much
-  fitPool(doc, poolShape, box);
   replaceBoxes(doc, proc);
   return { subId, startId, endId, processId };
 }
@@ -1079,6 +1095,13 @@ function fitPool(doc: Document, poolShape: Element, box: { x: number; y: number;
   for (const sh of byTag(doc, 'BPMNShape', NS.bpmndi)) {
     const b = bounds(sh);
     if (sh !== poolShape && b.y >= oldBottom) { b.el.setAttribute('y', fmt(b.y + grow)); moved.add(sh.getAttribute('bpmnElement')!); }
+  }
+  // the lines between moved elements (another pool's flow) move with them
+  const flows = new Map(byTag(doc, 'sequenceFlow').map((f) => [f.getAttribute('id')!, f]));
+  for (const edge of byTag(doc, 'BPMNEdge', NS.bpmndi)) {
+    const f = flows.get(edge.getAttribute('bpmnElement') ?? '');
+    if (!f || !moved.has(f.getAttribute('sourceRef')!) || !moved.has(f.getAttribute('targetRef')!)) continue;
+    for (const wp of children(edge, 'waypoint', NS.di)) wp.setAttribute('y', fmt(Number(wp.getAttribute('y')) + grow));
   }
   routeAdapters(doc, moved);
 }

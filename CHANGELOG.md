@@ -3,6 +3,24 @@
 All notable changes of the `cpi-saper-dev-mcp` server. Versions follow [semantic versioning](https://semver.org/);
 before 1.0, names and behaviour may still change between versions.
 
+## Unreleased
+
+### Fixed
+
+- `add_exception_subprocess` moved its own new subprocess below the pool when the pool had to grow, without its line
+  (seen as a subprocess outside the pool and a slanted arrow from Error Start); a growing pool now also moves the
+  lines of the pools below it.
+- A Receiver box whose line would cross an exception subprocess, with the place above the pool taken, now moves to
+  the side instead of keeping the crossing line.
+
+### Added
+
+- `iflow_validate` warns when the diagram no longer matches the model (an element drawn outside its pool or
+  subprocess, a line not at its elements) and points to `iflow_edit` `layout`.
+- `cpi_send_message`: the same request answered the same way several times in a row gets a note; from the tenth
+  time it is refused until the request changes (seen: an agent resent one request 33 times).
+- The server's instructions and `iflow_edit` say not to edit `.iflw` XML directly.
+
 ## 0.9.0-beta.2 (2026-11-04)
 
 ### Added

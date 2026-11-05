@@ -147,7 +147,7 @@ export function registerEditCheckTools(server: McpServer) {
     {
       title: 'Edit an iFlow',
       description:
-        'Apply semantic edits to a local iFlow in one batch: insert a step from the catalog (with settings, headers, ' +
+        'The only way to change a local iFlow (do not edit the .iflw XML directly). Apply semantic edits in one batch: insert a step from the catalog (with settings, headers, ' +
         'properties), remove a step (its neighbours are reconnected), add or remove an adapter (with its Sender/Receiver ' +
         'box), add or remove an exception subprocess (insert steps into it after its Error Start), add a router or a ' +
         'parallel/sequential multicast (with Join) and put steps on its routes (insert_step "route"), change or remove ' +

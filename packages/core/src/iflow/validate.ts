@@ -209,5 +209,50 @@ export function validate(doc: Document, { resourceFiles, declaredParameters }: V
       if (!declaredParameters.has(p!)) add('warning', 'UNDECLARED_PARAMETER', `{{${p}}} missing in parameters.propdef`);
     }
   }
+  diagramIssues(doc).forEach((m) => add('warning', 'DIAGRAM', m));
   return issues;
+}
+
+/**
+ * A diagram that no longer matches its model, as hand edits of the .iflw leave it: an element drawn outside its pool
+ * or subprocess, a line that does not start or end at its element. The tools themselves keep these consistent.
+ */
+function diagramIssues(doc: Document): string[] {
+  const out: string[] = [];
+  const box = new Map<string, { x: number; y: number; w: number; h: number }>();
+  for (const sh of byTag(doc, 'BPMNShape', NS.bpmndi)) {
+    const b = children(sh, 'Bounds', NS.dc)[0];
+    if (b) box.set(sh.getAttribute('bpmnElement') ?? '', { x: Number(b.getAttribute('x')), y: Number(b.getAttribute('y')), w: Number(b.getAttribute('width')), h: Number(b.getAttribute('height')) });
+  }
+  const T = 5;
+  const within = (a: { x: number; y: number; w: number; h: number }, o: { x: number; y: number; w: number; h: number }) =>
+    a.x >= o.x - T && a.y >= o.y - T && a.x + a.w <= o.x + o.w + T && a.y + a.h <= o.y + o.h + T;
+  const near = (p: { x: number; y: number }, o: { x: number; y: number; w: number; h: number }) =>
+    p.x >= o.x - T && p.x <= o.x + o.w + T && p.y >= o.y - T && p.y <= o.y + o.h + T;
+  const name = (el: Element) => `${el.getAttribute('id')}${el.getAttribute('name') ? ` (${el.getAttribute('name')})` : ''}`;
+  const pools = byTag(doc, 'participant').filter((p) => p.getAttribute('processRef'));
+  const container = new Map<Element, { x: number; y: number; w: number; h: number } | undefined>();
+  for (const pool of pools) {
+    const proc = byTag(doc, 'process').find((x) => x.getAttribute('id') === pool.getAttribute('processRef'));
+    if (proc) container.set(proc, box.get(pool.getAttribute('id') ?? ''));
+  }
+  for (const sub of byTag(doc, 'subProcess')) container.set(sub, box.get(sub.getAttribute('id') ?? ''));
+  for (const [parent, frame] of container) {
+    if (!frame) continue;
+    for (const el of children(parent)) {
+      const b = box.get(el.getAttribute('id') ?? '');
+      if (b && !within(b, frame)) out.push(`${name(el)} is drawn outside ${name(parent.localName === 'process' ? pools.find((p) => p.getAttribute('processRef') === parent.getAttribute('id'))! : parent)}`);
+    }
+  }
+  for (const edge of byTag(doc, 'BPMNEdge', NS.bpmndi)) {
+    const flow = byTag(doc, 'sequenceFlow').find((f) => f.getAttribute('id') === edge.getAttribute('bpmnElement'));
+    if (!flow) continue;
+    const pts = children(edge, 'waypoint', NS.di).map((w) => ({ x: Number(w.getAttribute('x')), y: Number(w.getAttribute('y')) }));
+    const [src, tgt] = [box.get(flow.getAttribute('sourceRef') ?? ''), box.get(flow.getAttribute('targetRef') ?? '')];
+    if (pts.length < 2 || !src || !tgt) continue;
+    if (!near(pts[0]!, src) || !near(pts.at(-1)!, tgt)) out.push(`the line of ${flow.getAttribute('id')} (${flow.getAttribute('sourceRef')} -> ${flow.getAttribute('targetRef')}) does not start and end at its elements`);
+  }
+  if (!out.length) return [];
+  return [`the diagram does not match the model (a hand edit of the .iflw?): ${out.slice(0, 8).join('; ')}${out.length > 8 ? `; and ${out.length - 8} more` : ''}. ` +
+    'Edit iFlows only with iflow_edit; its "layout" operation draws the diagram again'];
 }

@@ -233,3 +233,16 @@ test('toolLog: each tool call is written as one JSON line, off by default', asyn
   assert.match(lines[1].result, /Send/);
   assert.equal(typeof lines[0].ms, 'number');
 });
+
+test('repeated identical test messages: a hint from the third same answer, a refusal from the tenth', async () => {
+  const { RepeatGuard } = await import('../dist/repeat-guard.js');
+  const g = new RepeatGuard();
+  const notes = [];
+  for (let i = 1; i <= 10; i++) { assert.equal(g.check('req', i), undefined); notes.push(g.record('req', '200 same', i)); }
+  assert.deepEqual(notes.map((n) => !!n), [false, false, true, true, true, true, true, true, true, true]);
+  assert.match(g.check('req', 11) ?? '', /not sent: this exact request was sent 10 times/);
+  assert.equal(g.check('other', 12), undefined, 'another request goes through');
+  g.record('other', 'x', 12);
+  assert.equal(g.check('req', 13), undefined, 'the count starts again');
+  assert.equal(g.record('req', 'different answer', 14), undefined);
+});

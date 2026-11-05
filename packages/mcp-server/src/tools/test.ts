@@ -6,6 +6,10 @@ import { getIflow, getMessage, listMessages, redactor, sendMessage, setLogLevel,
 import { context, stepNamesFor, tenantApi, tenantRuntime } from '../context.js';
 import { toolError, toolResult } from '../result.js';
 import { assertMayChange, audit } from '../safety.js';
+import { RepeatGuard } from '../repeat-guard.js';
+
+/** identical test messages in a row (one guard per server process) */
+const repeats = new RepeatGuard();
 
 const tenantArg = z.string().optional().describe('Tenant name from the configuration; default: defaultTenant');
 const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max)}\n…(cut: ${s.length} characters, limit output.maxChars = ${max})` : s);
@@ -18,7 +22,8 @@ export function registerTestTools(server: McpServer) {
       description:
         'Call a deployed iFlow\'s HTTP endpoint (https://<runtime>/http<path>, the HTTPS sender\'s address) on a ' +
         'development tenant. Returns the HTTP status, response headers and body, and the message log id (also for ' +
-        'failed calls) to read with cpi_message.',
+        'failed calls) to read with cpi_message. The same request answered the same way several times in a row gets a ' +
+        'note, and from the 10th time it is not sent again until something changes.',
       inputSchema: {
         path: z.string().describe('Endpoint path as configured in the HTTPS sender, e.g. /test'),
         method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).default('POST'),
@@ -35,8 +40,12 @@ export function registerTestTools(server: McpServer) {
         const rt = tenantRuntime(ctx.config, tenantName);
         if (rt.tenant.role !== 'development') throw new Error(`tenant "${rt.tenant.name}" is ${rt.tenant.role}: test messages go to development tenants only`);
         const text = bodyFile ? readFileSync(isAbsolute(bodyFile) ? bodyFile : resolve(ctx.workspace.root, bodyFile), 'utf8') : body;
+        const request = JSON.stringify([rt.tenant.name, path, method, text ?? '', Object.entries(headers ?? {}).sort()]);
+        const refused = repeats.check(request);
+        if (refused) throw new Error(refused);
         const r = await sendMessage(rt.client, path, { method, ...(text !== undefined ? { body: text } : {}), headers: headers ?? {}, redact: redactor(ctx.config.redact) });
-        return toolResult({ ...r, body: clip(r.body, ctx.config.output.maxChars) });
+        const hint = repeats.record(request, JSON.stringify([r.status, r.body]));
+        return toolResult({ ...r, body: clip(r.body, ctx.config.output.maxChars), ...(hint ? { note: hint } : {}) });
       } catch (e) {
         return toolError(e);
       }

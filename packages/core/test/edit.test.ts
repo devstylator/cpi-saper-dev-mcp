@@ -316,6 +316,54 @@ test('step and adapter must fit (measured with SAP\'s model check); a Content En
     [`ADAPTER_DIRECTION ${lookup}`, `ADAPTER_NOT_SUPPORTED ${findElement(doc, 'Out').getAttribute('id')}`].sort());
 });
 
+test('boxes: no adapter line crosses an exception subprocess; a hand-moved diagram is reported and layout redraws it', () => {
+  const doc = parseIflw(EMPTY);
+  applyEdits(doc, [
+    { op: 'add_adapter', step: 'Start', type: 'HTTPS' },
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Request Reply', name: 'Main call' },
+    { op: 'add_adapter', step: 'Main call', type: 'HTTP' },
+    { op: 'add_router', after: 'StartEvent_2', routes: [{ name: 'Other', condition: "${header.x} = '1'", end: true }, { name: 'Main' }] },
+    { op: 'insert_step', route: 'Other', type: 'Request Reply', name: 'Other call' },
+    { op: 'add_adapter', step: 'Other call', type: 'HTTP' },
+    { op: 'add_exception_subprocess', end: 'message' },
+  ], catalog);
+  const s = serializeIflw(doc);
+  const shape = (id: string) => {
+    const m = s.match(new RegExp(`bpmnElement="${id}"[^>]*>\\s*<dc:Bounds height="([\\d.]+)" width="([\\d.]+)" x="([\\d.-]+)" y="([\\d.-]+)"`))!;
+    const [h, w, x, y] = m.slice(1).map(Number) as [number, number, number, number];
+    return { x, y, w, h };
+  };
+  const sub = shape('SubProcess_1');
+  for (const mf of doc.getElementsByTagNameNS('*', 'messageFlow')) {
+    const [a, b] = [shape(mf.getAttribute('sourceRef')!), shape(mf.getAttribute('targetRef')!)];
+    for (let t = 0; t <= 1; t += 0.01) {
+      const [x, y] = [a.x + a.w / 2 + t * (b.x + b.w / 2 - a.x - a.w / 2), a.y + a.h / 2 + t * (b.y + b.h / 2 - a.y - a.h / 2)];
+      assert.ok(!(x > sub.x + 1 && x < sub.x + sub.w - 1 && y > sub.y + 1 && y < sub.y + sub.h - 1), `${mf.getAttribute('id')} crosses the subprocess`);
+    }
+  }
+  assert.deepEqual(validate(doc).filter((i) => i.code === 'DIAGRAM'), []);
+
+  // what a hand edit left behind: the subprocess pushed below the pool, its line not moved along
+  const subShape = [...doc.getElementsByTagNameNS('*', 'BPMNShape')].find((x) => x.getAttribute('bpmnElement') === 'SubProcess_1')!;
+  const bounds = subShape.getElementsByTagNameNS('*', 'Bounds')[0]!;
+  bounds.setAttribute('y', String(Number(bounds.getAttribute('y')) + 400));
+  const diagram = validate(doc).filter((i) => i.code === 'DIAGRAM');
+  assert.equal(diagram.length, 1);
+  assert.match(diagram[0]!.msg, /SubProcess_1 \(Exception Subprocess 1\) is drawn outside Participant_Process_1.*iflow_edit; its "layout"/);
+  applyEdits(doc, [{ op: 'layout' }], catalog);
+  assert.deepEqual(validate(doc).filter((i) => i.code === 'DIAGRAM'), []);
+
+  // a pool that grows moves the pools below with their lines (a local process with a step)
+  const multi = parseIflw(EMPTY);
+  applyEdits(multi, [
+    { op: 'insert_step', after: 'StartEvent_2', type: 'Content Modifier', name: 'Main' },
+    { op: 'add_local_process', name: 'Helper' },
+  ], catalog);
+  const helperStart = [...multi.getElementsByTagNameNS('*', 'process')].find((p) => p.getAttribute('name') === 'Helper')!.getElementsByTagNameNS('*', 'startEvent')[0]!.getAttribute('id')!;
+  applyEdits(multi, [{ op: 'insert_step', after: helperStart, type: 'Content Modifier', name: 'Inside helper' }, { op: 'add_exception_subprocess', process: 'Process_1' }], catalog);
+  assert.deepEqual(validate(multi).filter((i) => i.code === 'DIAGRAM'), []);
+});
+
 test('Filter: "expression" fills wrapContent; an XPath given as xpathType is refused with a hint', () => {
   const doc = fresh();
   const log = applyEdits(doc, [{ op: 'insert_step', after: 'CallActivity_10', type: 'Filter', expression: "/Orders/Order[region='EU']" }], catalog);

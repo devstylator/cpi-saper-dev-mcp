@@ -38,6 +38,8 @@ const server = new McpServer(
       'cpi_pull (or iflow_create for a new iFlow) -> iflow_describe / iflow_render -> iflow_edit (steps and adapters from ' +
       'templates_list) -> iflow_validate / iflow_diff; ' +
       'check scripts with script_run and XSLT with xslt_run -> cpi_push -> cpi_deploy -> cpi_send_message -> cpi_message. ' +
+      'Change .iflw files only with iflow_edit, never by editing the XML: the tools keep model and diagram consistent ' +
+      '(iflow_edit "layout" redraws a diagram). ' +
       'Tools that change a tenant may ask the user to confirm; never try to work around a refusal.',
   },
 );
