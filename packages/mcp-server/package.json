@@ -1,6 +1,6 @@
 {
   "name": "cpi-saper-dev-mcp",
-  "version": "0.9.0-beta.2",
+  "version": "0.9.0-beta.3",
   "description": "MCP server that lets an AI agent develop SAP Cloud Integration (CPI) content on development tenants: edit iFlows locally, check, push, deploy and test",
   "keywords": [
     "mcp",
@@ -49,6 +49,6 @@
     "saxon-js": "2.7.0"
   },
   "devDependencies": {
-    "@cpi-saper-dev-mcp/core": "0.9.0-beta.2"
+    "@cpi-saper-dev-mcp/core": "0.9.0-beta.3"
   }
 }
