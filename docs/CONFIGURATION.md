@@ -48,6 +48,7 @@ The first one found is used:
 | `redact` | Extra header and property names whose values are hidden, in addition to the built-in list (names containing auth, passport, password, secret, token, cookie or credential) | — |
 | `timeouts.deploySeconds` | How long `cpi_deploy` waits before reporting "still deploying" | 180 |
 | `unattendedTestMode` | **Test only, not for real development.** `true` removes every question to you: confirmations (`confirm`) are skipped and the agent's version number and comment are used without the dialog. See [Unattended test mode](#unattended-test-mode-test-only) | `false` |
+| `recheckBeforeUpload` | Checks the tenant again after you answer the version dialog, right before the upload (`cpi_push`, `cpi_save_version`, `script_collection_push`): if the artifact changed on the tenant (a designer save, "Configure") or was opened in the designer while the dialog was open, nothing is uploaded, so those changes are not overwritten. Costs one download and one lock query per upload; skipped in `unattendedTestMode`, which shows no dialog | `true` |
 | `versioning.rules` | Your own versioning rules (Markdown, like a skill): when to raise the major, minor or patch part, and how to write the comment. Replaces the [default rules](../packages/core/rules/versioning.md) completely | default |
 
 ## Example

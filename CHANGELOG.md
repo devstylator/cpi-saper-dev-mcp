@@ -3,6 +3,15 @@
 All notable changes of the `cpi-saper-dev-mcp` server. Versions follow [semantic versioning](https://semver.org/);
 before 1.0, names and behaviour may still change between versions.
 
+## Unreleased
+
+### Fixed
+
+- A change saved on the tenant (designer save, "Configure") or the designer opening the artifact while the version
+  dialog was open was overwritten without a word: `cpi_push`, `cpi_save_version` and `script_collection_push` now
+  check the tenant again right before the upload and upload nothing when it changed. Setting `recheckBeforeUpload`
+  (default `true`) switches the extra check off.
+
 ## 0.9.0-beta.4 (2026-11-05)
 
 ### Added

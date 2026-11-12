@@ -5,7 +5,7 @@ import { z } from 'zod';
 import {
   modelCheck, createIflow, deleteIflow, getScriptCollection, deployErrorList, DEPLOY_CHECKS, deployIflow, describe, designLocks, downloadIflow, getIflow, iflowFromZip, localChanges, readChangelog,
   IFLOW_ID, resolvePackage, runGuidelines, runtimeError, undeployIflow, uploadIflow, validate, withVersion, zipChanges, zipFolder, zipVersion,
-  type CpiClient, type GuidelineFinding, type TenantConfig,
+  type Config, type CpiClient, type GuidelineFinding, type TenantConfig,
 } from '@cpi-saper-dev-mcp/core';
 import { context, localIflow, stepNamesFor, tenantApi, type ToolContext } from '../context.js';
 import { collectionProblems } from '../collections.js';
@@ -43,6 +43,25 @@ async function assertTenantUnchanged(client: CpiClient, iflowId: string, pulledZ
   }
   return current;
 }
+
+/**
+ * The same checks again after the version dialog, right before the upload: a designer save, a "Configure" or the
+ * designer opening the artifact while the user was answering would otherwise be overwritten without a word. On by
+ * default ("recheckBeforeUpload"); skipped in unattendedTestMode, where no dialog leaves time for changes.
+ */
+export async function recheckBeforeUpload(config: Config, artifactId: string, seen: Uint8Array,
+  { download, locked }: { download: () => Promise<Uint8Array>; locked: () => Promise<{ lockedBy?: string } | undefined> }): Promise<void> {
+  if (!config.recheckBeforeUpload || config.unattendedTestMode) return;
+  const lock = await locked();
+  if (lock) throw new Error(`${artifactId} was opened in the designer${lock.lockedBy ? ` by ${lock.lockedBy}` : ''} while you were confirming; nothing was uploaded. Close it there and try again`);
+  const changed = zipChanges(seen, await download());
+  if (changed.length) {
+    throw new Error(`${artifactId} changed on the tenant while you were confirming (${changed.slice(0, 8).join(', ')}); nothing was uploaded, so ` +
+      'those changes are kept. Keep your local work elsewhere, pull again with overwrite, and re-apply it');
+  }
+}
+
+const lockOf = (client: CpiClient, id: string) => async () => (await designLocks(client)).find((l) => l.artifactId === id);
 
 const highFinding = (f: GuidelineFinding) => f.compliance === 'Non-Compliant' && f.severity === 'High' && !f.skipped;
 const findingKey = (f: GuidelineFinding) => `${f.id} ${f.violated ?? ''}`;
@@ -211,6 +230,7 @@ export function registerTenantWriteTools(server: McpServer) {
         const v = await askVersion(server, ctx.config, api.tenant,
           `Push ${id} to tenant "${api.tenant.name}"${api.tenant.label ? ` (${api.tenant.label})` : ''} as a new version?\nChanged files: ${files.join(', ')}`,
           p, { version, comment });
+        await recheckBeforeUpload(ctx.config, id, current, { download: () => downloadIflow(api.client, id), locked: lockOf(api.client, id) });
         await uploadIflow(api.client, id, withVersion(zipFolder(local.dir), v.version), v.comment);
         const info = await getIflow(api.client, id);
         ctx.workspace.updatePulledState(api.tenant.name, { iflowId: id, packageId: info.packageId, version: v.version }, await downloadIflow(api.client, id), local.dir);
@@ -299,6 +319,8 @@ export function registerTenantWriteTools(server: McpServer) {
           ? proposal(zipVersion(current), describe(iflowFromZip(pulled.zip), { maxLen: 0 }), describe(iflowFromZip(current), { maxLen: 0 }))
           : proposal(zipVersion(current));
         const v = await askVersion(server, ctx.config, api.tenant, `Record ${iflow} on tenant "${api.tenant.name}" as a new version (its current content, unchanged)?`, p, { version, comment });
+        // the content to record is what was shown; a designer save during the dialog would be reverted by re-uploading it
+        await recheckBeforeUpload(ctx.config, iflow, current, { download: () => downloadIflow(api.client, iflow), locked: lockOf(api.client, iflow) });
         await uploadIflow(api.client, iflow, withVersion(current, v.version), v.comment);
         // the local copy follows only if it holds no unpushed work
         const localDir = pulled && !localChanges(pulled.state.dir, pulled.zip).filter((f) => f !== 'META-INF/MANIFEST.MF').length ? pulled.state.dir : undefined;

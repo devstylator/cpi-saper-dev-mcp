@@ -35,6 +35,7 @@ const ConfigSchema = z.object({
   timeouts: z.object({ deploySeconds: z.number().int().positive().default(180) }).strict().default({ deploySeconds: 180 }),
   versioning: z.object({ rules: z.string().optional() }).strict().default({}),
   unattendedTestMode: z.boolean().default(false),
+  recheckBeforeUpload: z.boolean().default(true),
 }).strict();
 
 export interface TenantConfig {
@@ -79,6 +80,8 @@ export interface Config {
    * used as given, so agents can test the server on their own. Not for real development.
    */
   unattendedTestMode: boolean;
+  /** check the tenant (content unchanged, not locked) again after the version dialog, right before the upload */
+  recheckBeforeUpload: boolean;
 }
 
 export class ConfigError extends Error {}
@@ -171,6 +174,7 @@ export function parseConfig(raw: unknown, path: string, { cwd = process.cwd(), h
     timeouts: c.timeouts,
     versioning: { ...(c.versioning.rules !== undefined ? { rules: abs(c.versioning.rules) } : {}) },
     unattendedTestMode: c.unattendedTestMode,
+    recheckBeforeUpload: c.recheckBeforeUpload,
   };
 }
 

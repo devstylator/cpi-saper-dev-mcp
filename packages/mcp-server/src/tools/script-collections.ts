@@ -13,6 +13,7 @@ import { context, tenantApi } from '../context.js';
 import { toolError, toolResult } from '../result.js';
 import { assertMayChange, audit, confirmAction, Declined } from '../safety.js';
 import { askVersion, recordVersion } from '../versioning.js';
+import { recheckBeforeUpload } from './tenant-write.js';
 
 const tenantArg = z.string().optional().describe('Tenant name from the configuration; default: defaultTenant');
 const idArg = z.string().describe('Script collection Id');
@@ -132,6 +133,10 @@ export function registerScriptCollectionTools(server: McpServer) {
         const p = collectionProposal(zipVersion(current), files);
         const v = await askVersion(server, ctx.config, api.tenant, `Push script collection ${id} to tenant "${api.tenant.name}" as a new version?\nChanged files: ${files.join(', ')}`,
           p, { version, comment });
+        await recheckBeforeUpload(ctx.config, id, current, {
+          download: () => downloadScriptCollection(api.client, id),
+          locked: async () => (await designLocks(api.client)).find((l) => l.artifactId === id),
+        });
         await uploadScriptCollection(api.client, id, withCollectionVersion(zipFolder(dir), v.version));
         const info = await getScriptCollection(api.client, id);
         const after = await downloadScriptCollection(api.client, id);

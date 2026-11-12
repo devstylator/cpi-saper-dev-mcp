@@ -263,3 +263,32 @@ test('templates_list finds entries by words; a call failing the same way three t
   assert.match(fails[2]!.text, /This exact call failed this way 3 times in a row/);
   await client.close();
 });
+
+test('recheckBeforeUpload: a change or a designer lock that came while the user was confirming stops the upload', async () => {
+  const { recheckBeforeUpload } = await import('../dist/tools/tenant-write.js');
+  const { zipSync } = await import('fflate');
+  const zip = (iflw: string, params = 'a=1') => zipSync({ 'src/main/resources/x.iflw': new TextEncoder().encode(iflw), 'src/main/resources/parameters.prop': new TextEncoder().encode(params) });
+  const seen = zip('<flow/>');
+  const on = { recheckBeforeUpload: true, unattendedTestMode: false };
+  const tenant = (now: Uint8Array, lock?: { lockedBy?: string }) => {
+    const calls: string[] = [];
+    return { calls, io: { download: async () => { calls.push('download'); return now; }, locked: async () => { calls.push('locks'); return lock; } } };
+  };
+
+  const same = tenant(zip('<flow/>'));
+  await recheckBeforeUpload(on, 'Flow', seen, same.io);
+  assert.deepEqual(same.calls, ['locks', 'download'], 'nothing changed: both checks ran and passed');
+
+  await assert.rejects(recheckBeforeUpload(on, 'Flow', seen, tenant(zip('<flow changed="1"/>')).io),
+    /Flow changed on the tenant while you were confirming \(src\/main\/resources\/x\.iflw\); nothing was uploaded/);
+  await assert.rejects(recheckBeforeUpload(on, 'Flow', seen, tenant(zip('<flow/>', 'a=2')).io),
+    /changed on the tenant while you were confirming \(src\/main\/resources\/parameters\.prop\)/, 'a "Configure" counts too');
+  await assert.rejects(recheckBeforeUpload(on, 'Flow', seen, tenant(zip('<flow/>'), { lockedBy: 'S0001' }).io),
+    /Flow was opened in the designer by S0001 while you were confirming; nothing was uploaded/);
+
+  for (const config of [{ recheckBeforeUpload: false, unattendedTestMode: false }, { recheckBeforeUpload: true, unattendedTestMode: true }]) {
+    const off = tenant(zip('<flow changed="1"/>'));
+    await recheckBeforeUpload(config, 'Flow', seen, off.io);
+    assert.deepEqual(off.calls, [], 'switched off, or no dialog (unattendedTestMode): no extra calls');
+  }
+});
