@@ -3,7 +3,7 @@
 All notable changes of the `cpi-saper-dev-mcp` server. Versions follow [semantic versioning](https://semver.org/);
 before 1.0, names and behaviour may still change between versions.
 
-## Unreleased
+## 0.9.0-beta.5 (2026-11-12)
 
 ### Fixed
 
