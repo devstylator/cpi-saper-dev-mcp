@@ -258,8 +258,11 @@ git config diff.cpi.textconv "npx -y cpi-saper-dev-mcp@beta textconv"
 - Node.js 22 or later.
 - A Cloud Integration tenant (a BTP trial works) and two service keys of the *Process Integration Runtime*
   service: plan `api` (OData API) and plan `integration-flow` (calling deployed iFlows).
-- **Optional, for running Groovy scripts on the tenant:** the script runner iFlow from
-  [devstylator/CPI_Iflow_GroovyScriptExe](https://github.com/devstylator/CPI_Iflow_GroovyScriptExe) deployed on a development tenant.
+- **Optional, for running Groovy scripts (`script_run`):** the script runner iFlow from
+  [devstylator/CPI_Iflow_GroovyScriptExe](https://github.com/devstylator/CPI_Iflow_GroovyScriptExe), deployed either
+  on your development tenant or on a separate tenant set aside for it (for example another trial), so script runs
+  stay off the development tenant's runtime and message monitor. A runner on another tenant needs that tenant's
+  `integration-flow` service key; `scriptRunner` in [docs/CONFIGURATION.md](docs/CONFIGURATION.md) shows both forms.
   Its API is described in [docs/script-runner.openapi.yaml](docs/script-runner.openapi.yaml). The runner executes
   any code it receives, so never deploy it on test or production tenants.
 
