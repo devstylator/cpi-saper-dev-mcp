@@ -3,6 +3,15 @@
 All notable changes of the `cpi-saper-dev-mcp` server. Versions follow [semantic versioning](https://semver.org/);
 before 1.0, names and behaviour may still change between versions.
 
+## Unreleased
+
+### Added
+
+- `scriptRunner` can point to a runner on another tenant: `{ "url": "<full endpoint URL>", "key": "<that tenant's
+  integration-flow service key>" }`, so script runs stay off the development tenant (for example on a separate
+  trial). The path form (`"/v2/test/script"`, also `{ "path": … }`) keeps running on the tenant itself.
+  `cpi_tenants` and `script_run` (`ranOn`) show where scripts run.
+
 ## 0.9.0-beta.5 (2026-11-12)
 
 ### Fixed

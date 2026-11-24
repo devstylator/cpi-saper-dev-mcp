@@ -128,12 +128,12 @@ test('script runner client: request format and result', async () => {
   }) as typeof fetch;
   const script = 'import com.sap.it.script.v2.api.Message\nMessage processData(Message m) { m }';
   assert.equal(groovyVersionOf(script), 2);
-  const r = await runScript(new CpiClient(key, fake), '/v2/test/script', { script, body: 'in', headers: { H: '1' }, function: 'other' });
+  const r = await runScript(new CpiClient(key, fake), 'https://rt.example.com/http/v2/test/script', { script, body: 'in', headers: { H: '1' }, function: 'other' });
   assert.equal(sent[0]!.url, 'https://rt.example.com/http/v2/test/script');
   assert.equal(sent[0]!.headers['groovy-version'], '2');
   assert.equal(Buffer.from(sent[0]!.body.inputParams!, 'base64').toString(), 'runnerFunction=other');
   assert.deepEqual([r.ok, r.body, r.console, r.messageLogId, r.delta?.headers.set], [true, '{"x":1}', 'hi\n', 'M1', { A: '1' }]);
-  await assert.rejects(runScript(new CpiClient(key, fake), '/x', { script, headers: { 'A=B': '1' } }), /cannot pass ";" or "="/);
+  await assert.rejects(runScript(new CpiClient(key, fake), 'https://rt.example.com/http/x', { script, headers: { 'A=B': '1' } }), /cannot pass ";" or "="/);
 });
 
 const EMPTY = readFileSync(locateIflow('empty', FIXTURES).iflwPath, 'utf8');

@@ -57,6 +57,19 @@ export function tenantRuntime(config: Config, name?: string): { tenant: TenantCo
   return { tenant, client: clientFor(tenant.runtimeKey) };
 }
 
+/**
+ * Where script_run sends a script and with which client: the runner on this tenant (runtime host of runtimeKey +
+ * "/http" + path), or a runner on another tenant (its URL, called with that tenant's own key)
+ */
+export function scriptRunnerOf(tenant: TenantConfig): { url: string; client: CpiClient; where: string } {
+  const r = tenant.scriptRunner;
+  if (!r) throw new Error(`tenant "${tenant.name}" has no "scriptRunner" configured (the script runner iFlow: its path on this tenant, or the URL and key of a runner on another tenant)`);
+  if (r.on === 'other tenant') return { url: r.url, client: clientFor(r.key), where: `runner on another tenant (${new URL(r.url).host})` };
+  if (!tenant.runtimeKey) throw new Error(`tenant "${tenant.name}" has no "runtimeKey" (service key with plan integration-flow), which calls the runner on this tenant`);
+  const client = clientFor(tenant.runtimeKey);
+  return { url: `${client.key.url}/http${r.path}`, client, where: 'runner on this tenant' };
+}
+
 export function catalogOf(config: Config): Catalog {
   return config.catalog ? loadCatalog(config.catalog) : loadCatalog();
 }

@@ -70,6 +70,22 @@ test('script runner only on development tenants; defaultTenant must exist', () =
   assert.throws(() => loadConfig(project('{ not json')), /not valid JSON/);
 });
 
+test('scriptRunner: a path on this tenant (as before, or as an object), or the URL and key of a runner on another tenant', () => {
+  const dev = (scriptRunner: unknown) => ({ tenants: { t: { apiKey: 'k', role: 'development', scriptRunner } } });
+  const runner = (r: unknown) => loadConfig(project(dev(r))).tenants.t!.scriptRunner;
+  assert.deepEqual(runner('/v2/test/script'), { on: 'this tenant', path: '/v2/test/script' });
+  assert.deepEqual(runner({ path: '/v2/test/script' }), { on: 'this tenant', path: '/v2/test/script' });
+  const other = runner({ url: 'https://demo.example.com/http/v2/test/script/', key: 'keys/demo-runtime.json' });
+  assert.equal(other?.on, 'other tenant');
+  assert.ok(other?.on === 'other tenant' && other.url === 'https://demo.example.com/http/v2/test/script' && /\/\.cpi\/keys\/demo-runtime\.json$/.test(other.key), 'url without trailing slash, key next to the configuration');
+  assert.throws(() => runner({ url: 'https://demo.example.com/http/x' }), /"url" needs "key"/);
+  assert.throws(() => runner({ path: '/x', key: 'k.json' }), /"key" goes with "url"/);
+  assert.throws(() => runner({ path: '/x', url: 'https://demo.example.com/http/x', key: 'k' }), /give either "path"/);
+  assert.throws(() => runner({}), /give either "path"/);
+  assert.throws(() => runner({ url: 'http://demo.example.com/http/x', key: 'k' }), /scriptRunner/);
+  assert.throws(() => runner({ url: 'https://demo.example.com/http/x', key: 'k', password: 'p' }), /scriptRunner/);
+});
+
 test('selectTenant: named, default, or a clear error', () => {
   const c = loadConfig(project({ tenants: { a: { apiKey: 'k' }, b: { apiKey: 'k' } } }));
   assert.equal(selectTenant(c, 'b').name, 'b');

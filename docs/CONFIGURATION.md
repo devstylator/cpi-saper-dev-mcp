@@ -27,7 +27,7 @@ The first one found is used:
 | `runtimeKey` | Path to the service key JSON (plan `integration-flow`): calling deployed iFlows (`cpi_send_message`, the script runner) | optional; without it those tools are unavailable |
 | `deploy` | `api`: the agent deploys and waits for the result. `manual`: the agent pushes and saves a version, then asks you to deploy in the designer and continues when you confirm (useful on BTP trial tenants, where API deploys often fail for lack of resources) | `api` |
 | `allowedPackages` | Packages the agent may change, by ID or display name, `*` as wildcard (for example `["Z01*"]`). Other packages stay read-only even on a development tenant | all |
-| `scriptRunner` | Path of the [script runner iFlow](https://github.com/devstylator/CPI_Iflow_GroovyScriptExe) on this tenant (for example `/v2/test/script`). Without it, `script_run` is off. Only allowed with `role: development` | off |
+| `scriptRunner` | Where `script_run` runs scripts: the [script runner iFlow](https://github.com/devstylator/CPI_Iflow_GroovyScriptExe). On this tenant: its path, `"/v2/test/script"` or `{ "path": "/v2/test/script" }`, called with `runtimeKey`. On another tenant (for example a separate trial, so script runs stay off this tenant's runtime and message monitor): `{ "url": "https://<runtime host>/http/v2/test/script", "key": "keys/runner-runtime.json" }`, where `key` is that tenant's service key with plan `integration-flow`. Without it, `script_run` is off. Only allowed with `role: development` | off |
 | `guidelines` | Before a deploy: `block` runs SAP's design guideline check and stops on new High findings (High findings the deployed version does not already have; everything counts as new when the iFlow is not deployed); `warn` runs it and reports; `off` skips it | `warn` |
 | `login` | `client`: the agent works as the service key's technical client (client credentials); the tenant records the client id as the one who changed content. `user`: you log in with your own SAP account (`cpi_login`), and the tenant records you; needs a service instance that allows the authorization code grant (see below) | `client` |
 | `loginPort` | Local port SAP's login page returns to (`http://localhost:<port>/callback`); must match the instance's `redirect-uris` | 8765 |
@@ -71,6 +71,15 @@ The first one found is used:
     "team-dev": {
       "role": "readonly",
       "apiKey": "~/keys/team-dev-api.json"
+    },
+    "demo": {
+      "label": "Development tenant whose scripts run on a separate trial",
+      "role": "development",
+      "apiKey": "keys/demo-api.json",
+      "scriptRunner": {
+        "url": "https://<runner tenant>.it-cpitrial03-rt.cfapps.ap21.hana.ondemand.com/http/v2/test/script",
+        "key": "keys/runner-runtime.json"
+      }
     }
   },
   "experimental": { "trace": true }

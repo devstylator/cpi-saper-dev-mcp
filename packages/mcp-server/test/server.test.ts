@@ -292,3 +292,19 @@ test('recheckBeforeUpload: a change or a designer lock that came while the user 
     assert.deepEqual(off.calls, [], 'switched off, or no dialog (unattendedTestMode): no extra calls');
   }
 });
+
+test('cpi_tenants shows where scripts run: this tenant, or another tenant with its key state (never key values)', async () => {
+  const root = projectWithConfig();
+  writeFileSync(join(root, '.cpi', 'config.json'), JSON.stringify({ tenants: {
+    a: { apiKey: 'keys/api.json', role: 'development', scriptRunner: '/v2/test/script' },
+    b: { apiKey: 'keys/api.json', role: 'development', scriptRunner: { url: 'https://demo.example.com/http/v2/test/script', key: 'keys/demo-runtime.json' } },
+  } }));
+  const client = await connect(root, [root]);
+  const r = JSON.parse((await tenants(client)).text);
+  await client.close();
+  const runner = (n: string) => r.tenants.find((t: { name: string }) => t.name === n).scriptRunner;
+  assert.deepEqual(runner('a'), { on: 'this tenant', path: '/v2/test/script', key: 'runtimeKey' });
+  assert.equal(runner('b').on, 'other tenant');
+  assert.equal(runner('b').url, 'https://demo.example.com/http/v2/test/script');
+  assert.equal(runner('b').key.status, 'missing');
+});

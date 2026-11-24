@@ -3,10 +3,10 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
-  applyEdits, DEPLOY_CHECKS, describe, setParams, type EditEffects, diffIflows, findElement, groovyVersionOf, loadServiceKey, mappingText, parseIflw, readMapping,
-  resourceRefs, runScript, runXslt, scriptCollectionRefs, selectTenant, serializeIflw, validate, CpiClient, type EditOp,
+  applyEdits, DEPLOY_CHECKS, describe, setParams, type EditEffects, diffIflows, findElement, groovyVersionOf, mappingText, parseIflw, readMapping,
+  resourceRefs, runScript, runXslt, scriptCollectionRefs, selectTenant, serializeIflw, validate, type EditOp,
 } from '@cpi-saper-dev-mcp/core';
-import { catalogOf, context, localIflow, type ToolContext } from '../context.js';
+import { catalogOf, context, localIflow, scriptRunnerOf, type ToolContext } from '../context.js';
 import { collectionIssues, syncCollectionRequirements } from '../collections.js';
 import { toolError, toolResult } from '../result.js';
 
@@ -274,8 +274,8 @@ export function registerEditCheckTools(server: McpServer) {
     {
       title: 'Run a Groovy script on the tenant',
       description:
-        'Run one Groovy script on a development tenant without deploying it, through the script runner iFlow ' +
-        '(configured as "scriptRunner"). Script step 2.x (Groovy 4) is used when the script imports ' +
+        'Run one Groovy script without deploying it, through the script runner iFlow configured as "scriptRunner" ' +
+        'of a development tenant (on that tenant, or on another tenant set aside for it). Script step 2.x (Groovy 4) is used when the script imports ' +
         'com.sap.it.script.v2.api, else 1.x (Groovy 2.4); override with groovyVersion. Returns the resulting body, ' +
         'printed output, what the script set or removed in headers and properties, and the error with its line. ' +
         'Header/property names and values cannot contain ";" or "=". Only one file: shared script code must be inlined. ' +
@@ -300,12 +300,11 @@ export function registerEditCheckTools(server: McpServer) {
         const ctx = await context(server);
         const tenant = selectTenant(ctx.config, args.tenant);
         if (tenant.role !== 'development') throw new Error(`tenant "${tenant.name}" is ${tenant.role}: scripts run only on development tenants`);
-        if (!tenant.scriptRunner) throw new Error(`tenant "${tenant.name}" has no "scriptRunner" configured (path of the script runner iFlow)`);
-        if (!tenant.runtimeKey) throw new Error(`tenant "${tenant.name}" has no "runtimeKey" (service key with plan integration-flow)`);
+        const runner = scriptRunnerOf(tenant);
         const file = fileArg(ctx, args, 'script');
         const script = readFileSync(file, 'utf8');
         const body = args.bodyFile ? readFileSync(isAbsolute(args.bodyFile) ? args.bodyFile : resolve(ctx.workspace.root, args.bodyFile)) : args.body;
-        const r = await runScript(new CpiClient(loadServiceKey(tenant.runtimeKey)), tenant.scriptRunner, {
+        const r = await runScript(runner.client, runner.url, {
           script,
           ...(body !== undefined ? { body: typeof body === 'string' ? body : new Uint8Array(body) } : {}),
           ...(args.headers ? { headers: args.headers } : {}),
@@ -313,7 +312,7 @@ export function registerEditCheckTools(server: McpServer) {
           ...(args.function ? { function: args.function } : {}),
           groovyVersion: args.groovyVersion ?? groovyVersionOf(script),
         });
-        const data = { script: relative(ctx.workspace.root, file), tenant: tenant.name, ...r, body: clip(r.body, ctx.config.output.maxChars) };
+        const data = { script: relative(ctx.workspace.root, file), tenant: tenant.name, ranOn: runner.where, ...r, body: clip(r.body, ctx.config.output.maxChars) };
         return { ...toolResult(data), ...(r.ok ? {} : { isError: true }) };
       } catch (e) {
         return toolError(e);

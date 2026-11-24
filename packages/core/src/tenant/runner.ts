@@ -36,7 +36,8 @@ const unb64 = (v: unknown) => (typeof v === 'string' ? Buffer.from(v, 'base64').
 /** Script step generation a script is written for: the v2 Message API marks script step 2.x */
 export const groovyVersionOf = (script: string): 1 | 2 => (/com\.sap\.it\.script\.v2\.api/.test(script) ? 2 : 1);
 
-export async function runScript(client: CpiClient, runnerPath: string, input: ScriptRunInput): Promise<ScriptRunResult> {
+/** runnerUrl: the runner's full endpoint URL (https://<runtime host>/http/<path>); client: authenticated for that host */
+export async function runScript(client: CpiClient, runnerUrl: string, input: ScriptRunInput): Promise<ScriptRunResult> {
   const headers = input.headers ?? {};
   const properties = { ...(input.properties ?? {}), ...(input.function ? { runnerFunction: input.function } : {}) };
   // the runner passes headers and properties as "Name=Value;Name=Value"
@@ -45,9 +46,8 @@ export async function runScript(client: CpiClient, runnerPath: string, input: Sc
   }
   const pairs = (m: Record<string, string>) => b64(Object.entries(m).map(([k, v]) => `${k}=${v}`).join(';'));
   const groovyVersion = input.groovyVersion ?? groovyVersionOf(input.script);
-  const url = `${client.key.url}/http${runnerPath}`;
   const started = Date.now();
-  const res = await client.request('POST', url, {
+  const res = await client.request('POST', runnerUrl, {
     body: JSON.stringify({ inputScript: b64(input.script), inputPayload: b64(input.body ?? ''), inputHdrs: pairs(headers), inputParams: pairs(properties) }),
     headers: { 'Content-Type': 'application/json', 'groovy-version': String(groovyVersion) },
   });
@@ -56,8 +56,8 @@ export async function runScript(client: CpiClient, runnerPath: string, input: Sc
   try {
     out = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    if (res.status === 404) throw new Error(`script runner not found at ${runnerPath} (HTTP 404): is the runner iFlow deployed, and is "scriptRunner" in the configuration its path?`);
-    throw new HttpError('POST', runnerPath, res.status, text);
+    if (res.status === 404) throw new Error(`script runner not found at ${runnerUrl} (HTTP 404): is the runner iFlow deployed there, and does "scriptRunner" in the configuration point to it?`);
+    throw new HttpError('POST', runnerUrl, res.status, text);
   }
   const mpl = mplIdOf(res, text);
   const error = out.error ? unb64(out.error) : undefined;

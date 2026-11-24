@@ -15,7 +15,16 @@ const TenantSchema = z.object({
   runtimeKey: z.string().min(1).optional(),
   deploy: z.enum(['api', 'manual']).default('api'),
   allowedPackages: z.array(z.string().min(1)).min(1).optional(),
-  scriptRunner: z.string().startsWith('/').optional(),
+  // the script runner iFlow: its path on this tenant ("/v2/test/script"), or an object: { "path" } on this tenant,
+  // or { "url", "key" } on another tenant (e.g. a separate trial), so script runs stay off this tenant's runtime
+  scriptRunner: z.union([
+    z.string().startsWith('/'),
+    z.object({
+      path: z.string().startsWith('/').optional(),
+      url: z.string().startsWith('https://').optional(),
+      key: z.string().min(1).optional(),
+    }).strict(),
+  ]).optional(),
   guidelines: z.enum(['block', 'warn', 'off']).default('warn'),
   login: z.enum(['client', 'user']).default('client'),
   loginPort: z.number().int().min(1024).max(65535).default(8765),
@@ -38,6 +47,14 @@ const ConfigSchema = z.object({
   recheckBeforeUpload: z.boolean().default(true),
 }).strict();
 
+/**
+ * Where script_run sends scripts: the runner iFlow on this tenant (its path; called with runtimeKey), or a runner on
+ * another tenant (its full URL; called with that tenant's own service key, plan integration-flow)
+ */
+export type ScriptRunnerConfig =
+  | { on: 'this tenant'; path: string }
+  | { on: 'other tenant'; url: string; key: string };
+
 export interface TenantConfig {
   name: string;
   label?: string;
@@ -49,7 +66,7 @@ export interface TenantConfig {
   deploy: 'api' | 'manual';
   /** undefined = all packages */
   allowedPackages?: string[];
-  scriptRunner?: string;
+  scriptRunner?: ScriptRunnerConfig;
   guidelines: 'block' | 'warn' | 'off';
   /** client: the service key's technical client (client credentials); user: the user logs in (cpi_login) */
   login: 'client' | 'user';
@@ -138,6 +155,18 @@ export function parseConfig(raw: unknown, path: string, { cwd = process.cwd(), h
   const tenants: Record<string, TenantConfig> = {};
   for (const [name, t] of Object.entries(c.tenants)) {
     if (t.scriptRunner && t.role !== 'development') problems.push(`tenants.${name}.scriptRunner: only allowed with role "development"`);
+    let runner: ScriptRunnerConfig | undefined;
+    const r = t.scriptRunner;
+    if (typeof r === 'string') runner = { on: 'this tenant', path: r };
+    else if (r) {
+      const where = `tenants.${name}.scriptRunner`;
+      if ((r.path === undefined) === (r.url === undefined)) problems.push(`${where}: give either "path" (the runner on this tenant) or "url" and "key" (a runner on another tenant)`);
+      else if (r.path !== undefined) {
+        if (r.key !== undefined) problems.push(`${where}: "key" goes with "url"; a runner on this tenant ("path") is called with runtimeKey`);
+        else runner = { on: 'this tenant', path: r.path };
+      } else if (r.key === undefined) problems.push(`${where}: "url" needs "key", the service key (plan integration-flow) of the tenant the runner runs on`);
+      else runner = { on: 'other tenant', url: r.url!.replace(/\/+$/, ''), key: abs(r.key) };
+    }
     tenants[name] = {
       name,
       ...(t.label !== undefined && { label: t.label }),
@@ -146,7 +175,7 @@ export function parseConfig(raw: unknown, path: string, { cwd = process.cwd(), h
       ...(t.runtimeKey !== undefined && { runtimeKey: abs(t.runtimeKey) }),
       deploy: t.deploy,
       ...(t.allowedPackages !== undefined && { allowedPackages: t.allowedPackages }),
-      ...(t.scriptRunner !== undefined && { scriptRunner: t.scriptRunner }),
+      ...(runner !== undefined && { scriptRunner: runner }),
       guidelines: t.guidelines,
       login: t.login,
       loginPort: t.loginPort,

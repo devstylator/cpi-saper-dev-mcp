@@ -25,7 +25,9 @@ export function describeConfig(config: Config) {
       role: t.role,
       deploy: t.deploy,
       allowedPackages: t.allowedPackages ?? 'all',
-      scriptRunner: t.scriptRunner ?? null,
+      scriptRunner: !t.scriptRunner ? null
+        : t.scriptRunner.on === 'this tenant' ? { on: 'this tenant', path: t.scriptRunner.path, key: 'runtimeKey' }
+          : { on: 'other tenant', url: t.scriptRunner.url, key: checkServiceKey(t.scriptRunner.key) },
       guidelines: t.guidelines,
       login: t.login === 'user' ? userLogin(config, t) : 'service key (technical client)',
       apiKey: checkServiceKey(t.apiKey),
